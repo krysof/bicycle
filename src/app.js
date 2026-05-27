@@ -1,6 +1,6 @@
 import { neighbors } from "./data/neighbors.js";
 import { answersFromMode, buildConfig, pickRoute } from "./game/difficulty.js";
-import { tryDeliver, updatePlayer } from "./game/delivery.js";
+import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
 import { createInitialState } from "./state/gameState.js";
@@ -44,7 +44,11 @@ export class App {
     this.state.isPlaying = false;
     this.state.isPaused = false;
     this.state.keys.clear();
+    this.state.delivery = null;
+    this.state.comic = null;
+    this.state.houseReaction = null;
     this.hud.hide();
+    this.updateComic();
     this.screens.home(loadRecord());
   }
 
@@ -53,6 +57,9 @@ export class App {
     this.state.config = buildConfig(this.state.answers);
     this.state.route = pickRoute(neighbors, this.state.config);
     this.state.delivered = [];
+    this.state.delivery = null;
+    this.state.comic = null;
+    this.state.houseReaction = null;
     this.state.player = { x: -4320, y: -3240, facing: 1, headingX: 1, headingY: 0, headingAngle: 0 };
     this.startGame();
   }
@@ -70,9 +77,8 @@ export class App {
 
   deliver() {
     if (!this.state.isPlaying || this.state.isPaused) return;
-    const result = tryDeliver(this.state);
+    requestDelivery(this.state);
     this.hud.update(this.state);
-    if (result.completed) window.setTimeout(() => this.showSummary(false), 550);
   }
 
   togglePause() {
@@ -81,10 +87,25 @@ export class App {
     this.hud.update(this.state);
   }
 
+  updateComic() {
+    const el = document.getElementById("comicBubble");
+    if (!el) return;
+    if (this.state.comic) {
+      el.textContent = this.state.comic.text;
+      el.className = `comic-bubble ${this.state.comic.tone || ""}`;
+    } else {
+      el.className = "comic-bubble hidden";
+    }
+  }
+
   showSummary(early) {
     this.state.isPlaying = false;
     this.state.keys.clear();
+    this.state.delivery = null;
+    this.state.comic = null;
+    this.state.houseReaction = null;
     this.hud.hide();
+    this.updateComic();
     const count = this.state.delivered.length;
     const record = loadRecord();
     record.lastSummary = {
@@ -102,7 +123,10 @@ export class App {
     this.state.lastTime = now;
     this.state.floatTime += dt;
     updatePlayer(this.state, dt);
+    const deliveryResult = updateDelivery(this.state, dt);
+    if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 650);
     this.renderer.render(this.state);
+    this.updateComic();
     requestAnimationFrame((time) => this.loop(time));
   }
 }

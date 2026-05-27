@@ -12,6 +12,9 @@ export function createInitialState() {
     message: "阿铃：今天见到你真高兴。",
     lastTime: performance.now(),
     floatTime: 0,
+    delivery: null,
+    comic: null,
+    houseReaction: null,
   };
 }
 

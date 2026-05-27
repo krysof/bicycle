@@ -89,6 +89,8 @@ export class ThreeRenderer {
     this.targetRing = null;
     this.targetBeam = null;
     this.navigationArrows = [];
+    this.newspaper = null;
+    this.reactionSprite = null;
     this.player = null;
     this.walkParts = {};
     this.bike = null;
@@ -110,6 +112,8 @@ export class ThreeRenderer {
     this.updatePlayer(state);
     this.updateTarget(state);
     this.updateNavigationArrows(state);
+    this.updateProjectile(state);
+    this.updateHouseReaction(state);
     this.updateCamera(state);
     this.updateAnimatedObjects(state.floatTime, state);
     this.renderer.render(this.scene, this.camera);
@@ -125,6 +129,8 @@ export class ThreeRenderer {
     this.addPlayer();
     this.addTargetMarker();
     this.addNavigationArrows();
+    this.addNewspaperProjectile();
+    this.addReactionSprite();
   }
 
   addLights() {
@@ -359,6 +365,8 @@ export class ThreeRenderer {
       }
     }
 
+    this.addCommercialDetails(group, scale, w, d, h, variant);
+
     if (variant === "parking") {
       const pMark = makeCanvasLabel("P", "#ffffff");
       pMark.position.set(0, 0.12, 0.2);
@@ -376,6 +384,63 @@ export class ThreeRenderer {
     const door = new THREE.Mesh(new THREE.BoxGeometry(0.32 * scale, 0.6 * scale, 0.04), mat(trimColor)); door.position.set(0.58 * scale, 0.34 * scale, 0.95 * scale); group.add(door);
     const win = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.3 * scale, 0.035), mat(0xfff4b8, 0.45)); win.position.set(-0.55 * scale, 0.78 * scale, 0.96 * scale); group.add(win);
     const mailbox = new THREE.Mesh(new THREE.BoxGeometry(0.24 * scale, 0.22 * scale, 0.19 * scale), mat(0xdc604c)); mailbox.position.set(1.55 * scale, 0.36 * scale, 1.08 * scale); mailbox.castShadow = true; group.add(mailbox);
+    this.addHomeDetails(group, scale);
+  }
+
+  addHomeDetails(group, scale) {
+    const roofRidge = new THREE.Mesh(new THREE.BoxGeometry(2.2 * scale, 0.08 * scale, 0.08 * scale), mat(0x6d4b3a));
+    roofRidge.position.set(0, 1.98 * scale, 0);
+    roofRidge.rotation.y = Math.PI / 4;
+    group.add(roofRidge);
+
+    const sideWin = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.26 * scale, 0.035), mat(0xe9f7ff, 0.4));
+    sideWin.position.set(-1.18 * scale, 0.82 * scale, 0.18 * scale);
+    sideWin.rotation.y = Math.PI / 2;
+    group.add(sideWin);
+
+    const ac = new THREE.Mesh(new THREE.BoxGeometry(0.32 * scale, 0.2 * scale, 0.16 * scale), mat(0xd8dde0));
+    ac.position.set(-1.25 * scale, 0.58 * scale, -0.45 * scale);
+    ac.castShadow = true;
+    group.add(ac);
+
+    for (const x of [-1.2, 1.05]) {
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * scale, 0.1 * scale, 0.14 * scale, 8), mat(0x9c5c3c));
+      pot.position.set(x * scale, 0.13 * scale, 1.12 * scale);
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.13 * scale, 10, 8), mat(0x5aaa77));
+      leaf.position.set(x * scale, 0.28 * scale, 1.12 * scale);
+      group.add(pot, leaf);
+    }
+
+    const namePlate = new THREE.Mesh(new THREE.BoxGeometry(0.26 * scale, 0.12 * scale, 0.03), mat(0xfff6d7));
+    namePlate.position.set(0.98 * scale, 0.72 * scale, 0.98 * scale);
+    group.add(namePlate);
+  }
+
+  addCommercialDetails(group, scale, w, d, h, variant) {
+    const awningColor = variant === "convenience" ? 0x2f9bdf : variant === "hospital" ? 0xd94a4a : 0xf0b44d;
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(w * 0.75, 0.16 * scale, 0.28 * scale), mat(awningColor));
+    awning.position.set(0, h * 0.48, d / 2 + 0.14 * scale);
+    awning.castShadow = true;
+    group.add(awning);
+
+    if (variant === "hospital") {
+      const crossA = new THREE.Mesh(new THREE.BoxGeometry(0.52 * scale, 0.12 * scale, 0.04), mat(0xd94a4a));
+      const crossB = new THREE.Mesh(new THREE.BoxGeometry(0.12 * scale, 0.52 * scale, 0.04), mat(0xd94a4a));
+      crossA.position.set(-w * 0.32, h + 0.28 * scale, d / 2 + 0.05);
+      crossB.position.copy(crossA.position);
+      group.add(crossA, crossB);
+    }
+
+    const roofUnit = new THREE.Mesh(new THREE.BoxGeometry(0.55 * scale, 0.22 * scale, 0.42 * scale), mat(0xcfd5d8));
+    roofUnit.position.set(w * 0.28, h + 0.32 * scale, -d * 0.12);
+    roofUnit.castShadow = true;
+    group.add(roofUnit);
+
+    for (const x of [-0.42, 0, 0.42]) {
+      const poster = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.32 * scale, 0.035), mat(x === 0 ? 0xfff04a : 0x87d37c));
+      poster.position.set(x * w * 0.5, 0.54 * scale, d / 2 + 0.05);
+      group.add(poster);
+    }
   }
 
   addLandmark(group, landmark) {
@@ -576,6 +641,61 @@ export class ThreeRenderer {
       const pulse = 1 + Math.sin((state.floatTime || 0) * 4 + i) * 0.08;
       arrow.scale.setScalar((1.0 - i * 0.1) * pulse);
     });
+  }
+
+  addNewspaperProjectile() {
+    const group = new THREE.Group();
+    const paper = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.035, 0.28), mat(0xf7f2df));
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.038, 0.045), mat(0x334b6d));
+    band.position.z = 0.01;
+    group.add(paper, band);
+    group.visible = false;
+    this.newspaper = group;
+    this.scene.add(group);
+  }
+
+  addReactionSprite() {
+    this.reactionSprite = makeCanvasLabel("ありがとう!", "#d94a4a");
+    this.reactionSprite.visible = false;
+    this.reactionSprite.scale.set(4.2, 1.25, 1);
+    this.scene.add(this.reactionSprite);
+  }
+
+  updateProjectile(state) {
+    if (!this.newspaper) return;
+    const delivery = state.delivery;
+    if (!delivery?.active) {
+      this.newspaper.visible = false;
+      return;
+    }
+    const t = Math.min(1, delivery.t || 0);
+    const sx = wx(delivery.start.x);
+    const sz = wz(delivery.start.y);
+    const ex = wx(delivery.end.x);
+    const ez = wz(delivery.end.y);
+    this.newspaper.visible = true;
+    this.newspaper.position.set(
+      sx + (ex - sx) * t,
+      0.85 + Math.sin(t * Math.PI) * 3.2,
+      sz + (ez - sz) * t
+    );
+    this.newspaper.rotation.y += 0.32;
+    this.newspaper.rotation.x += 0.18;
+  }
+
+  updateHouseReaction(state) {
+    if (this.reactionSprite) this.reactionSprite.visible = false;
+    this.houseMap.forEach((group) => group.scale.lerp(new THREE.Vector3(1, 1, 1), 0.18));
+    const reaction = state.houseReaction;
+    if (!reaction) return;
+    const group = this.houseMap.get(reaction.id);
+    if (!group) return;
+    const pulse = 1 + Math.sin((state.floatTime || 0) * 18) * 0.045;
+    group.scale.setScalar(pulse);
+    if (this.reactionSprite) {
+      this.reactionSprite.visible = true;
+      this.reactionSprite.position.set(group.position.x, 6.8 + Math.sin((state.floatTime || 0) * 8) * 0.25, group.position.z);
+    }
   }
 
   updatePlayer(state) {

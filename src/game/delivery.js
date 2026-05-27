@@ -1,19 +1,55 @@
 import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS } from "../data/world.js";
 import { currentTarget } from "../state/gameState.js";
 
-export function tryDeliver(state) {
+export function requestDelivery(state) {
   const target = currentTarget(state);
   if (!target) return { completed: true, delivered: false };
 
   const distance = Math.hypot(state.player.x - target.x, state.player.y - target.y);
+  if (state.delivery?.active) return { completed: false, delivered: false, flying: true };
+
   if (distance <= state.config.assistRadius) {
-    state.delivered.push(target.id);
-    state.message = `阿铃：送到了！${target.thanks}`;
-    return { completed: !currentTarget(state), delivered: true };
+    state.delivery = {
+      active: true,
+      t: 0,
+      duration: 0.75,
+      targetId: target.id,
+      targetName: target.name,
+      thanks: target.thanks,
+      start: { x: state.player.x + state.player.headingX * 45, y: state.player.y + state.player.headingY * 45 },
+      end: { x: target.x, y: target.y },
+    };
+    state.comic = { text: "えいっ!", tone: "throw", time: 0.7 };
+    state.message = "阿铃：报纸飞过去了！";
+    return { completed: false, delivered: false, flying: true };
   }
 
+  state.comic = { text: "もう少し近く!", tone: "hint", time: 1.1 };
   state.message = "阿铃：再靠近一点点就可以了。前方发光的房子就是目标。";
   return { completed: false, delivered: false };
+}
+
+export function updateDelivery(state, dt) {
+  if (state.comic) {
+    state.comic.time -= dt;
+    if (state.comic.time <= 0) state.comic = null;
+  }
+  if (state.houseReaction) {
+    state.houseReaction.time -= dt;
+    if (state.houseReaction.time <= 0) state.houseReaction = null;
+  }
+  if (!state.delivery?.active) return { completed: false };
+  state.delivery.t += dt / state.delivery.duration;
+  if (state.delivery.t < 1) return { completed: false };
+
+  const deliveredId = state.delivery.targetId;
+  const thanks = state.delivery.thanks;
+  state.delivered.push(deliveredId);
+  state.houseReaction = { id: deliveredId, time: 1.3 };
+  state.comic = { text: "ドン! ありがとう!", tone: "success", time: 1.4 };
+  state.message = `阿铃：送到了！${thanks}`;
+  state.delivery = null;
+  return { completed: !currentTarget(state), delivered: true };
 }
 
 export function updatePlayer(state, dt) {
