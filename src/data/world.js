@@ -19,17 +19,26 @@ function sceneToWorld(x, z) {
 function generateDecorHouseObstacles() {
   const obstacles = [];
   let idx = 0;
-  for (let gx = -96; gx <= 96; gx += 16) {
-    for (let gz = -72; gz <= 72; gz += 16) {
-      if (Math.abs(gx) < 8 || Math.abs(gz) < 8) continue;
-      if ((idx + Math.floor(gx)) % 3 === 0) {
-        idx += 1;
-        continue;
-      }
-      const x = gx + ((idx * 7) % 7) - 3;
-      const z = gz + ((idx * 5) % 6) - 3;
-      const p = sceneToWorld(x, z);
-      obstacles.push(rect(`decor-house-${idx}`, p.x, p.y, 400, 350, "house"));
+  // 与 ThreeRenderer.addProceduralTown 的日式住宅区排列保持一致。
+  for (const roadZ of [-72, -48, -24, 0, 24, 48, 72]) {
+    for (let x = -104; x <= 104; x += 22) {
+      if (Math.abs(x + 102) < 9 || Math.abs(x) < 7) continue;
+      const side = idx % 2 ? -1 : 1;
+      const z = roadZ + side * 9.2;
+      if (z < -82 || z > 82) continue;
+      const p = sceneToWorld(x + ((idx % 3) - 1) * 1.2, z);
+      obstacles.push(rect(`residential-h-${idx}`, p.x, p.y, 360, 285, "house"));
+      idx += 1;
+    }
+  }
+  for (const roadX of [-96, -64, -32, 32, 64, 96]) {
+    for (let z = -76; z <= 76; z += 24) {
+      if (Math.abs(z) < 8) continue;
+      const side = idx % 2 ? -1 : 1;
+      const x = roadX + side * 9.0;
+      if (x < -108 || x > 108) continue;
+      const p = sceneToWorld(x, z + ((idx % 3) - 1) * 1.0);
+      obstacles.push(rect(`residential-v-${idx}`, p.x, p.y, 320, 360, "house"));
       idx += 1;
     }
   }

@@ -172,31 +172,67 @@ export class ThreeRenderer {
     const roofColors = [0xc85f4d, 0xd59a34, 0x4f91d5, 0x5aaa77, 0xb86695, 0x9c7556];
     const wallColors = [0xffe3c2, 0xe8f3ff, 0xe7f4d6, 0xffe8ef, 0xfff0c8, 0xe7f6f4];
     let idx = 0;
-    for (let gx = -96; gx <= 96; gx += 16) {
-      for (let gz = -72; gz <= 72; gz += 16) {
-        if (Math.abs(gx) < 8 || Math.abs(gz) < 8) continue;
-        if ((idx + Math.floor(gx)) % 3 === 0) { idx += 1; continue; }
-        const x = gx + ((idx * 7) % 7) - 3;
-        const z = gz + ((idx * 5) % 6) - 3;
-        this.addDecorHouse(x, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.08 + (idx % 3) * 0.1);
+    // 日式住宅区排列：住宅沿道路边成排，离人行道有退让，不再像棋盘随机散点。
+    for (const roadZ of [-72, -48, -24, 0, 24, 48, 72]) {
+      for (let x = -104; x <= 104; x += 22) {
+        if (Math.abs(x + 102) < 9 || Math.abs(x) < 7) continue;
+        const side = idx % 2 ? -1 : 1;
+        const z = roadZ + side * 9.2;
+        if (z < -82 || z > 82) continue;
+        this.addResidentialLot(x + ((idx % 3) - 1) * 1.2, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.15 + (idx % 2) * 0.08);
         idx += 1;
       }
     }
 
-    // 大量树木，让地图更像完整社区
-    for (let i = 0; i < 90; i += 1) {
+    for (const roadX of [-96, -64, -32, 32, 64, 96]) {
+      for (let z = -76; z <= 76; z += 24) {
+        if (Math.abs(z) < 8) continue;
+        const side = idx % 2 ? -1 : 1;
+        const x = roadX + side * 9.0;
+        if (x < -108 || x > 108) continue;
+        const lot = this.addResidentialLot(x, z + ((idx % 3) - 1) * 1.0, colorFromIndex(idx, roofColors), colorFromIndex(idx + 1, wallColors), 1.05 + (idx % 3) * 0.06);
+        lot.rotation.y += Math.PI / 2;
+        idx += 1;
+      }
+    }
+
+    // 行道树与院落树木，避开主车道。
+    for (let i = 0; i < 80; i += 1) {
       const x = -108 + ((i * 37) % 216);
       const z = -80 + ((i * 53) % 160);
-      if (Math.abs(x % 32) < 4 || Math.abs(z % 24) < 4) continue;
-      this.addTree(x, z, i % 5 === 0, 0.8 + (i % 4) * 0.08);
+      if (Math.abs(x % 32) < 6 || Math.abs(z % 24) < 7) continue;
+      this.addTree(x, z, i % 5 === 0, 0.75 + (i % 4) * 0.06);
     }
+  }
+
+  addResidentialLot(x, z, roof, wall, scale = 1) {
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    group.rotation.y = ((x + z) % 5) * 0.018;
+
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(7.3, 0.035, 5.6), mat(0xd6e9bf));
+    yard.position.set(0, 0.07, 0);
+    yard.receiveShadow = true;
+    group.add(yard);
+
+    const wallMat = mat(0xf6f0df);
+    for (const [px, pz, w, d] of [[0, -2.75, 7.2, 0.12], [0, 2.75, 7.2, 0.12], [-3.6, 0, 0.12, 5.5], [3.6, 0, 0.12, 5.5]]) {
+      const fence = new THREE.Mesh(new THREE.BoxGeometry(w, 0.28, d), wallMat);
+      fence.position.set(px, 0.22, pz);
+      fence.castShadow = true;
+      group.add(fence);
+    }
+
+    this.addHouseParts(group, roof, wall, 0x76583f, 2.05 * scale);
+    this.scene.add(group);
+    return group;
   }
 
   addHouse(n) {
     const group = new THREE.Group();
     group.position.set(wx(n.x), 0, wz(n.y));
-    this.addHouseParts(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 3.0);
-    const label = makeCanvasLabel(n.name, "#2e6650"); label.position.set(0, 6.2, 0.42); group.add(label);
+    this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 2.65);
+    const label = makeCanvasLabel(n.name, "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
     this.scene.add(group); this.houseMap.set(n.id, group);
   }
@@ -206,14 +242,29 @@ export class ThreeRenderer {
     this.addHouseParts(group, roof, wall, 0x76583f, 2.05); this.scene.add(group);
   }
 
+  addTargetLot(group, roofColor, wallColor, trimColor, scale) {
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.04, 6.8), mat(0xd7ecc2));
+    yard.position.set(0, 0.06, 0.25);
+    yard.receiveShadow = true;
+    group.add(yard);
+    const fenceMat = mat(0xf3ead8);
+    for (const [px, pz, w, d] of [[0, -3.2, 8.4, 0.13], [-4.2, 0.1, 0.13, 6.2], [4.2, 0.1, 0.13, 6.2]]) {
+      const fence = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), fenceMat);
+      fence.position.set(px, 0.22, pz);
+      fence.castShadow = true;
+      group.add(fence);
+    }
+    this.addHouseParts(group, roofColor, wallColor, trimColor, scale);
+  }
+
   addHouseParts(group, roofColor, wallColor, trimColor, scale) {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.75 * scale, 1.12 * scale, 1.38 * scale), mat(wallColor));
-    body.position.y = 0.62 * scale; body.castShadow = true; body.receiveShadow = true; group.add(body);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.38 * scale, 0.75 * scale, 4), mat(roofColor));
-    roof.position.y = 1.5 * scale; roof.rotation.y = Math.PI / 4; roof.castShadow = true; group.add(roof);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.32 * scale, 0.6 * scale, 0.04), mat(trimColor)); door.position.set(0.42 * scale, 0.32 * scale, 0.72 * scale); group.add(door);
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.3 * scale, 0.035), mat(0xfff4b8, 0.45)); win.position.set(-0.38 * scale, 0.72 * scale, 0.73 * scale); group.add(win);
-    const mailbox = new THREE.Mesh(new THREE.BoxGeometry(0.24 * scale, 0.22 * scale, 0.19 * scale), mat(0xdc604c)); mailbox.position.set(1.15 * scale, 0.36 * scale, 0.65 * scale); mailbox.castShadow = true; group.add(mailbox);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.35 * scale, 1.18 * scale, 1.85 * scale), mat(wallColor));
+    body.position.y = 0.66 * scale; body.castShadow = true; body.receiveShadow = true; group.add(body);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.75 * scale, 0.82 * scale, 4), mat(roofColor));
+    roof.position.y = 1.58 * scale; roof.rotation.y = Math.PI / 4; roof.castShadow = true; group.add(roof);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.32 * scale, 0.6 * scale, 0.04), mat(trimColor)); door.position.set(0.58 * scale, 0.34 * scale, 0.95 * scale); group.add(door);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.3 * scale, 0.035), mat(0xfff4b8, 0.45)); win.position.set(-0.55 * scale, 0.78 * scale, 0.96 * scale); group.add(win);
+    const mailbox = new THREE.Mesh(new THREE.BoxGeometry(0.24 * scale, 0.22 * scale, 0.19 * scale), mat(0xdc604c)); mailbox.position.set(1.55 * scale, 0.36 * scale, 1.08 * scale); mailbox.castShadow = true; group.add(mailbox);
   }
 
   addLandmark(group, landmark) {
@@ -359,8 +410,8 @@ export class ThreeRenderer {
   }
 
   addTargetMarker() {
-    this.targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.045, 12, 96), transparentMat(0xffb84d, 0.95)); this.targetRing.rotation.x = Math.PI / 2; this.scene.add(this.targetRing);
-    this.targetBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.9, 4.2, 32, 1, true), transparentMat(0xffd37a, 0.18)); this.targetBeam.position.y = 2.1; this.scene.add(this.targetBeam);
+    this.targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.085, 12, 128), transparentMat(0xffa500, 1.0)); this.targetRing.rotation.x = Math.PI / 2; this.scene.add(this.targetRing);
+    this.targetBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.35, 8.0, 40, 1, true), transparentMat(0xffc247, 0.34)); this.targetBeam.position.y = 4.0; this.scene.add(this.targetBeam);
   }
 
   updatePlayer(state) {
@@ -399,7 +450,7 @@ export class ThreeRenderer {
   updateTarget(state) {
     const target = currentTarget(state); const visible = Boolean(target && state.isPlaying); this.targetRing.visible = visible; this.targetBeam.visible = visible; if (!visible) return;
     const x = wx(target.x); const z = wz(target.y); const radius = (state.config?.assistRadius || 180) * WORLD_SCALE;
-    this.targetRing.position.set(x, 0.1, z); this.targetRing.scale.setScalar(radius); this.targetBeam.position.set(x, 2.1, z);
+    this.targetRing.position.set(x, 0.12, z); this.targetRing.scale.setScalar(radius); this.targetBeam.position.set(x, 4.0, z);
   }
 
   updateCamera(state) {
@@ -419,7 +470,7 @@ export class ThreeRenderer {
   }
 
   updateAnimatedObjects(t) {
-    if (this.targetRing?.visible) { const pulse = 1 + Math.sin(t * 3) * 0.08; this.targetRing.scale.multiplyScalar(pulse / this.lastTargetScale); this.lastTargetScale = pulse; this.targetBeam.material.opacity = 0.13 + Math.sin(t * 2.4) * 0.04; } else this.lastTargetScale = 1;
+    if (this.targetRing?.visible) { const pulse = 1 + Math.sin(t * 3) * 0.08; this.targetRing.scale.multiplyScalar(pulse / this.lastTargetScale); this.lastTargetScale = pulse; this.targetBeam.material.opacity = 0.30 + Math.sin(t * 2.4) * 0.08; } else this.lastTargetScale = 1;
     this.clockObjects.forEach((obj, i) => { obj.rotation.y = Math.sin(t * 0.35 + i) * 0.045; });
   }
 
