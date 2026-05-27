@@ -16,6 +16,7 @@ export function createInitialState() {
     comic: null,
     houseReaction: null,
     lastNavHintAt: -99,
+    summaryEarly: false,
   };
 }
 

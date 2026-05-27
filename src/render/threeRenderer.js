@@ -1,7 +1,7 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
 import { currentTarget } from "../state/gameState.js";
-import { nt, t } from "../i18n.js";
+import { locale, nt, t } from "../i18n.js";
 
 const WORLD_SCALE = 1 / 45;
 const MAP_W = 235;
@@ -41,6 +41,39 @@ const TARGET_VARIANTS = {
   nakamura: "bakery",
   kato: "community",
 };
+
+
+const SCENE_LABELS = {
+  zhHans: {
+    convenience: "便利店", supermarket: "超市", hospital: "医院", clinic: "诊所", pharmacy: "药局", postOffice: "邮局",
+    apartment: "公寓", office: "大楼", bank: "银行", police: "交番", community: "町内会", school: "学校",
+    library: "图书馆", cafe: "咖啡", restaurant: "食堂", bakery: "面包", barber: "理发", flower: "花店",
+    bookstore: "书店", fishShop: "鱼店", bathhouse: "澡堂", parking: "P", park: "公园", shop: "商店",
+    bus: "巴士", clinicShort: "医", neighborhood: "町内会", town: "町",
+  },
+  zhHant: {
+    convenience: "便利店", supermarket: "超市", hospital: "醫院", clinic: "診所", pharmacy: "藥局", postOffice: "郵局",
+    apartment: "公寓", office: "大樓", bank: "銀行", police: "交番", community: "町內會", school: "學校",
+    library: "圖書館", cafe: "咖啡", restaurant: "食堂", bakery: "麵包", barber: "理髮", flower: "花店",
+    bookstore: "書店", fishShop: "魚店", bathhouse: "澡堂", parking: "P", park: "公園", shop: "商店",
+    bus: "巴士", clinicShort: "醫", neighborhood: "町內會", town: "町",
+  },
+  ja: {
+    convenience: "コンビニ", supermarket: "スーパー", hospital: "病院", clinic: "診療所", pharmacy: "薬", postOffice: "郵便",
+    apartment: "アパート", office: "ビル", bank: "銀行", police: "交番", community: "町内会", school: "学校",
+    library: "図書館", cafe: "喫茶", restaurant: "食堂", bakery: "パン", barber: "理容", flower: "花屋",
+    bookstore: "本屋", fishShop: "魚屋", bathhouse: "湯", parking: "P", park: "公園", shop: "商店",
+    bus: "バス", clinicShort: "診", neighborhood: "町内会", town: "町",
+  },
+  en: {
+    convenience: "Store", supermarket: "Market", hospital: "Hospital", clinic: "Clinic", pharmacy: "Pharmacy", postOffice: "Post",
+    apartment: "Apt.", office: "Office", bank: "Bank", police: "Police", community: "Community", school: "School",
+    library: "Library", cafe: "Cafe", restaurant: "Diner", bakery: "Bakery", barber: "Barber", flower: "Flowers",
+    bookstore: "Books", fishShop: "Fish", bathhouse: "Bath", parking: "P", park: "Park", shop: "Shop",
+    bus: "Bus", clinicShort: "+", neighborhood: "Community", town: "Town",
+  },
+};
+function sceneLabel(key) { return SCENE_LABELS[locale]?.[key] ?? SCENE_LABELS.zhHans[key] ?? key; }
 
 
 function wx(x) { return x * WORLD_SCALE; }
@@ -142,6 +175,9 @@ export class ThreeRenderer {
     this.clouds = [];
     this.birds = [];
     this.houseMap = new Map();
+    this.occluderMeshes = [];
+    this.fadedOccluders = new Set();
+    this.raycaster = new THREE.Raycaster();
     this.targetRing = null;
     this.targetBeam = null;
     this.navigationArrows = [];
@@ -173,8 +209,34 @@ export class ThreeRenderer {
     this.updateProjectile(state);
     this.updateHouseReaction(state);
     this.updateCamera(state);
+    this.updateOccluders(state);
     this.updateAnimatedObjects(state.floatTime, state);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  resetWorldCollections() {
+    this.clockObjects = [];
+    this.clouds = [];
+    this.birds = [];
+    this.houseMap = new Map();
+    this.occluderMeshes = [];
+    this.fadedOccluders = new Set();
+    this.targetRing = null;
+    this.targetBeam = null;
+    this.navigationArrows = [];
+    this.newspaper = null;
+    this.reactionSprite = null;
+    this.player = null;
+    this.walkParts = {};
+    this.bike = null;
+    this.lastTargetScale = 1;
+  }
+
+  rebuildWorld() {
+    this.fadedOccluders.forEach((mesh) => this.setOccluderOpacity(mesh, 1));
+    this.scene.clear();
+    this.resetWorldCollections();
+    this.createWorld();
   }
 
   createWorld() {
@@ -293,26 +355,26 @@ export class ThreeRenderer {
   }
 
   addStreet(direction, pos) {
-    const roadLen = direction === "h" ? MAP_W - 12 : 7.4;
-    const roadWid = direction === "h" ? 7.4 : MAP_D - 10;
-    const sideLen = direction === "h" ? MAP_W - 12 : 1.55;
-    const sideWid = direction === "h" ? 1.55 : MAP_D - 10;
-    const curbLen = direction === "h" ? MAP_W - 12 : 0.18;
-    const curbWid = direction === "h" ? 0.18 : MAP_D - 10;
+    const roadLen = direction === "h" ? MAP_W - 10 : 10.8;
+    const roadWid = direction === "h" ? 10.8 : MAP_D - 8;
+    const sideLen = direction === "h" ? MAP_W - 10 : 2.15;
+    const sideWid = direction === "h" ? 2.15 : MAP_D - 8;
+    const curbLen = direction === "h" ? MAP_W - 10 : 0.22;
+    const curbWid = direction === "h" ? 0.22 : MAP_D - 8;
 
     if (direction === "h") {
       this.addPlane(0, 0.032, pos, roadLen, roadWid, COLORS.asphalt, 0);
-      this.addPlane(0, 0.04, pos - 4.7, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(0, 0.04, pos + 4.7, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(0, 0.055, pos - 3.82, curbLen, curbWid, COLORS.curb, 0);
-      this.addPlane(0, 0.055, pos + 3.82, curbLen, curbWid, COLORS.curb, 0);
+      this.addPlane(0, 0.04, pos - 6.45, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(0, 0.04, pos + 6.45, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(0, 0.055, pos - 5.45, curbLen, curbWid, COLORS.curb, 0);
+      this.addPlane(0, 0.055, pos + 5.45, curbLen, curbWid, COLORS.curb, 0);
       for (let i = -52; i <= 52; i += 8) this.addPlane(i, 0.068, pos, 2.4, 0.09, COLORS.lane, 0);
     } else {
       this.addPlane(pos, 0.033, 0, roadLen, roadWid, COLORS.asphalt, 0);
-      this.addPlane(pos - 4.7, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(pos + 4.7, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(pos - 3.82, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
-      this.addPlane(pos + 3.82, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
+      this.addPlane(pos - 6.45, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(pos + 6.45, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(pos - 5.45, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
+      this.addPlane(pos + 5.45, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
       for (let i = -68; i <= 68; i += 8) this.addPlane(pos, 0.069, i, 0.09, 2.4, COLORS.lane, 0);
     }
   }
@@ -330,7 +392,7 @@ export class ThreeRenderer {
       for (let x = -104; x <= 104; x += 22) {
         if (Math.abs(x + 102) < 9 || Math.abs(x) < 7) continue;
         const side = idx % 2 ? -1 : 1;
-        const z = roadZ + side * 9.2;
+        const z = roadZ + side * 12.4;
         if (z < -82 || z > 82) continue;
         const lotX = x + ((idx % 3) - 1) * 1.2;
         if (isReservedSceneSpot(lotX, z)) { idx += 1; continue; }
@@ -343,7 +405,7 @@ export class ThreeRenderer {
       for (let z = -76; z <= 76; z += 24) {
         if (Math.abs(z) < 8) continue;
         const side = idx % 2 ? -1 : 1;
-        const x = roadX + side * 9.0;
+        const x = roadX + side * 12.2;
         if (x < -108 || x > 108) continue;
         const lotZ = z + ((idx % 3) - 1) * 1.0;
         if (isReservedSceneSpot(x, lotZ)) { idx += 1; continue; }
@@ -381,6 +443,7 @@ export class ThreeRenderer {
     }
 
     this.addBuildingVariant(group, variant, roof, wall, 2.05 * scale);
+    this.registerOccluder(group);
     this.scene.add(group);
     return group;
   }
@@ -393,12 +456,13 @@ export class ThreeRenderer {
     this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 2.65, TARGET_VARIANTS[n.id] || "house-red");
     const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
+    this.registerOccluder(group);
     this.scene.add(group); this.houseMap.set(n.id, group);
   }
 
   addDecorHouse(x, z, roof, wall, scale = 1) {
     const group = new THREE.Group(); group.position.set(x, 0, z); group.rotation.y = ((x + z) % 7) * 0.035; group.scale.setScalar(scale);
-    this.addHouseParts(group, roof, wall, 0x76583f, 2.05); this.scene.add(group);
+    this.addHouseParts(group, roof, wall, 0x76583f, 2.05); this.registerOccluder(group); this.scene.add(group);
   }
 
   addTargetLot(group, roofColor, wallColor, trimColor, scale, variant = "house-red") {
@@ -418,28 +482,28 @@ export class ThreeRenderer {
 
   addBuildingVariant(group, variant, roofColor, wallColor, scale) {
     const commercial = {
-      convenience: ["コンビニ", 0x4aa3df, 0xffffff, 1.05, 1.15],
-      supermarket: ["スーパー", 0xf39c34, 0xfff2d1, 1.55, 1.25],
-      hospital: ["病院", 0xf8f8ff, 0xe6f4ff, 1.45, 1.55],
-      clinic: ["診療所", 0x5aaa77, 0xe8f8e8, 1.2, 1.25],
-      pharmacy: ["薬", 0x3dbb70, 0xf0fff2, 1.05, 1.15],
-      "post-office": ["郵便", 0xd94a4a, 0xfff0e8, 1.15, 1.2],
-      apartment: ["アパート", 0x7890a8, 0xe8edf2, 1.25, 1.9],
-      office: ["ビル", 0x7f8fa6, 0xe9eef5, 1.15, 2.25],
-      bank: ["銀行", 0x6678a8, 0xf0f3ff, 1.25, 1.35],
-      police: ["交番", 0x4f91d5, 0xffffff, 0.95, 1.15],
-      community: ["町内会", 0x9c7556, 0xffefcf, 1.35, 1.15],
-      school: ["学校", 0xc78d4d, 0xfff0d4, 1.6, 1.45],
-      library: ["図書館", 0x8a6fb0, 0xf1eaff, 1.35, 1.3],
-      cafe: ["喫茶", 0x8b5e3c, 0xffead7, 1.0, 1.1],
-      restaurant: ["食堂", 0xd66b53, 0xffefe4, 1.2, 1.1],
-      bakery: ["パン", 0xd59a34, 0xfff0c8, 1.05, 1.1],
-      barber: ["理容", 0x4f91d5, 0xf5fbff, 0.95, 1.05],
-      flower: ["花屋", 0xb86695, 0xffe6ef, 1.05, 1.05],
-      bookstore: ["本屋", 0x5c7aa0, 0xe8f1ff, 1.05, 1.12],
-      "fish-shop": ["魚屋", 0x5c9ab5, 0xe0f6fb, 1.05, 1.08],
-      bathhouse: ["湯", 0x4f91d5, 0xe8f8ff, 1.15, 1.2],
-      parking: ["P", 0x555555, 0xd8d8d8, 1.0, 0.55],
+      convenience: [sceneLabel("convenience"), 0x4aa3df, 0xffffff, 1.05, 1.15],
+      supermarket: [sceneLabel("supermarket"), 0xf39c34, 0xfff2d1, 1.55, 1.25],
+      hospital: [sceneLabel("hospital"), 0xf8f8ff, 0xe6f4ff, 1.45, 1.55],
+      clinic: [sceneLabel("clinic"), 0x5aaa77, 0xe8f8e8, 1.2, 1.25],
+      pharmacy: [sceneLabel("pharmacy"), 0x3dbb70, 0xf0fff2, 1.05, 1.15],
+      "post-office": [sceneLabel("postOffice"), 0xd94a4a, 0xfff0e8, 1.15, 1.2],
+      apartment: [sceneLabel("apartment"), 0x7890a8, 0xe8edf2, 1.25, 1.9],
+      office: [sceneLabel("office"), 0x7f8fa6, 0xe9eef5, 1.15, 2.25],
+      bank: [sceneLabel("bank"), 0x6678a8, 0xf0f3ff, 1.25, 1.35],
+      police: [sceneLabel("police"), 0x4f91d5, 0xffffff, 0.95, 1.15],
+      community: [sceneLabel("community"), 0x9c7556, 0xffefcf, 1.35, 1.15],
+      school: [sceneLabel("school"), 0xc78d4d, 0xfff0d4, 1.6, 1.45],
+      library: [sceneLabel("library"), 0x8a6fb0, 0xf1eaff, 1.35, 1.3],
+      cafe: [sceneLabel("cafe"), 0x8b5e3c, 0xffead7, 1.0, 1.1],
+      restaurant: [sceneLabel("restaurant"), 0xd66b53, 0xffefe4, 1.2, 1.1],
+      bakery: [sceneLabel("bakery"), 0xd59a34, 0xfff0c8, 1.05, 1.1],
+      barber: [sceneLabel("barber"), 0x4f91d5, 0xf5fbff, 0.95, 1.05],
+      flower: [sceneLabel("flower"), 0xb86695, 0xffe6ef, 1.05, 1.05],
+      bookstore: [sceneLabel("bookstore"), 0x5c7aa0, 0xe8f1ff, 1.05, 1.12],
+      "fish-shop": [sceneLabel("fishShop"), 0x5c9ab5, 0xe0f6fb, 1.05, 1.08],
+      bathhouse: [sceneLabel("bathhouse"), 0x4f91d5, 0xe8f8ff, 1.15, 1.2],
+      parking: [sceneLabel("parking"), 0x555555, 0xd8d8d8, 1.0, 0.55],
     };
 
     if (commercial[variant]) {
@@ -576,11 +640,11 @@ export class ThreeRenderer {
     if (landmark === "flowers" || landmark === "garden") for (let i = 0; i < 8; i += 1) addBall(i % 2 ? 0xe85f79 : 0xffaac2, -0.86 + i * 0.13, 0.9 + (i % 2) * 0.08, 0.055);
     if (landmark === "basketball") addBall(0xd97935, -0.98, 0.88, 0.15);
     if (landmark === "fence") for (let i = 0; i < 6; i += 1) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.38, 0.05), mat(0xfffbef)); f.position.set(-0.8 + i * 0.18, 0.2, 0.94); group.add(f); }
-    if (landmark === "clinic") { const sign = this.makeSign("診", 0.52, 0.42); sign.position.set(-1.05, 0.1, 0.88); group.add(sign); }
+    if (landmark === "clinic") { const sign = this.makeSign(sceneLabel("clinicShort"), 0.52, 0.42); sign.position.set(-1.05, 0.1, 0.88); group.add(sign); }
     if (landmark === "bench") { const seat = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.09, 0.2), mat(COLORS.wood)); seat.position.set(-0.96, 0.25, 0.9); group.add(seat); }
     if (landmark === "fish") addBall(0x6cb7d9, -0.94, 0.9, 0.09);
     if (landmark === "bag") { const bag = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.18), mat(0x7b5c47)); bag.position.set(-0.98, 0.18, 0.9); group.add(bag); }
-    if (landmark === "bus" || landmark === "sign") { const s = this.makeSign(landmark === "bus" ? "バス" : "町", 0.55, 0.42); s.position.set(-1.02, 0.05, 0.9); group.add(s); }
+    if (landmark === "bus" || landmark === "sign") { const s = this.makeSign(landmark === "bus" ? sceneLabel("bus") : sceneLabel("town"), 0.55, 0.42); s.position.set(-1.02, 0.05, 0.9); group.add(s); }
   }
 
   addLandmarks() {
@@ -596,10 +660,10 @@ export class ThreeRenderer {
       }
     }
     for (const z of [-48, 0, 48]) { const b = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.2, 2.2), mat(0xb8875b)); b.position.set(-102, 0.18, z); b.castShadow = true; this.scene.add(b); }
-    this.addPlane(-78, 0.05, 58, 18, 12, 0x71bb70, -0.03); this.addSign(-78, 50, "公園"); this.addBench(-82, 58); this.addBench(-74, 61); this.addTree(-86, 52, true, 1.3); this.addTree(-70, 55, false, 1.2);
+    this.addPlane(-78, 0.05, 58, 18, 12, 0x71bb70, -0.03); this.addSign(-78, 50, sceneLabel("park")); this.addBench(-82, 58); this.addBench(-74, 61); this.addTree(-86, 52, true, 1.3); this.addTree(-70, 55, false, 1.2);
     this.addShop(-70, -68); this.addVending(-78, -63); this.addVending(-64, -63); this.addBusStop(44, -70);
     this.addTorii(88, 58); this.addStoneLantern(82, 54); this.addStoneLantern(94, 54);
-    this.addField(86, -64); this.addField(100, -62); this.addSign(-18, 72, "町内会");
+    this.addField(86, -64); this.addField(100, -62); this.addSign(-18, 72, sceneLabel("neighborhood"));
     for (const [x, z] of [[-46,-24],[-16,-24],[16,-24],[48,-24],[-46,24],[-16,24],[16,24],[48,24],[-96,12],[96,-12]]) this.addUtilityPole(x, z);
   }
 
@@ -922,6 +986,53 @@ export class ThreeRenderer {
     this.targetRing.position.set(x, 0.12, z); this.targetRing.scale.setScalar(radius); this.targetBeam.position.set(x, 4.0, z);
   }
 
+  registerOccluder(group) {
+    group.traverse((child) => {
+      if (!child.isMesh) return;
+      if (child.material) child.material = Array.isArray(child.material) ? child.material.map((m) => m.clone()) : child.material.clone();
+      child.userData.occluder = true;
+      this.occluderMeshes.push(child);
+    });
+  }
+
+  setOccluderOpacity(mesh, opacity) {
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      if (material.userData.baseOpacity === undefined) {
+        material.userData.baseOpacity = material.opacity ?? 1;
+        material.userData.baseDepthWrite = material.depthWrite;
+      }
+      material.transparent = opacity < 0.99;
+      material.opacity = material.userData.baseOpacity * opacity;
+      material.depthWrite = opacity < 0.99 ? false : material.userData.baseDepthWrite;
+      material.needsUpdate = true;
+    });
+  }
+
+  updateOccluders() {
+    this.fadedOccluders.forEach((mesh) => this.setOccluderOpacity(mesh, 1));
+    this.fadedOccluders.clear();
+    if (!this.player || !this.occluderMeshes.length) return;
+
+    const target = this.player.position.clone();
+    target.y += 0.95;
+    const from = this.camera.position.clone();
+    const direction = target.clone().sub(from);
+    const distance = direction.length();
+    if (distance <= 0.1) return;
+    direction.normalize();
+    this.raycaster.set(from, direction);
+    this.raycaster.near = 0.1;
+    this.raycaster.far = Math.max(0.1, distance - 0.35);
+
+    const hits = this.raycaster.intersectObjects(this.occluderMeshes, false);
+    hits.forEach((hit) => {
+      this.fadedOccluders.add(hit.object);
+      this.setOccluderOpacity(hit.object, 0.34);
+    });
+  }
+
   updateCamera(state) {
     const px = wx(state.player.x); const pz = wz(state.player.y);
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
@@ -949,8 +1060,8 @@ export class ThreeRenderer {
   addTree(x, z, sakura = false, scale = 1) { const group = new THREE.Group(); group.position.set(x, 0, z); group.scale.setScalar(scale); const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.13,0.88,10), mat(COLORS.wood)); trunk.position.y=0.44; trunk.castShadow=true; group.add(trunk); const crownColor=sakura?0xffbdd0:0x6fb96e; for(let i=0;i<5;i++){ const c=new THREE.Mesh(new THREE.SphereGeometry(0.43,16,12), mat(crownColor)); c.position.set(Math.cos(i*1.3)*0.23,1.04+(i%2)*0.13,Math.sin(i*1.7)*0.23); c.castShadow=true; group.add(c); this.clockObjects.push(c);} this.scene.add(group); }
   addBench(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); const s=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.24),mat(COLORS.wood)); s.position.y=0.35; const b=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.2),mat(COLORS.wood)); b.position.set(0,0.58,-0.16); g.add(s,b); this.scene.add(g); }
   addVending(x,z){ const body=new THREE.Mesh(new THREE.BoxGeometry(0.65,1.3,0.42),mat(0xd94a4a)); body.position.set(x,0.67,z); body.castShadow=true; this.scene.add(body); const panel=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.025),mat(0xfff4e4)); panel.position.set(x,0.95,z+0.225); this.scene.add(panel); }
-  addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,3.0); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel("商店", "#345f86"); label.position.set(0,6.4,0.4); g.add(label); this.scene.add(g); }
-  addBusStop(x,z){ this.addSign(x,z,"バス"); const roof=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.09,0.55),mat(0x4e8fd6)); roof.position.set(x+0.62,0.95,z); this.scene.add(roof); }
+  addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,3.0); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel(sceneLabel("shop"), "#345f86"); label.position.set(0,6.4,0.4); g.add(label); this.registerOccluder(g); this.scene.add(g); }
+  addBusStop(x,z){ this.addSign(x,z,sceneLabel("bus")); const roof=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.09,0.55),mat(0x4e8fd6)); roof.position.set(x+0.62,0.95,z); this.scene.add(roof); }
   addField(x,z){ this.addPlane(x,0.055,z,12,8,0xb6d981,0.04); for(let i=0;i<8;i++) this.addPlane(x-5+i*1.4,0.08,z,0.12,7,0x8fbc66,0.04); }
   addTorii(x,z){ const red=mat(0xd9543f); const g=new THREE.Group(); g.position.set(x,0,z); const p1=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,2.2,12),red); const p2=p1.clone(); p1.position.set(-0.75,1.1,0); p2.position.set(0.75,1.1,0); const top=new THREE.Mesh(new THREE.BoxGeometry(2.3,0.2,0.25),red); top.position.set(0,2.15,0); const mid=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.14,0.2),red); mid.position.set(0,1.7,0); g.add(p1,p2,top,mid); this.scene.add(g); }
   addStoneLantern(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); const stone=mat(COLORS.stone); const base=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.18,0.36),stone); base.position.y=0.09; const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.65,8),stone); pole.position.y=0.48; const top=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.25,0.4),stone); top.position.y=0.86; g.add(base,pole,top); this.scene.add(g); }

@@ -36,7 +36,7 @@ function generateDecorHouseObstacles() {
     for (let x = -104; x <= 104; x += 22) {
       if (Math.abs(x + 102) < 9 || Math.abs(x) < 7) continue;
       const side = idx % 2 ? -1 : 1;
-      const z = roadZ + side * 9.2;
+      const z = roadZ + side * 12.4;
       if (z < -82 || z > 82) continue;
       const lotX = x + ((idx % 3) - 1) * 1.2;
       if (isReservedSceneSpot(lotX, z)) { idx += 1; continue; }
@@ -49,7 +49,7 @@ function generateDecorHouseObstacles() {
     for (let z = -76; z <= 76; z += 24) {
       if (Math.abs(z) < 8) continue;
       const side = idx % 2 ? -1 : 1;
-      const x = roadX + side * 9.0;
+      const x = roadX + side * 12.2;
       if (x < -108 || x > 108) continue;
       const lotZ = z + ((idx % 3) - 1) * 1.0;
       if (isReservedSceneSpot(x, lotZ)) { idx += 1; continue; }
@@ -66,7 +66,7 @@ function generateTreeObstacles() {
   for (let i = 0; i < 90; i += 1) {
     const x = -108 + ((i * 37) % 216);
     const z = -80 + ((i * 53) % 160);
-    if (Math.abs(x % 32) < 4 || Math.abs(z % 24) < 4 || isReservedSceneSpot(x, z, 8.5, 7.5)) continue;
+    if (Math.abs(x % 32) < 8 || Math.abs(z % 24) < 9 || isReservedSceneSpot(x, z, 8.5, 7.5)) continue;
     const p = sceneToWorld(x, z);
     obstacles.push(circle(`tree-${i}`, p.x, p.y, 45 + (i % 4) * 4, "tree"));
   }

@@ -27,6 +27,24 @@ export class App {
     select.addEventListener("change", () => changeLanguage(select.value));
   }
 
+  handleLanguageChanged() {
+    this.setupLanguageSelector();
+    this.renderer.rebuildWorld();
+    if (this.state.screen === "home") {
+      this.screens.home(loadRecord());
+    } else if (this.state.screen === "summary") {
+      this.screens.summary(this.state, this.state.summaryEarly);
+    } else if (this.state.screen === "game") {
+      const mode = this.state.config?.moveMode === "bike" ? t("modeBike") : t("modeWalk");
+      this.state.message = t("startMessage", mode);
+      this.state.comic = { text: this.state.message, tone: "guide", time: 2.4 };
+      this.state.lastNavHintAt = this.state.floatTime;
+      this.hud.show();
+      this.hud.update(this.state);
+    }
+    this.updateComic();
+  }
+
   start() {
     this.bindEvents();
     this.showHome();
@@ -35,6 +53,7 @@ export class App {
 
   bindEvents() {
     window.addEventListener("resize", () => this.renderer.resize());
+    window.addEventListener("bicycle-language-change", () => this.handleLanguageChanged());
     bindKeyboard(this.state, () => this.deliver());
 
     this.screens.root.addEventListener("click", (event) => {
@@ -147,6 +166,8 @@ export class App {
   }
 
   showSummary(early) {
+    this.state.screen = "summary";
+    this.state.summaryEarly = early;
     this.state.isPlaying = false;
     this.state.keys.clear();
     this.state.delivery = null;

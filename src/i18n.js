@@ -32,9 +32,9 @@ const dict = {
     flying: "阿铃：报纸飞过去了！",
     closer: "阿铃：再靠近一点点。请到路边发光投递点附近。",
     delivered: (thanks) => `阿铃：送到了！${thanks}`,
-    comicThrow: "えいっ!",
-    comicHint: "もう少し近く!",
-    comicSuccess: "ドン! ありがとう!",
+    comicThrow: "投啦!",
+    comicHint: "再近一点!",
+    comicSuccess: "咚! 谢谢!",
     todaySummary: "今日总结",
     stopToday: "今天先到这里",
     doneToday: "今天也送到了",
@@ -86,7 +86,7 @@ const dict = {
     flying: "阿鈴：報紙飛過去了！",
     closer: "阿鈴：再靠近一點點。請到路邊發光投遞點附近。",
     delivered: (thanks) => `阿鈴：送到了！${thanks}`,
-    comicThrow: "えいっ!",
+    comicThrow: "投啦!",
     comicHint: "再近一點!",
     comicSuccess: "咚! 謝謝!",
     todaySummary: "今日總結",
@@ -236,8 +236,8 @@ export const languageOptions = [
   { code: "zhHans", label: "简体中文" },
 ];
 
-export const locale = detectLanguage();
-export const i18n = dict[locale];
+export let locale = detectLanguage();
+export let i18n = dict[locale];
 
 export function t(key, ...args) {
   const value = i18n[key] ?? dict.zhHans[key] ?? key;
@@ -256,9 +256,14 @@ export function applyDocumentLanguage() {
 }
 
 export function changeLanguage(nextLocale) {
-  if (!languageOptions.some((item) => item.code === nextLocale)) return;
+  if (!languageOptions.some((item) => item.code === nextLocale) || nextLocale === locale) return false;
+  locale = nextLocale;
+  i18n = dict[locale];
   localStorage.setItem("bicycle-lang", nextLocale);
   const url = new URL(window.location.href);
   url.searchParams.set("lang", nextLocale);
-  window.location.href = url.toString();
+  window.history.replaceState({}, "", url.toString());
+  applyDocumentLanguage();
+  window.dispatchEvent(new CustomEvent("bicycle-language-change", { detail: { locale } }));
+  return true;
 }
