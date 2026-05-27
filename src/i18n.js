@@ -15,6 +15,7 @@ const dict = {
     playerNameLabel: "你的名字",
     playerNameHelp: "可以直接使用默认名字，也可以输入家人熟悉的称呼。",
     defaultPlayerNames: ["春日先生", "青山女士", "松风先生", "花见女士"],
+    companionNames: ["小铃", "小春", "小梅", "小空"],
     startBike: "开始骑单车",
     startBikeHint: "默认模式，沿着道路送报",
     startWalk: "改为步行",
@@ -81,6 +82,7 @@ const dict = {
     playerNameLabel: "你的名字",
     playerNameHelp: "可以直接使用預設名字，也可以輸入家人熟悉的稱呼。",
     defaultPlayerNames: ["春日先生", "青山女士", "松風先生", "花見女士"],
+    companionNames: ["小鈴", "小春", "小梅", "小空"],
     startBike: "開始騎單車",
     startBikeHint: "預設模式，沿著道路送報",
     startWalk: "改為步行",
@@ -147,6 +149,7 @@ const dict = {
     playerNameLabel: "お名前",
     playerNameHelp: "そのままでも、ご家族が呼びやすい名前でも大丈夫です。",
     defaultPlayerNames: ["春日さん", "青山さん", "松風さん", "花見さん"],
+    companionNames: ["すず", "はる", "うめ", "そら"],
     startBike: "自転車で始める",
     startBikeHint: "標準モード。道路に沿って配達します",
     startWalk: "歩いて配達",
@@ -213,6 +216,7 @@ const dict = {
     playerNameLabel: "Your name",
     playerNameHelp: "You may keep the default or enter a familiar family nickname.",
     defaultPlayerNames: ["Mr. Haru", "Ms. Aoki", "Mr. Pine", "Ms. Hana"],
+    companionNames: ["Suzu", "Haru", "Ume", "Sora"],
     startBike: "Start by bicycle",
     startBikeHint: "Default mode. Deliver along the road",
     startWalk: "Walk instead",
@@ -286,10 +290,34 @@ export const languageOptions = [
 
 export let locale = detectLanguage();
 export let i18n = dict[locale];
+let companionName = "";
+
+function localizedCompanionName() {
+  const list = i18n.companionNames || dict.zhHans.companionNames;
+  return companionName || list[0] || "小铃";
+}
+
+function withCompanionName(value) {
+  if (typeof value !== "string") return value;
+  const name = localizedCompanionName();
+  return value
+    .replaceAll("阿铃", name)
+    .replaceAll("阿鈴", name)
+    .replaceAll("アリン", name)
+    .replace(/\bArin\b/g, name);
+}
 
 export function t(key, ...args) {
   const value = i18n[key] ?? dict.zhHans[key] ?? key;
-  return typeof value === "function" ? value(...args) : value;
+  return withCompanionName(typeof value === "function" ? value(...args) : value);
+}
+
+export function setCompanionName(name) {
+  companionName = name || "";
+}
+
+export function getLocalizedList(key) {
+  return i18n[key] ?? dict.zhHans[key] ?? [];
 }
 
 export function nt(neighbor, field) {

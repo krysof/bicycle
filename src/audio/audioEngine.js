@@ -12,35 +12,59 @@ function makeNoiseBuffer(ctx, seconds = 1) {
   return buffer;
 }
 
-function makeMusicBuffer(ctx, seconds = 64) {
+function makeMusicBuffer(ctx, seconds = 72) {
   const sampleRate = ctx.sampleRate;
   const length = Math.floor(sampleRate * seconds);
   const buffer = ctx.createBuffer(2, length, sampleRate);
   const left = buffer.getChannelData(0);
   const right = buffer.getChannelData(1);
-  const notes = [261.63, 293.66, 329.63, 392.0, 440.0, 392.0, 329.63, 293.66];
-  const bass = [130.81, 146.83, 164.81, 196.0];
-  const beatSeconds = 2.0;
+  // 明るい町内散歩の雰囲気：C major pentatonic + gentle ukulele/mallet feel.
+  const melody = [523.25, 587.33, 659.25, 783.99, 880.0, 783.99, 659.25, 587.33, 659.25, 783.99, 987.77, 880.0];
+  const chords = [
+    [261.63, 329.63, 392.0],
+    [293.66, 349.23, 440.0],
+    [329.63, 392.0, 493.88],
+    [196.0, 261.63, 329.63],
+  ];
+  const beatSeconds = 60 / 92;
+
+  function pluck(freq, time, decay = 3.8) {
+    const local = time % beatSeconds;
+    const env = Math.exp(-local * decay) * Math.max(0, 1 - local / beatSeconds);
+    return (
+      Math.sin(2 * Math.PI * freq * time) * 0.55 +
+      Math.sin(2 * Math.PI * freq * 2.01 * time) * 0.21 +
+      Math.sin(2 * Math.PI * freq * 3.0 * time) * 0.08
+    ) * env;
+  }
 
   for (let i = 0; i < length; i += 1) {
     const time = i / sampleRate;
-    const bar = Math.floor(time / 8);
     const beat = Math.floor(time / beatSeconds);
-    const phaseInBeat = (time % beatSeconds) / beatSeconds;
-    const env = Math.sin(Math.PI * phaseInBeat) ** 1.8;
-    const melodyFreq = notes[(beat + bar) % notes.length];
-    const harmonyFreq = notes[(beat + 2) % notes.length] / 2;
-    const bassFreq = bass[Math.floor(time / 16) % bass.length];
+    const bar = Math.floor(beat / 4);
+    const beatPhase = (time % beatSeconds) / beatSeconds;
+    const barPhase = (time % (beatSeconds * 4)) / (beatSeconds * 4);
+    const melodyFreq = melody[(beat + Math.floor(bar / 2)) % melody.length];
+    const chord = chords[bar % chords.length];
+    const chordEnv = 0.55 + 0.45 * Math.sin(Math.PI * barPhase);
+    const chordTone = chord.reduce((sum, freq, idx) => {
+      return sum + Math.sin(2 * Math.PI * freq * time + idx * 0.42) * (0.017 / (idx + 1));
+    }, 0) * chordEnv;
 
-    const melody = Math.sin(2 * Math.PI * melodyFreq * time) * env * 0.075;
-    const harmony = Math.sin(2 * Math.PI * harmonyFreq * time + 0.4) * env * 0.035;
-    const bassTone = Math.sin(2 * Math.PI * bassFreq * time) * (0.45 + env * 0.2) * 0.035;
-    const pad = Math.sin(2 * Math.PI * (bassFreq * 1.5) * time + Math.sin(time * 0.18)) * 0.018;
-    const fadeIn = clamp(time / 3.0, 0, 1);
-    const fadeOut = clamp((seconds - time) / 4.0, 0, 1);
-    const value = (melody + harmony + bassTone + pad) * fadeIn * fadeOut;
-    left[i] = value * 0.92;
-    right[i] = value * 0.86 + Math.sin(2 * Math.PI * (melodyFreq * 2) * time) * env * 0.006;
+    const mallet = pluck(melodyFreq, time, 5.2) * 0.075;
+    const answer = beat % 4 === 2 ? pluck(melody[(beat + 5) % melody.length] * 0.5, time, 4.6) * 0.035 : 0;
+    const bassRoot = chord[0] / 2;
+    const bassPulse = Math.exp(-beatPhase * 4.0) * Math.sin(2 * Math.PI * bassRoot * time) * 0.032;
+    const lightRhythm = (Math.sin(2 * Math.PI * 1760 * time) + Math.sin(2 * Math.PI * 2217 * time) * 0.35)
+      * Math.exp(-beatPhase * 18) * (beat % 2 === 0 ? 0.012 : 0.006);
+    const slowAir = Math.sin(2 * Math.PI * 392 * time + Math.sin(time * 0.22) * 0.8) * 0.008;
+
+    const fadeIn = clamp(time / 2.0, 0, 1);
+    const fadeOut = clamp((seconds - time) / 3.0, 0, 1);
+    const value = (chordTone + mallet + answer + bassPulse + lightRhythm + slowAir) * fadeIn * fadeOut;
+    const pan = Math.sin(time * 0.18) * 0.12;
+    left[i] = value * (0.92 - pan);
+    right[i] = value * (0.92 + pan);
   }
   return buffer;
 }
@@ -148,7 +172,7 @@ export class AudioEngine {
     const ctx = this.ensure();
     if (!ctx || this.musicSource) return;
     const source = ctx.createBufferSource();
-    source.buffer = makeMusicBuffer(ctx, 64);
+    source.buffer = makeMusicBuffer(ctx, 72);
     source.loop = true;
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";

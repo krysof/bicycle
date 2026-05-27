@@ -8,7 +8,7 @@ import { createInitialState, currentTarget } from "./state/gameState.js";
 import { loadRecord, saveRecord, todayKey } from "./state/storage.js";
 import { Hud } from "./ui/hud.js";
 import { Screens } from "./ui/screens.js";
-import { applyDocumentLanguage, changeLanguage, languageOptions, locale, t } from "./i18n.js";
+import { applyDocumentLanguage, changeLanguage, getLocalizedList, languageOptions, locale, setCompanionName, t } from "./i18n.js";
 
 export class App {
   constructor() {
@@ -16,6 +16,10 @@ export class App {
     this.state = createInitialState();
     this.renderer = new ThreeRenderer(document.getElementById("gameCanvas"));
     this.audio = new AudioEngine();
+    this.playerNameIndex = this.randomIndex(getLocalizedList("defaultPlayerNames").length);
+    this.companionNameIndex = this.randomIndex(getLocalizedList("companionNames").length);
+    this.playerNameIsRandom = true;
+    this.refreshCompanionName();
     this.screens = new Screens(document.getElementById("ui"));
     this.hud = new Hud();
     this.setupLanguageSelector();
@@ -23,23 +27,40 @@ export class App {
   }
 
   randomDefaultName() {
-    const list = t("defaultPlayerNames");
+    const list = getLocalizedList("defaultPlayerNames");
     const names = Array.isArray(list) ? list : ["春日先生", "青山女士", "松风先生", "花见女士"];
-    const index = Math.floor((Date.now() / 997 + Math.random() * names.length) % names.length);
-    return names[index];
+    return names[this.playerNameIndex % names.length];
+  }
+
+  randomIndex(length) {
+    return Math.floor(Math.random() * Math.max(1, length || 1));
+  }
+
+  rerollNames() {
+    this.playerNameIndex = this.randomIndex(getLocalizedList("defaultPlayerNames").length);
+    this.companionNameIndex = this.randomIndex(getLocalizedList("companionNames").length);
+    this.playerNameIsRandom = true;
+    this.refreshCompanionName();
+    this.state.playerName = this.randomDefaultName();
+  }
+
+  refreshCompanionName() {
+    const list = getLocalizedList("companionNames");
+    const names = Array.isArray(list) ? list : ["小铃"];
+    setCompanionName(names[this.companionNameIndex % names.length]);
   }
 
   getPlayerName() {
     const input = document.getElementById("playerNameInput");
-    return (input?.value || this.state.playerName || loadRecord().playerName || this.randomDefaultName()).trim();
+    const value = (input?.value || this.state.playerName || this.randomDefaultName()).trim();
+    if (input && value !== this.state.playerName) this.playerNameIsRandom = false;
+    return value;
   }
 
   savePlayerName(name) {
     const clean = (name || "").trim() || this.randomDefaultName();
     this.state.playerName = clean;
-    const record = loadRecord();
-    record.playerName = clean;
-    saveRecord(record);
+    this.playerNameIsRandom = clean === this.randomDefaultName();
     return clean;
   }
 
@@ -74,7 +95,8 @@ export class App {
   }
 
   handleLanguageChanged() {
-    const currentName = this.state.screen === "home" ? this.getPlayerName() : (this.state.playerName || loadRecord().playerName || this.randomDefaultName());
+    this.refreshCompanionName();
+    const currentName = this.playerNameIsRandom ? this.randomDefaultName() : (this.state.screen === "home" ? this.getPlayerName() : (this.state.playerName || this.randomDefaultName()));
     this.state.playerName = currentName;
     this.setupLanguageSelector();
     this.renderer.rebuildWorld();
@@ -138,6 +160,7 @@ export class App {
   }
 
   showHome() {
+    this.rerollNames();
     this.state.screen = "home";
     this.state.isPlaying = false;
     this.state.isPaused = false;
@@ -148,7 +171,6 @@ export class App {
     this.hud.hide();
     this.updateComic();
     const record = loadRecord();
-    this.state.playerName = record.playerName || this.state.playerName || this.randomDefaultName();
     this.screens.home(record, this.state.playerName);
   }
 
