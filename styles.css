@@ -120,6 +120,45 @@ label {
   margin-top: 22px;
 }
 
+.start-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.start-card {
+  min-height: 96px;
+  text-align: left;
+  border-radius: 24px;
+  padding: 20px 24px;
+}
+
+.start-card strong {
+  display: block;
+  font-size: clamp(27px, 3vw, 36px);
+  line-height: 1.15;
+}
+
+.start-card span {
+  display: block;
+  margin-top: 8px;
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 600;
+  opacity: 0.82;
+}
+
+.tiny-note {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: clamp(16px, 1.7vw, 19px);
+}
+
+.hud-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
 button,
 .choice {
   min-height: 56px;
@@ -231,6 +270,17 @@ button:disabled {
   margin: 4px 0;
 }
 
+#deliverBtn {
+  min-height: 72px;
+  font-size: clamp(24px, 2.6vw, 32px);
+}
+
+#pauseBtn,
+#endBtn {
+  font-size: clamp(18px, 1.8vw, 21px);
+  background: rgba(255, 250, 240, 0.86);
+}
+
 .hidden {
   display: none !important;
 }
@@ -273,5 +323,9 @@ kbd {
     left: 8px;
     right: 8px;
     bottom: 8px;
+  }
+
+  .hud-actions {
+    grid-template-columns: 1fr;
   }
 }

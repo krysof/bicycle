@@ -21,14 +21,16 @@ export class Hud {
 
   update(state) {
     const target = currentTarget(state);
+    const done = state.delivered.length;
+    const total = state.route.length;
     if (!target) {
       this.targetName.textContent = "今天的报纸都送到了";
       this.targetHint.textContent = "准备查看总结。";
     } else {
-      this.targetName.textContent = `下一户：${target.name}`;
-      this.targetHint.textContent = `请送「${target.paper}」。线索：${target.clue}`;
+      this.targetName.textContent = `${done + 1}/${total} 送给：${target.name}`;
+      this.targetHint.textContent = `靠近发光房子，按大按钮投递「${target.paper}」。`;
     }
     this.companionLine.textContent = state.message;
-    this.pauseBtn.textContent = state.isPaused ? "继续" : "暂停";
+    this.pauseBtn.textContent = state.isPaused ? "继续" : "休息";
   }
 }
