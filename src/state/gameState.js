@@ -5,7 +5,7 @@ export function createInitialState() {
     config: null,
     route: [],
     delivered: [],
-    player: { x: -4300, y: -2850, facing: 1, headingX: 0.78, headingY: 0.62, headingAngle: 0.67 },
+    player: { x: -4320, y: -3240, facing: 1, headingX: 1, headingY: 0, headingAngle: 0 },
     keys: new Set(),
     isPlaying: false,
     isPaused: false,

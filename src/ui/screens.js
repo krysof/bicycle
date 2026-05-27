@@ -17,21 +17,21 @@ export class Screens {
       <section class="screen narrow home-screen simple-home">
         <div class="stamp">昭和町内会</div>
         <p class="eyebrow">第三人称 3D 送报</p>
-        <h1>今天怎么出发？</h1>
+        <h1>今天骑车送报</h1>
         <p class="lead">阿铃：早上好，见到你真高兴。${yesterday}</p>
         <div class="mode-grid" aria-label="选择移动方式">
-          <button class="mode-card primary" data-mode="walk">
+          <button class="mode-card primary" data-mode="bike">
+            <span class="mode-icon">🚲</span>
+            <strong>开始骑单车</strong>
+            <em>默认模式，沿着道路送报</em>
+          </button>
+          <button class="mode-card" data-mode="walk">
             <span class="mode-icon">🚶</span>
-            <strong>步行送报</strong>
+            <strong>改为步行</strong>
             <em>速度慢、路线短、最安心</em>
           </button>
-          <button class="mode-card" data-mode="bike">
-            <span class="mode-icon">🚲</span>
-            <strong>骑单车送报</strong>
-            <em>地图更远、能看到更多街景</em>
-          </button>
         </div>
-        <p class="tiny-note">只需要选一种方式。进入后：↑/W 前进，↓/S 后退，←/A 和 →/D 轻轻转向；靠近发光房子后按“投递报纸”。</p>
+        <p class="tiny-note">只需要选一种方式。默认骑单车。进入后：↑/W 前进，↓/S 后退，←/A 和 →/D 轻轻转向；靠近路边发光房子后按“投递报纸”。</p>
       </section>`;
   }
 

@@ -29,7 +29,7 @@ function generateDecorHouseObstacles() {
       const x = gx + ((idx * 7) % 7) - 3;
       const z = gz + ((idx * 5) % 6) - 3;
       const p = sceneToWorld(x, z);
-      obstacles.push(rect(`decor-house-${idx}`, p.x, p.y, 225, 195, "house"));
+      obstacles.push(rect(`decor-house-${idx}`, p.x, p.y, 400, 350, "house"));
       idx += 1;
     }
   }
@@ -48,7 +48,7 @@ function generateTreeObstacles() {
   return obstacles;
 }
 
-const targetHouseObstacles = neighbors.map((n) => rect(`target-house-${n.id}`, n.x, n.y, 250, 215, "house"));
+const targetHouseObstacles = neighbors.map((n) => rect(`target-house-${n.id}`, n.x, n.y, 430, 360, "house"));
 
 // 河流在 x=-102 的长条，三座桥位置可通行，所以拆成几段。
 const riverX = -102 / WORLD_SCALE;
@@ -62,7 +62,7 @@ const riverSegments = [
 ];
 
 const landmarkObstacles = [
-  rect("shop", -70 / WORLD_SCALE, -68 / WORLD_SCALE, 250, 230, "shop"),
+  rect("shop", -70 / WORLD_SCALE, -68 / WORLD_SCALE, 440, 380, "shop"),
   rect("vending-a", -78 / WORLD_SCALE, -63 / WORLD_SCALE, 70, 70, "object"),
   rect("vending-b", -64 / WORLD_SCALE, -63 / WORLD_SCALE, 70, 70, "object"),
   rect("bus-stop", 44 / WORLD_SCALE, -70 / WORLD_SCALE, 160, 90, "object"),

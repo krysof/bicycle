@@ -53,7 +53,7 @@ export class App {
     this.state.config = buildConfig(this.state.answers);
     this.state.route = pickRoute(neighbors, this.state.config);
     this.state.delivered = [];
-    this.state.player = { x: -4300, y: -2850, facing: 1, headingX: 0.78, headingY: 0.62, headingAngle: 0.67 };
+    this.state.player = { x: -4320, y: -3240, facing: 1, headingX: 1, headingY: 0, headingAngle: 0 };
     this.startGame();
   }
 
