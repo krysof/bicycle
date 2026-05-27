@@ -52,6 +52,9 @@ const dict = {
     navLeft: "阿铃：前方差不多要向左转。",
     navRight: "阿铃：前方差不多要向右转。",
     navArrive: "阿铃：快到了，看到小光圈就可以投递。",
+    safetyPedestrian: "阿铃：前面有人散步，我们慢一点。",
+    safetyCyclist: "阿铃：有自行车经过，先稳稳地骑。",
+    safetyAnimal: "阿铃：小动物在路边，温柔地绕过去。",
   },
   zhHant: {
     lang: "zh-TW",
@@ -106,6 +109,9 @@ const dict = {
     navLeft: "阿鈴：前方差不多要向左轉。",
     navRight: "阿鈴：前方差不多要向右轉。",
     navArrive: "阿鈴：快到了，看到小光圈就可以投遞。",
+    safetyPedestrian: "阿鈴：前面有人散步，我們慢一點。",
+    safetyCyclist: "阿鈴：有自行車經過，先穩穩地騎。",
+    safetyAnimal: "阿鈴：小動物在路邊，溫柔地繞過去。",
   },
   ja: {
     lang: "ja",
@@ -160,6 +166,9 @@ const dict = {
     navLeft: "アリン：この先で左へ曲がりましょう。",
     navRight: "アリン：この先で右へ曲がりましょう。",
     navArrive: "アリン：もうすぐです。小さな光の輪で投げましょう。",
+    safetyPedestrian: "アリン：前に散歩の人がいます。少しゆっくり行きましょう。",
+    safetyCyclist: "アリン：自転車が通ります。落ち着いて進みましょう。",
+    safetyAnimal: "アリン：小さな動物がいます。やさしくよけましょう。",
   },
   en: {
     lang: "en",
@@ -214,6 +223,9 @@ const dict = {
     navLeft: "Arin: We will turn left soon.",
     navRight: "Arin: We will turn right soon.",
     navArrive: "Arin: Almost there. Throw at the small glowing ring.",
+    safetyPedestrian: "Arin: Someone is walking ahead. Let’s slow down gently.",
+    safetyCyclist: "Arin: A bicycle is passing. Keep steady for a moment.",
+    safetyAnimal: "Arin: A little animal is near the road. Let’s go around softly.",
   },
 };
 

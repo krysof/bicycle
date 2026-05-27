@@ -174,6 +174,10 @@ export class ThreeRenderer {
     this.clockObjects = [];
     this.clouds = [];
     this.birds = [];
+    this.floatingBits = [];
+    this.animals = [];
+    this.passers = [];
+    this.lastAmbientInfo = null;
     this.houseMap = new Map();
     this.occluderMeshes = [];
     this.fadedOccluders = new Set();
@@ -212,12 +216,17 @@ export class ThreeRenderer {
     this.updateOccluders(state);
     this.updateAnimatedObjects(state.floatTime, state);
     this.renderer.render(this.scene, this.camera);
+    return this.lastAmbientInfo;
   }
 
   resetWorldCollections() {
     this.clockObjects = [];
     this.clouds = [];
     this.birds = [];
+    this.floatingBits = [];
+    this.animals = [];
+    this.passers = [];
+    this.lastAmbientInfo = null;
     this.houseMap = new Map();
     this.occluderMeshes = [];
     this.fadedOccluders = new Set();
@@ -247,6 +256,7 @@ export class ThreeRenderer {
     this.addTargetHouses();
     this.addProceduralTown();
     this.addLandmarks();
+    this.addAmbientLife();
     this.addPlayer();
     this.addTargetMarker();
     this.addNavigationArrows();
@@ -667,6 +677,134 @@ export class ThreeRenderer {
     for (const [x, z] of [[-46,-24],[-16,-24],[16,-24],[48,-24],[-46,24],[-16,24],[16,24],[48,24],[-96,12],[96,-12]]) this.addUtilityPole(x, z);
   }
 
+  addAmbientLife() {
+    const leafMat = new THREE.MeshBasicMaterial({ color: 0xe8b65c, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false });
+    const petalMat = new THREE.MeshBasicMaterial({ color: 0xffb7cc, transparent: true, opacity: 0.78, side: THREE.DoubleSide, depthWrite: false });
+    const leafGeo = new THREE.PlaneGeometry(0.22, 0.09);
+    for (let i = 0; i < 58; i += 1) {
+      const matItem = i % 3 === 0 ? petalMat : leafMat;
+      const bit = new THREE.Mesh(leafGeo, matItem.clone());
+      const x = -110 + ((i * 29) % 220);
+      const z = -80 + ((i * 47) % 160);
+      bit.position.set(x, 1.15 + (i % 9) * 0.18, z);
+      bit.rotation.set((i % 5) * 0.6, (i % 7) * 0.4, (i % 11) * 0.2);
+      this.scene.add(bit);
+      this.floatingBits.push({ bit, baseX: x, baseY: bit.position.y, baseZ: z, phase: i * 0.73, speed: 0.42 + (i % 5) * 0.05, drift: 0.8 + (i % 4) * 0.25 });
+    }
+
+    [
+      { kind: "cat", color: 0xd59a55, x: -84, z: 55, range: 8, speed: 0.18, phase: 0 },
+      { kind: "dog", color: 0x8a6248, x: -72, z: 62, range: 10, speed: 0.14, phase: 1.9 },
+      { kind: "cat", color: 0x555555, x: 46, z: -70, range: 7, speed: 0.16, phase: 3.1 },
+    ].forEach((cfg) => {
+      const animal = this.createAnimal(cfg.kind, cfg.color);
+      animal.position.set(cfg.x, 0, cfg.z);
+      this.scene.add(animal);
+      this.animals.push({ group: animal, ...cfg });
+    });
+
+    const passerConfigs = [
+      { kind: "cyclist", dir: "h", lane: -72, start: -112, end: 112, offset: 2.0, speed: 4.6, phase: 0.03, color: 0x4f91d5 },
+      { kind: "pedestrian", dir: "h", lane: -72, start: -108, end: 108, offset: -6.4, speed: 2.0, phase: 0.12, color: 0x7b87c8 },
+      { kind: "pedestrian", dir: "h", lane: -48, start: -108, end: 108, offset: -6.2, speed: 3.0, phase: 0, color: 0x7b87c8 },
+      { kind: "pedestrian", dir: "h", lane: 24, start: 108, end: -108, offset: 6.2, speed: 2.4, phase: 0.32, color: 0xb86695 },
+      { kind: "pedestrian", dir: "v", lane: -32, start: -80, end: 80, offset: -6.0, speed: 2.6, phase: 0.18, color: 0xd59a34 },
+      { kind: "cyclist", dir: "h", lane: 0, start: -112, end: 112, offset: -2.2, speed: 5.4, phase: 0.55, color: 0x4f91d5 },
+      { kind: "cyclist", dir: "v", lane: 64, start: 82, end: -82, offset: 2.0, speed: 4.8, phase: 0.75, color: 0x5aaa77 },
+      { kind: "pedestrian", dir: "h", lane: 72, start: -108, end: 108, offset: -6.3, speed: 2.2, phase: 0.82, color: 0x9c7556 },
+    ];
+    passerConfigs.forEach((cfg) => {
+      const group = cfg.kind === "cyclist" ? this.createAmbientCyclist(cfg.color) : this.createAmbientPedestrian(cfg.color);
+      this.scene.add(group);
+      this.passers.push({ group, ...cfg });
+    });
+  }
+
+  createAmbientPedestrian(color) {
+    const group = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.46, 4, 10), mat(color));
+    body.position.y = 0.78;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), mat(0xf0c08d));
+    head.position.y = 1.22;
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.08), mat(0x6a523d));
+    bag.position.set(0.18, 0.72, 0.04);
+    group.add(body, head, bag);
+    return group;
+  }
+
+  createAmbientCyclist(color) {
+    const group = this.createAmbientPedestrian(color);
+    group.scale.setScalar(0.92);
+    const wheelMat = mat(0x1f2938);
+    const rear = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.025, 8, 24), wheelMat);
+    const front = rear.clone();
+    rear.position.set(-0.42, 0.24, 0);
+    front.position.set(0.48, 0.24, 0);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.035, 0.04), mat(0xdddddd));
+    frame.position.set(0.03, 0.52, 0);
+    group.add(rear, front, frame);
+    group.userData.wheels = [rear, front];
+    return group;
+  }
+
+  createAnimal(kind, color) {
+    const group = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.SphereGeometry(kind === "dog" ? 0.24 : 0.19, 12, 8), mat(color));
+    body.scale.set(kind === "dog" ? 1.35 : 1.18, 0.72, 0.7);
+    body.position.y = 0.28;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(kind === "dog" ? 0.14 : 0.12, 12, 8), mat(color));
+    head.position.set(0.24, 0.37, 0);
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.28, 6), mat(color));
+    tail.position.set(-0.28, 0.36, 0);
+    tail.rotation.z = Math.PI / 3;
+    group.add(body, head, tail);
+    return group;
+  }
+
+  updateAmbientLife(t, state) {
+    this.floatingBits.forEach((item, i) => {
+      item.bit.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * item.drift;
+      item.bit.position.z = item.baseZ + Math.cos(t * (item.speed * 0.8) + item.phase) * item.drift * 0.42;
+      item.bit.position.y = item.baseY + Math.sin(t * 1.3 + item.phase) * 0.28;
+      item.bit.rotation.y += 0.018 + (i % 4) * 0.003;
+      item.bit.rotation.z += 0.012;
+    });
+
+    const px = state?.player ? wx(state.player.x) : 9999;
+    const pz = state?.player ? wz(state.player.y) : 9999;
+    let near = null;
+    let best = Infinity;
+
+    this.animals.forEach((item, i) => {
+      item.group.position.x = item.x + Math.sin(t * item.speed + item.phase) * item.range;
+      item.group.position.z = item.z + Math.cos(t * item.speed * 0.7 + item.phase) * 1.8;
+      item.group.rotation.y = Math.sin(t * item.speed + item.phase) > 0 ? 0 : Math.PI;
+      item.group.position.y = Math.abs(Math.sin(t * 5 + i)) * 0.025;
+      const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
+      if (d < best && d < 5.8) { best = d; near = "animal"; }
+    });
+
+    this.passers.forEach((item, i) => {
+      const length = Math.abs(item.end - item.start);
+      const sign = item.end >= item.start ? 1 : -1;
+      const phase = ((t * item.speed + item.phase * length) % length + length) % length;
+      const along = item.start + sign * phase;
+      if (item.dir === "h") {
+        item.group.position.set(along, 0, item.lane + item.offset);
+        item.group.rotation.y = sign > 0 ? 0 : Math.PI;
+      } else {
+        item.group.position.set(item.lane + item.offset, 0, along);
+        item.group.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+      }
+      item.group.position.y = item.kind === "pedestrian" ? Math.abs(Math.sin(t * item.speed * 2.2 + i)) * 0.035 : 0;
+      if (item.kind === "cyclist" && item.group.userData.wheels) item.group.userData.wheels.forEach((w) => (w.rotation.z -= 0.22));
+      const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
+      if (d < best && d < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = d; near = item.kind; }
+    });
+
+    this.lastAmbientInfo = near ? { nearPasserby: near, distance: best } : null;
+  }
+
   addPlayer() {
     const group = new THREE.Group();
     this.body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.56, 6, 16), mat(0x2f7d5c));
@@ -1049,7 +1187,8 @@ export class ThreeRenderer {
     this.camera.lookAt(px + dx * 2.8, 0.55, pz + dz * 2.8);
   }
 
-  updateAnimatedObjects(t) {
+  updateAnimatedObjects(t, state) {
+    this.updateAmbientLife(t, state);
     if (this.targetRing?.visible) { const pulse = 1 + Math.sin(t * 3) * 0.045; this.targetRing.scale.multiplyScalar(pulse / this.lastTargetScale); this.lastTargetScale = pulse; this.targetBeam.material.opacity = 0.24 + Math.sin(t * 2.4) * 0.06; } else this.lastTargetScale = 1;
     this.clockObjects.forEach((obj, i) => { obj.rotation.y = Math.sin(t * 0.35 + i) * 0.045; });
     this.clouds.forEach((item) => { item.group.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * item.amplitude; });

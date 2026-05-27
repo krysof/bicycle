@@ -17,6 +17,7 @@ export function createInitialState() {
     houseReaction: null,
     lastNavHintAt: -99,
     summaryEarly: false,
+    lastSafetyHintAt: -99,
   };
 }
 

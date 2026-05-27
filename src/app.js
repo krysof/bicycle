@@ -131,6 +131,17 @@ export class App {
     }
   }
 
+  updateSafetyHint(renderInfo) {
+    const near = renderInfo?.nearPasserby;
+    if (!near || !this.state.isPlaying || this.state.isPaused || this.state.comic) return;
+    if ((this.state.floatTime - (this.state.lastSafetyHintAt ?? -99)) < 7.5) return;
+    const key = near === "cyclist" ? "safetyCyclist" : near === "animal" ? "safetyAnimal" : "safetyPedestrian";
+    this.state.message = t(key);
+    this.state.comic = { text: t(key), tone: "guide", time: 2.8 };
+    this.state.lastSafetyHintAt = this.state.floatTime;
+    this.hud.update(this.state);
+  }
+
   updateNavigationHint() {
     if (!this.state.isPlaying || this.state.isPaused || this.state.delivery?.active || this.state.comic) return;
     if ((this.state.floatTime - (this.state.lastNavHintAt ?? -99)) < 5.2) return;
@@ -195,7 +206,8 @@ export class App {
     const deliveryResult = updateDelivery(this.state, dt);
     if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 650);
     this.updateNavigationHint();
-    this.renderer.render(this.state);
+    const renderInfo = this.renderer.render(this.state);
+    this.updateSafetyHint(renderInfo);
     this.updateComic();
     requestAnimationFrame((time) => this.loop(time));
   }
