@@ -1,5 +1,5 @@
 import { neighbors } from "./data/neighbors.js";
-import { answersFromMode, buildConfig, pickRoute } from "./game/difficulty.js";
+import { answersFromMode, buildConfig, pickRoute, pickStartPoint } from "./game/difficulty.js";
 import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard, bindTouchControls } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
@@ -183,12 +183,12 @@ export class App {
     this.savePlayerName(this.getPlayerName());
     this.state.answers = answersFromMode(mode);
     this.state.config = buildConfig(this.state.answers);
-    this.state.route = pickRoute(neighbors, this.state.config);
+    this.state.player = pickStartPoint();
+    this.state.route = pickRoute(neighbors, this.state.config, this.state.player);
     this.state.delivered = [];
     this.state.delivery = null;
     this.state.comic = null;
     this.state.houseReaction = null;
-    this.state.player = { x: -4320, y: -3240, facing: 1, headingX: 1, headingY: 0, headingAngle: 0 };
     this.startGame();
   }
 

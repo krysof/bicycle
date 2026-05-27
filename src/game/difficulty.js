@@ -3,6 +3,32 @@ const MODE_PROFILES = {
   bike: { energy: "good", hands: "ok", duration: "8", moveMode: "bike", count: 6 },
 };
 
+const START_POINTS = [
+  { x: -4320, y: -3240, angle: 0 },
+  { x: -2880, y: -2160, angle: 0 },
+  { x: 0, y: -3240, angle: 0 },
+  { x: 2880, y: -2160, angle: Math.PI },
+  { x: 4320, y: 0, angle: Math.PI },
+  { x: -4320, y: 0, angle: 0 },
+  { x: -2880, y: 2160, angle: 0 },
+  { x: 0, y: 3240, angle: Math.PI },
+  { x: 2880, y: 2160, angle: Math.PI },
+  { x: 4320, y: 3240, angle: Math.PI },
+];
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle(list) {
+  const result = [...list];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = randInt(0, i);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 export function answersFromMode(mode = "walk") {
   return { ...(MODE_PROFILES[mode] || MODE_PROFILES.walk) };
 }
@@ -14,7 +40,10 @@ export function answersFromProfile(profile = "normal") {
 
 export function buildConfig(answers) {
   const moveMode = answers.moveMode || "walk";
-  const count = answers.count || (moveMode === "bike" ? 6 : 4);
+  const baseCount = answers.count || (moveMode === "bike" ? 6 : 4);
+  const count = moveMode === "bike"
+    ? Math.max(5, Math.min(8, baseCount + randInt(-1, 2)))
+    : Math.max(3, Math.min(5, baseCount + randInt(-1, 1)));
   const routeNameKey = moveMode === "bike" ? "routeBike" : "routeWalk";
   const routeName = moveMode === "bike" ? "单车远行路线" : "步行安心路线";
   // 投递判定缩小到“刚好包住路边目标点”的范围：光圈只比房屋 / 院落略大，
@@ -25,8 +54,25 @@ export function buildConfig(answers) {
   return { count, moveMode, routeName, routeNameKey, assistRadius, speed, memoryCount };
 }
 
-export function pickRoute(neighbors, config) {
-  const start = { x: -4320, y: -3240 };
-  const sorted = [...neighbors].sort((a, b) => Math.hypot(a.x - start.x, a.y - start.y) - Math.hypot(b.x - start.x, b.y - start.y));
-  return sorted.slice(0, config.count);
+export function pickStartPoint() {
+  const point = START_POINTS[randInt(0, START_POINTS.length - 1)];
+  const angle = point.angle + (Math.random() - 0.5) * 0.22;
+  return {
+    x: point.x,
+    y: point.y,
+    facing: Math.cos(angle) >= 0 ? 1 : -1,
+    headingX: Math.cos(angle),
+    headingY: Math.sin(angle),
+    headingAngle: angle,
+  };
+}
+
+export function pickRoute(neighbors, config, start = { x: -4320, y: -3240 }) {
+  const count = Math.min(config.count, neighbors.length);
+  const minFirstDistance = config.moveMode === "bike" ? 1700 : 1050;
+  const shuffled = shuffle(neighbors);
+  const farEnough = shuffled.filter((n) => Math.hypot((n.deliveryX ?? n.x) - start.x, (n.deliveryY ?? n.y) - start.y) >= minFirstDistance);
+  const first = (farEnough.length ? farEnough : shuffled)[randInt(0, Math.max(0, (farEnough.length ? farEnough : shuffled).length - 1))];
+  const rest = shuffle(shuffled.filter((n) => n.id !== first.id));
+  return [first, ...rest].slice(0, count);
 }
