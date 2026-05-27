@@ -19,24 +19,47 @@ export class App {
     this.setupLanguageSelector();
   }
 
+  randomDefaultName() {
+    const list = t("defaultPlayerNames");
+    const names = Array.isArray(list) ? list : ["春日先生", "青山女士", "松风先生", "花见女士"];
+    const index = Math.floor((Date.now() / 997 + Math.random() * names.length) % names.length);
+    return names[index];
+  }
+
+  getPlayerName() {
+    const input = document.getElementById("playerNameInput");
+    return (input?.value || this.state.playerName || loadRecord().playerName || this.randomDefaultName()).trim();
+  }
+
+  savePlayerName(name) {
+    const clean = (name || "").trim() || this.randomDefaultName();
+    this.state.playerName = clean;
+    const record = loadRecord();
+    record.playerName = clean;
+    saveRecord(record);
+    return clean;
+  }
+
   setupLanguageSelector() {
     const select = document.getElementById("languageSelect");
     if (!select) return;
     select.innerHTML = languageOptions.map((item) => `<option value="${item.code}">${item.label}</option>`).join("");
     select.value = locale;
-    select.addEventListener("change", () => changeLanguage(select.value));
+    select.onchange = () => changeLanguage(select.value);
   }
 
   handleLanguageChanged() {
+    const currentName = this.state.screen === "home" ? this.getPlayerName() : (this.state.playerName || loadRecord().playerName || this.randomDefaultName());
+    this.state.playerName = currentName;
     this.setupLanguageSelector();
     this.renderer.rebuildWorld();
     if (this.state.screen === "home") {
-      this.screens.home(loadRecord());
+      this.screens.home(loadRecord(), currentName);
     } else if (this.state.screen === "summary") {
       this.screens.summary(this.state, this.state.summaryEarly);
     } else if (this.state.screen === "game") {
       const mode = this.state.config?.moveMode === "bike" ? t("modeBike") : t("modeWalk");
-      this.state.message = t("startMessage", mode);
+      this.state.message = this.state.playerName ? t("startMessageNamed", this.state.playerName, mode) : t("startMessage", mode);
       this.state.comic = { text: this.state.message, tone: "guide", time: 2.4 };
       this.state.lastNavHintAt = this.state.floatTime;
       this.hud.show();
@@ -79,10 +102,13 @@ export class App {
     this.state.houseReaction = null;
     this.hud.hide();
     this.updateComic();
-    this.screens.home(loadRecord());
+    const record = loadRecord();
+    this.state.playerName = record.playerName || this.state.playerName || this.randomDefaultName();
+    this.screens.home(record, this.state.playerName);
   }
 
   startWithMode(mode) {
+    this.savePlayerName(this.getPlayerName());
     this.state.answers = answersFromMode(mode);
     this.state.config = buildConfig(this.state.answers);
     this.state.route = pickRoute(neighbors, this.state.config);
@@ -99,7 +125,7 @@ export class App {
     this.state.isPlaying = true;
     this.state.isPaused = false;
     const mode = this.state.config.moveMode === "bike" ? t("modeBike") : t("modeWalk");
-    this.state.message = t("startMessage", mode);
+    this.state.message = this.state.playerName ? t("startMessageNamed", this.state.playerName, mode) : t("startMessage", mode);
     this.state.comic = { text: this.state.message, tone: "guide", time: 3.0 };
     this.state.lastNavHintAt = this.state.floatTime;
     this.screens.clear();

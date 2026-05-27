@@ -360,8 +360,7 @@ export class ThreeRenderer {
     // Paperboy 参考比例：宽黑色车道 + 灰色人行道 + 白色路缘/标线。
     for (const z of [-72, -48, -24, 0, 24, 48, 72]) this.addStreet("h", z);
     for (const x of [-96, -64, -32, 0, 32, 64, 96]) this.addStreet("v", x);
-    this.addPlane(-52, 0.036, 36, 48, 2.0, COLORS.path, -0.2);
-    this.addPlane(54, 0.036, -36, 42, 2.0, COLORS.path, 0.18);
+    // 移除窄小斜路，只保留整齐、宽阔的道路网。
   }
 
   addStreet(direction, pos) {

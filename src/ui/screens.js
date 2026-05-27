@@ -8,7 +8,7 @@ export class Screens {
     this.root.innerHTML = "";
   }
 
-  home(record) {
+  home(record, playerName = "") {
     const last = record.lastSummary;
     const yesterday = last
       ? t("greetingLast", last.count)
@@ -19,7 +19,12 @@ export class Screens {
         <div class="stamp">${t("stamp")}</div>
         <p class="eyebrow">${t("eyebrow")}</p>
         <h1>${t("homeTitle")}</h1>
-        <p class="lead">${t("companionHello", yesterday)}</p>
+        <p class="lead">${playerName ? t("companionHelloNamed", playerName, yesterday) : t("companionHello", yesterday)}</p>
+        <label class="name-field">
+          <span>${t("playerNameLabel")}</span>
+          <input id="playerNameInput" type="text" maxlength="24" value="${playerName}" autocomplete="name" />
+          <em>${t("playerNameHelp")}</em>
+        </label>
         <div class="mode-grid" aria-label="${t("chooseMode")}">
           <button class="mode-card primary" data-mode="bike">
             <span class="mode-icon">🚲</span>

@@ -4,6 +4,7 @@ export function createInitialState() {
     answers: {},
     config: null,
     route: [],
+    playerName: "",
     delivered: [],
     player: { x: -4320, y: -3240, facing: 1, headingX: 1, headingY: 0, headingAngle: 0 },
     keys: new Set(),

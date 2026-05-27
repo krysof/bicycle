@@ -127,6 +127,41 @@ label {
   margin-top: 26px;
 }
 
+
+.name-field {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 6px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 2px solid rgba(47, 125, 92, 0.12);
+}
+
+.name-field span {
+  font-weight: 900;
+  color: var(--accent);
+  font-size: clamp(18px, 1.8vw, 22px);
+}
+
+.name-field input {
+  min-height: 58px;
+  border: 2px solid rgba(36, 48, 68, 0.16);
+  border-radius: 18px;
+  background: #fffdf5;
+  color: var(--ink);
+  font: inherit;
+  font-size: clamp(24px, 2.7vw, 32px);
+  font-weight: 850;
+  padding: 10px 16px;
+}
+
+.name-field em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: clamp(15px, 1.5vw, 18px);
+}
+
 .mode-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -484,7 +519,42 @@ kbd {
     grid-template-columns: 1fr;
   }
 
-  .mode-grid {
+  
+.name-field {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 6px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 2px solid rgba(47, 125, 92, 0.12);
+}
+
+.name-field span {
+  font-weight: 900;
+  color: var(--accent);
+  font-size: clamp(18px, 1.8vw, 22px);
+}
+
+.name-field input {
+  min-height: 58px;
+  border: 2px solid rgba(36, 48, 68, 0.16);
+  border-radius: 18px;
+  background: #fffdf5;
+  color: var(--ink);
+  font: inherit;
+  font-size: clamp(24px, 2.7vw, 32px);
+  font-weight: 850;
+  padding: 10px 16px;
+}
+
+.name-field em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: clamp(15px, 1.5vw, 18px);
+}
+
+.mode-grid {
     grid-template-columns: 1fr;
   }
 }
