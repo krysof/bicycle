@@ -41,15 +41,27 @@ export function answersFromProfile(profile = "normal") {
 export function buildConfig(answers) {
   const moveMode = answers.moveMode || "walk";
   const baseCount = answers.count || (moveMode === "bike" ? 6 : 4);
-  const count = moveMode === "bike"
-    ? Math.max(5, Math.min(8, baseCount + randInt(-1, 2)))
-    : Math.max(3, Math.min(5, baseCount + randInt(-1, 1)));
+  const status = answers.todayStatus || answers.energy || "normal";
+  let count;
+  if (status === "tired") {
+    count = moveMode === "bike"
+      ? Math.max(4, Math.min(5, baseCount + randInt(-1, 0)))
+      : 3;
+  } else if (status === "good") {
+    count = moveMode === "bike"
+      ? Math.max(7, Math.min(8, baseCount + randInt(-1, 0)))
+      : 5;
+  } else {
+    count = moveMode === "bike"
+      ? Math.max(6, Math.min(7, baseCount + randInt(0, 1)))
+      : Math.max(4, Math.min(5, baseCount + randInt(0, 1)));
+  }
   const routeNameKey = moveMode === "bike" ? "routeBike" : "routeWalk";
   const routeName = moveMode === "bike" ? "单车远行路线" : "步行安心路线";
   // 投递判定缩小到“刚好包住路边目标点”的范围：光圈只比房屋 / 院落略大，
   // 玩家需要沿路骑一小段再投递，而不是在相邻路口就完成。
   const assistRadius = moveMode === "bike" ? 220 : 190;
-  const speed = moveMode === "bike" ? 430 : 145;
+  const speed = (moveMode === "bike" ? 430 : 145) * (answers.speedScale || 1);
   const memoryCount = 0;
   return { count, moveMode, routeName, routeNameKey, assistRadius, speed, memoryCount };
 }

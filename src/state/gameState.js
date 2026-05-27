@@ -5,6 +5,7 @@ export function createInitialState() {
     config: null,
     route: [],
     preparedRuns: {},
+    todayStatus: "normal",
     worldSeed: 1,
     worldLayout: null,
     worldObstacles: null,

@@ -162,6 +162,48 @@ label {
   font-size: clamp(15px, 1.5vw, 18px);
 }
 
+.status-panel {
+  margin-top: 18px;
+  padding: 14px;
+  border: 2px solid rgba(47, 125, 92, 0.16);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.status-title {
+  margin: 0 0 10px;
+  font-weight: 900;
+  color: var(--accent-dark);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.status-card {
+  min-height: 92px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  align-content: center;
+  background: linear-gradient(180deg, #fffdf5, #fff6df);
+}
+
+.status-card em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: clamp(14px, 1.4vw, 17px);
+}
+
+.status-card.selected {
+  border-color: rgba(47, 125, 92, 0.64);
+  background: linear-gradient(180deg, #f0fff3, #fff7d6);
+  box-shadow: 0 0 0 4px rgba(47, 125, 92, 0.13);
+}
+
 .mode-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -756,5 +798,13 @@ kbd {
 
 .mode-grid {
     grid-template-columns: 1fr;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-card {
+    min-height: 78px;
   }
 }

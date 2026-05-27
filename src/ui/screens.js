@@ -22,7 +22,7 @@ export class Screens {
       </section>`;
   }
 
-  home(record, playerName = "") {
+  home(record, playerName = "", todayStatus = "normal") {
     const last = record.lastSummary;
     const yesterday = last
       ? t("greetingLast", last.count)
@@ -39,6 +39,16 @@ export class Screens {
           <input id="playerNameInput" type="text" maxlength="24" value="${playerName}" autocomplete="name" />
           <em>${t("playerNameHelp")}</em>
         </label>
+        <div class="status-panel" aria-label="${t("statusQuestion")}">
+          <p class="status-title">${t("statusQuestion")}</p>
+          <div class="status-grid">
+            ${["tired", "normal", "good"].map((status) => `
+              <button type="button" class="status-card ${todayStatus === status ? "selected" : ""}" data-status="${status}">
+                <strong>${t(`status_${status}`)}</strong>
+                <em>${t(`status_${status}_hint`)}</em>
+              </button>`).join("")}
+          </div>
+        </div>
         <div class="mode-grid" aria-label="${t("chooseMode")}">
           <button class="mode-card primary" data-mode="bike">
             <span class="mode-icon">🚲</span>

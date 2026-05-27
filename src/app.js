@@ -43,6 +43,26 @@ export class App {
     return 16 + Math.random() * 12;
   }
 
+  answersForMode(mode) {
+    const answers = answersFromMode(mode);
+    const status = this.state.todayStatus || "normal";
+    answers.todayStatus = status;
+    if (status === "tired") {
+      answers.energy = "tired";
+      answers.count = mode === "bike" ? 5 : 3;
+      answers.speedScale = 0.86;
+    } else if (status === "good") {
+      answers.energy = "good";
+      answers.count = mode === "bike" ? 8 : 5;
+      answers.speedScale = 1.06;
+    } else {
+      answers.energy = "normal";
+      answers.count = mode === "bike" ? 6 : 4;
+      answers.speedScale = 1;
+    }
+    return answers;
+  }
+
   rerollNames() {
     this.playerNameIndex = this.randomIndex(getLocalizedList("defaultPlayerNames").length);
     this.companionNameIndex = this.randomIndex(getLocalizedList("companionNames").length);
@@ -111,7 +131,7 @@ export class App {
     if (this.state.screen === "title") {
       this.screens.title();
     } else if (this.state.screen === "home") {
-      this.screens.home(loadRecord(), currentName);
+      this.screens.home(loadRecord(), currentName, this.state.todayStatus);
     } else if (this.state.screen === "summary") {
       this.screens.summary(this.state, this.state.summaryEarly);
     } else if (this.state.screen === "game") {
@@ -146,6 +166,10 @@ export class App {
         this.showHome();
         return;
       }
+      if (button.dataset.status) {
+        this.setTodayStatus(button.dataset.status);
+        return;
+      }
       if (button.dataset.mode) this.startWithMode(button.dataset.mode);
       if (button.dataset.quick) this.startWithMode(button.dataset.quick === "active" ? "bike" : "walk");
       if (button.dataset.action === "home") this.showHome();
@@ -167,12 +191,27 @@ export class App {
     if (!this.state.worldLayout || !this.state.worldObstacles) this.prepareRandomWorld();
     this.state.preparedRuns = {};
     ["bike", "walk"].forEach((mode) => {
-      const answers = answersFromMode(mode);
+      const answers = this.answersForMode(mode);
       const config = buildConfig(answers);
       const player = pickStartPoint();
       const route = pickRoute(neighbors, config, player);
       this.state.preparedRuns[mode] = { answers, config, player, route };
     });
+  }
+
+  setTodayStatus(status) {
+    if (!["tired", "normal", "good"].includes(status)) return;
+    this.savePlayerName(this.getPlayerName());
+    this.state.todayStatus = status;
+    this.prepareRoutesForModeSelection();
+    const preview = this.state.preparedRuns.bike || this.state.preparedRuns.walk;
+    if (preview) {
+      this.state.config = { ...preview.config };
+      this.state.player = { ...preview.player };
+      this.state.route = [...preview.route];
+      this.state.delivered = [];
+    }
+    this.screens.home(loadRecord(), this.state.playerName, this.state.todayStatus);
   }
 
   showTitle() {
@@ -194,6 +233,7 @@ export class App {
     const previousScreen = this.state.screen;
     if (!this.state.worldLayout || previousScreen === "title" || previousScreen === "summary") this.prepareRandomWorld();
     this.rerollNames();
+    this.state.todayStatus = "normal";
     this.prepareRoutesForModeSelection();
     const preview = this.state.preparedRuns.bike || this.state.preparedRuns.walk;
     if (preview) {
@@ -213,7 +253,7 @@ export class App {
     this.hideTouchControls();
     this.updateComic();
     const record = loadRecord();
-    this.screens.home(record, this.state.playerName);
+    this.screens.home(record, this.state.playerName, this.state.todayStatus);
   }
 
   startWithMode(mode) {
