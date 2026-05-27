@@ -1170,7 +1170,8 @@ export class ThreeRenderer {
         parts.pedal.position.y = 0.48 + Math.sin(pedalCycle * 1.65) * 0.085;
       }
       if (parts.crank) parts.crank.rotation.z = -pedalCycle * 1.65;
-      const steer = THREE.MathUtils.lerp(parts.steerAngle || 0, turnInput * 0.46, 0.2);
+      // 操作层面的左 / 右已经正确，这里只修正车把和前轮的视觉转向方向。
+      const steer = THREE.MathUtils.lerp(parts.steerAngle || 0, -turnInput * 0.46, 0.2);
       parts.steerAngle = steer;
       if (parts.frontWheel) parts.frontWheel.rotation.y = steer;
       if (parts.frontRim) parts.frontRim.rotation.y = steer;
@@ -1293,6 +1294,17 @@ export class ThreeRenderer {
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
     const distance = state.config?.moveMode === "bike" ? 7.2 : 6.4;
     const height = state.config?.moveMode === "bike" ? 2.65 : 2.45;
+    if (state.screen === "title") {
+      const t = state.floatTime || 0;
+      const desiredTitle = new THREE.Vector3(
+        Math.sin(t * 0.08) * 34,
+        42,
+        78 + Math.cos(t * 0.07) * 10
+      );
+      this.camera.position.lerp(desiredTitle, 0.045);
+      this.camera.lookAt(0, 0.5, 0);
+      return;
+    }
     if (!state.isPlaying) {
       const desiredHome = new THREE.Vector3(px - dx * 8.0, 4.2, pz - dz * 8.0);
       this.camera.position.lerp(desiredHome, 0.04);

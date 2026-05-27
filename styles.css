@@ -211,6 +211,7 @@ html[data-locale="en"] select {
 
 .title-screen {
   text-align: center;
+  background: rgba(255, 251, 238, 0.86);
 }
 
 .title-start {

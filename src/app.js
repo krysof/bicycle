@@ -16,6 +16,8 @@ export class App {
     applyDocumentLanguage();
     this.state = createInitialState();
     this.renderer = new ThreeRenderer(document.getElementById("gameCanvas"));
+    // 首屏标题出现前就把随机社区准备好，避免先显示默认地图。
+    this.prepareRandomWorld();
     this.audio = new AudioEngine();
     this.playerNameIndex = this.randomIndex(getLocalizedList("defaultPlayerNames").length);
     this.companionNameIndex = this.randomIndex(getLocalizedList("companionNames").length);
@@ -157,7 +159,7 @@ export class App {
   }
 
   showTitle() {
-    this.prepareRandomWorld();
+    if (!this.state.worldLayout || !this.state.worldObstacles) this.prepareRandomWorld();
     this.state.screen = "title";
     this.state.isPlaying = false;
     this.state.isPaused = false;
