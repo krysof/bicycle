@@ -410,6 +410,22 @@ button:disabled {
   outline-color: rgba(47, 125, 92, 0.42);
 }
 
+.audio-toggle {
+  min-height: 42px;
+  min-width: 42px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 20px;
+  line-height: 1;
+  background: #fff8e8;
+}
+
+.audio-toggle.off {
+  filter: grayscale(1);
+  opacity: 0.48;
+  text-decoration: line-through;
+}
+
 .hidden {
   display: none !important;
 }

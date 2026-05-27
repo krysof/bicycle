@@ -19,6 +19,7 @@ export class App {
     this.screens = new Screens(document.getElementById("ui"));
     this.hud = new Hud();
     this.setupLanguageSelector();
+    this.setupAudioToggles();
   }
 
   randomDefaultName() {
@@ -48,6 +49,28 @@ export class App {
     select.innerHTML = languageOptions.map((item) => `<option value="${item.code}">${item.label}</option>`).join("");
     select.value = locale;
     select.onchange = () => changeLanguage(select.value);
+  }
+
+  setupAudioToggles() {
+    const music = document.getElementById("musicToggle");
+    const sfx = document.getElementById("sfxToggle");
+    const refresh = () => {
+      music?.classList.toggle("off", !this.audio.musicEnabled);
+      sfx?.classList.toggle("off", !this.audio.sfxEnabled);
+      if (music) music.title = this.audio.musicEnabled ? "Music on" : "Music off";
+      if (sfx) sfx.title = this.audio.sfxEnabled ? "Sound effects on" : "Sound effects off";
+    };
+    music?.addEventListener("click", async () => {
+      await this.audio.start();
+      this.audio.toggleMusic();
+      refresh();
+    });
+    sfx?.addEventListener("click", async () => {
+      await this.audio.start();
+      this.audio.toggleSfx();
+      refresh();
+    });
+    refresh();
   }
 
   handleLanguageChanged() {

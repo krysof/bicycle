@@ -2,19 +2,31 @@ import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS } from "../data/world.js";
 import { currentTarget } from "../state/gameState.js";
 import { nt, t } from "../i18n.js";
 
+export function deliveryDistance(state, target = currentTarget(state)) {
+  if (!target) return Infinity;
+  const deliveryX = target.deliveryX ?? target.x;
+  const deliveryY = target.deliveryY ?? target.y;
+  return Math.hypot(state.player.x - deliveryX, state.player.y - deliveryY);
+}
+
+export function canDeliverNow(state, target = currentTarget(state)) {
+  if (!target || !state.isPlaying || state.isPaused || state.delivery?.active) return false;
+  return deliveryDistance(state, target) <= (state.config?.assistRadius || 220);
+}
+
 export function requestDelivery(state) {
   const target = currentTarget(state);
   if (!target) return { completed: true, delivered: false };
 
   // 判定仍以路边可到达点为准；视觉命中点落在房屋中心。
-  const deliveryX = target.deliveryX ?? target.x;
-  const deliveryY = target.deliveryY ?? target.y;
   const targetX = target.x;
   const targetY = target.y;
-  const distance = Math.hypot(state.player.x - deliveryX, state.player.y - deliveryY);
   if (state.delivery?.active) return { completed: false, delivered: false, flying: true };
 
-  if (distance <= state.config.assistRadius) {
+  if (canDeliverNow(state, target)) {
+    const dx = targetX - state.player.x;
+    const dy = targetY - state.player.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
     state.delivery = {
       active: true,
       t: 0,
@@ -22,7 +34,7 @@ export function requestDelivery(state) {
       targetId: target.id,
       targetName: nt(target, "name"),
       thanks: nt(target, "thanks"),
-      start: { x: state.player.x + state.player.headingX * 45, y: state.player.y + state.player.headingY * 45 },
+      start: { x: state.player.x + (dx / len) * 45, y: state.player.y + (dy / len) * 45 },
       end: { x: targetX, y: targetY },
     };
     state.comic = { text: t("comicThrow"), tone: "throw", time: 0.7 };

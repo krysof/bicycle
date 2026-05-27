@@ -62,6 +62,8 @@ export class AudioEngine {
     this.lastDeliveredCount = 0;
     this.wasFlying = false;
     this.isEnabled = false;
+    this.musicEnabled = localStorage.getItem("bicycle-music") !== "off";
+    this.sfxEnabled = localStorage.getItem("bicycle-sfx") !== "off";
   }
 
   ensure() {
@@ -74,15 +76,15 @@ export class AudioEngine {
     this.master.connect(this.ctx.destination);
 
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.46;
+    this.musicGain.gain.value = this.musicEnabled ? 0.46 : 0.0001;
     this.musicGain.connect(this.master);
 
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.value = 0.34;
+    this.ambientGain.gain.value = this.musicEnabled ? 0.34 : 0.0001;
     this.ambientGain.connect(this.master);
 
     this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = 0.82;
+    this.sfxGain.gain.value = this.sfxEnabled ? 0.82 : 0.0001;
     this.sfxGain.connect(this.master);
 
     this.noiseBuffer = makeNoiseBuffer(this.ctx, 2);
@@ -102,7 +104,36 @@ export class AudioEngine {
       this.startNatureBed();
     }
     if (ctx.state === "suspended") await ctx.resume();
-    if (!wasStarted) this.playEnableChime();
+    if (!wasStarted && this.sfxEnabled) this.playEnableChime();
+  }
+
+  setMusicEnabled(enabled) {
+    this.musicEnabled = Boolean(enabled);
+    localStorage.setItem("bicycle-music", this.musicEnabled ? "on" : "off");
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.musicGain?.gain.setTargetAtTime(this.musicEnabled ? 0.46 : 0.0001, now, 0.08);
+    this.ambientGain?.gain.setTargetAtTime(this.musicEnabled ? 0.34 : 0.0001, now, 0.08);
+  }
+
+  setSfxEnabled(enabled) {
+    this.sfxEnabled = Boolean(enabled);
+    localStorage.setItem("bicycle-sfx", this.sfxEnabled ? "on" : "off");
+    const ctx = this.ensure();
+    if (!ctx) return;
+    this.sfxGain?.gain.setTargetAtTime(this.sfxEnabled ? 0.82 : 0.0001, ctx.currentTime, 0.04);
+    if (this.sfxEnabled) window.setTimeout(() => this.playEnableChime(), 80);
+  }
+
+  toggleMusic() {
+    this.setMusicEnabled(!this.musicEnabled);
+    return this.musicEnabled;
+  }
+
+  toggleSfx() {
+    this.setSfxEnabled(!this.sfxEnabled);
+    return this.sfxEnabled;
   }
 
   playEnableChime() {

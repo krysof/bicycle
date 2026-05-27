@@ -1,11 +1,14 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
+import { canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { locale, nt, t } from "../i18n.js";
 
 const WORLD_SCALE = 1 / 45;
 const MAP_W = 235;
 const MAP_D = 178;
+const ROAD_X = [-96, -64, -32, 0, 32, 64, 96];
+const ROAD_Z = [-72, -48, -24, 0, 24, 48, 72];
 const COLORS = {
   grass: 0xbfe6a6,
   grass2: 0xa9d88e,
@@ -154,6 +157,49 @@ function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
   });
 }
 
+function nearestRoad(value, roads) {
+  return roads.reduce((best, item) => Math.abs(item - value) < Math.abs(best - value) ? item : best, roads[0]);
+}
+
+function appendSegment(points, from, to) {
+  const last = points[points.length - 1];
+  if (!last || Math.hypot(last.x - from.x, last.z - from.z) > 0.08) points.push(from);
+  if (Math.hypot(from.x - to.x, from.z - to.z) > 0.08) points.push(to);
+}
+
+function buildRoadPath(px, pz, tx, tz) {
+  const startZ = nearestRoad(pz, ROAD_Z);
+  const targetZ = nearestRoad(tz, ROAD_Z);
+  const jointX = nearestRoad(tx, ROAD_X);
+  const points = [];
+  appendSegment(points, { x: px, z: startZ }, { x: jointX, z: startZ });
+  appendSegment(points, { x: jointX, z: startZ }, { x: jointX, z: targetZ });
+  appendSegment(points, { x: jointX, z: targetZ }, { x: tx, z: targetZ });
+  appendSegment(points, { x: tx, z: targetZ }, { x: tx, z: tz });
+  return points.filter((p, i, arr) => i === 0 || Math.hypot(p.x - arr[i - 1].x, p.z - arr[i - 1].z) > 0.08);
+}
+
+function samplePath(points, distance) {
+  if (points.length < 2) return null;
+  let remain = distance;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i];
+    const b = points[i + 1];
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.001) continue;
+    if (remain <= len) {
+      const t = Math.max(0, Math.min(1, remain / len));
+      return { x: a.x + dx * t, z: a.z + dz * t, angle: -Math.atan2(dz, dx), remainingSegment: len - remain };
+    }
+    remain -= len;
+  }
+  const a = points[points.length - 2];
+  const b = points[points.length - 1];
+  return { x: b.x, z: b.z, angle: -Math.atan2(b.z - a.z, b.x - a.x), remainingSegment: 0 };
+}
+
 export class ThreeRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -185,6 +231,7 @@ export class ThreeRenderer {
     this.targetRing = null;
     this.targetBeam = null;
     this.navigationArrows = [];
+    this.paperReadyIcon = null;
     this.newspaper = null;
     this.reactionSprite = null;
     this.player = null;
@@ -234,6 +281,7 @@ export class ThreeRenderer {
     this.targetRing = null;
     this.targetBeam = null;
     this.navigationArrows = [];
+    this.paperReadyIcon = null;
     this.newspaper = null;
     this.reactionSprite = null;
     this.player = null;
@@ -360,8 +408,8 @@ export class ThreeRenderer {
 
   addRoadNetwork() {
     // Paperboy 参考比例：宽黑色车道 + 灰色人行道 + 白色路缘/标线。
-    for (const z of [-72, -48, -24, 0, 24, 48, 72]) this.addStreet("h", z);
-    for (const x of [-96, -64, -32, 0, 32, 64, 96]) this.addStreet("v", x);
+    for (const z of ROAD_Z) this.addStreet("h", z);
+    for (const x of ROAD_X) this.addStreet("v", x);
     // 移除窄小斜路，只保留整齐、宽阔的道路网。
   }
 
@@ -835,8 +883,28 @@ export class ThreeRenderer {
     this.bike = this.createBike();
     this.bike.visible = false;
     group.add(this.bike);
+    this.paperReadyIcon = this.createPaperReadyIcon();
+    this.paperReadyIcon.visible = false;
+    group.add(this.paperReadyIcon);
     this.player = group;
     this.scene.add(group);
+  }
+
+  createPaperReadyIcon() {
+    const group = new THREE.Group();
+    group.position.set(0, 2.2, 0);
+    const paper = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.055, 0.36), mat(0xfffbef));
+    paper.rotation.z = -0.08;
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.06, 0.055), mat(0x2f6fb0));
+    band.position.z = 0.015;
+    band.rotation.z = -0.08;
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.025, 8, 40), transparentMat(0xffd447, 0.86));
+    halo.rotation.x = Math.PI / 2;
+    const label = makeCanvasLabel(t("paperReadyLabel"), "#2f6fb0");
+    label.position.set(0, 0.42, 0);
+    label.scale.set(1.45, 0.45, 1);
+    group.add(halo, paper, band, label);
+    return group;
   }
 
   limb(color, x, y, z, radius = 0.06) { const m = new THREE.Mesh(new THREE.CapsuleGeometry(radius, 0.38, 4, 8), mat(color)); m.position.set(x, y, z); m.castShadow = true; return m; }
@@ -974,19 +1042,25 @@ export class ThreeRenderer {
     const pz = wz(state.player.y);
     const tx = wx(target.deliveryX ?? target.x);
     const tz = wz(target.deliveryY ?? target.y);
-    const toTarget = new THREE.Vector2(tx - px, tz - pz);
-    if (toTarget.lengthSq() < 0.001) return;
-    toTarget.normalize();
-    const angle = -Math.atan2(toTarget.y, toTarget.x);
+    const path = buildRoadPath(px, pz, tx, tz);
+    const total = path.reduce((sum, p, i) => {
+      if (i === 0) return 0;
+      return sum + Math.hypot(p.x - path[i - 1].x, p.z - path[i - 1].z);
+    }, 0);
 
-    // 在玩家前方道路上放 3 个大箭头，像导航一样指向下一户。
+    // 箭头沿道路中心线排布，再最后进入路边投递点；不再直线穿过房屋。
     this.navigationArrows.forEach((arrow, i) => {
-      const dist = 4.0 + i * 3.2;
-      arrow.position.x = px + toTarget.x * dist;
-      arrow.position.z = pz + toTarget.y * dist;
-      arrow.rotation.z = angle;
+      const sample = samplePath(path, Math.min(total, 4.2 + i * 5.2));
+      if (!sample) { arrow.visible = false; return; }
+      arrow.visible = true;
+      arrow.position.x = sample.x;
+      arrow.position.z = sample.z;
+      arrow.rotation.z = sample.angle;
+      const distToTarget = Math.hypot(tx - px, tz - pz);
+      const proximity = Math.max(0, Math.min(1, 1 - distToTarget / 38));
       const pulse = 1 + Math.sin((state.floatTime || 0) * 4 + i) * 0.08;
-      arrow.scale.setScalar((1.0 - i * 0.1) * pulse);
+      const base = 0.82 + proximity * 0.34 - i * 0.08;
+      arrow.scale.setScalar(base * pulse);
     });
   }
 
@@ -1117,6 +1191,15 @@ export class ThreeRenderer {
       this.walkParts.leftArm.rotation.set(-step * 0.7, 0, 0);
       this.walkParts.rightArm.rotation.set(step * 0.7, 0, 0);
     }
+    if (this.paperReadyIcon) {
+      const ready = canDeliverNow(state);
+      this.paperReadyIcon.visible = ready;
+      if (ready) {
+        this.paperReadyIcon.position.y = 2.18 + Math.sin((state.floatTime || 0) * 5) * 0.08;
+        this.paperReadyIcon.rotation.y = -this.player.rotation.y;
+        this.paperReadyIcon.scale.setScalar(1 + Math.sin((state.floatTime || 0) * 6) * 0.055);
+      }
+    }
   }
 
   updateTarget(state) {
@@ -1130,6 +1213,9 @@ export class ThreeRenderer {
       this.lastTargetId = target.id;
       this.lastTargetScale = 1;
     }
+    const ringColor = Number.parseInt((target.roof || "#ffa500").slice(1), 16);
+    this.targetRing.material.color.setHex(ringColor);
+    this.targetBeam.material.color.setHex(ringColor);
     this.targetRing.position.set(x, 0.12, z); this.targetRing.scale.setScalar(radius); this.targetBeam.position.set(x, 4.0, z);
   }
 
