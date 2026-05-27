@@ -179,6 +179,10 @@ function buildRoadPath(px, pz, tx, tz) {
   return points.filter((p, i, arr) => i === 0 || Math.hypot(p.x - arr[i - 1].x, p.z - arr[i - 1].z) > 0.08);
 }
 
+function buildDirectPath(px, pz, tx, tz) {
+  return [{ x: px, z: pz }, { x: tx, z: tz }];
+}
+
 function samplePath(points, distance) {
   if (points.length < 2) return null;
   let remain = distance;
@@ -1040,9 +1044,13 @@ export class ThreeRenderer {
 
     const px = wx(state.player.x);
     const pz = wz(state.player.y);
-    const tx = wx(target.deliveryX ?? target.x);
-    const tz = wz(target.deliveryY ?? target.y);
-    const path = buildRoadPath(px, pz, tx, tz);
+    const deliveryX = wx(target.deliveryX ?? target.x);
+    const deliveryZ = wz(target.deliveryY ?? target.y);
+    const ringX = this.targetRing?.position.x ?? wx(target.x);
+    const ringZ = this.targetRing?.position.z ?? wz(target.y);
+    const distToRing = Math.hypot(ringX - px, ringZ - pz);
+    const nearTarget = distToRing < 13.5 || canDeliverNow(state);
+    const path = nearTarget ? buildDirectPath(px, pz, ringX, ringZ) : buildRoadPath(px, pz, deliveryX, deliveryZ);
     const total = path.reduce((sum, p, i) => {
       if (i === 0) return 0;
       return sum + Math.hypot(p.x - path[i - 1].x, p.z - path[i - 1].z);
@@ -1050,13 +1058,13 @@ export class ThreeRenderer {
 
     // 箭头沿道路中心线排布，再最后进入路边投递点；不再直线穿过房屋。
     this.navigationArrows.forEach((arrow, i) => {
-      const sample = samplePath(path, Math.min(total, 4.2 + i * 5.2));
+      const sample = samplePath(path, Math.min(total, nearTarget ? 2.4 + i * 2.9 : 4.2 + i * 5.2));
       if (!sample) { arrow.visible = false; return; }
       arrow.visible = true;
       arrow.position.x = sample.x;
       arrow.position.z = sample.z;
       arrow.rotation.z = sample.angle;
-      const distToTarget = Math.hypot(tx - px, tz - pz);
+      const distToTarget = nearTarget ? distToRing : Math.hypot(deliveryX - px, deliveryZ - pz);
       const proximity = Math.max(0, Math.min(1, 1 - distToTarget / 38));
       const pulse = 1 + Math.sin((state.floatTime || 0) * 4 + i) * 0.08;
       const base = 0.82 + proximity * 0.34 - i * 0.08;

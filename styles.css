@@ -488,6 +488,67 @@ button:disabled {
   box-shadow: 7px 7px 0 rgba(31, 43, 56, 0.18);
 }
 
+.touch-controls {
+  position: fixed;
+  inset: auto 12px 12px 12px;
+  z-index: 10;
+  display: none;
+  align-items: end;
+  justify-content: space-between;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.touch-dpad {
+  width: 174px;
+  height: 174px;
+  display: grid;
+  grid-template-columns: repeat(3, 58px);
+  grid-template-rows: repeat(3, 58px);
+  gap: 0;
+  pointer-events: auto;
+}
+
+.touch-btn,
+.touch-deliver {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  box-shadow: 0 8px 18px rgba(31, 43, 56, 0.18);
+}
+
+.touch-btn {
+  min-height: 54px;
+  width: 54px;
+  padding: 0;
+  border-radius: 18px;
+  font-size: 24px;
+  background: rgba(255, 251, 238, 0.92);
+}
+
+.touch-btn.active {
+  transform: translateY(2px) scale(0.96);
+  background: #fff1b8;
+}
+
+.touch-up { grid-column: 2; grid-row: 1; }
+.touch-left { grid-column: 1; grid-row: 2; }
+.touch-down { grid-column: 2; grid-row: 3; }
+.touch-right { grid-column: 3; grid-row: 2; }
+
+.touch-deliver {
+  min-width: 132px;
+  min-height: 86px;
+  margin-bottom: 12px;
+  border-radius: 28px;
+  color: #fff;
+  background: linear-gradient(180deg, #399268, var(--accent-dark));
+  border-color: rgba(255, 255, 255, 0.48);
+  font-size: clamp(22px, 5vw, 30px);
+  font-weight: 950;
+  pointer-events: auto;
+}
+
 @keyframes comicPop {
   from {
     transform: translateX(-50%) scale(0.72) rotate(-7deg);
@@ -517,7 +578,8 @@ kbd {
 
 @media (max-width: 640px) {
   body {
-    overflow: auto;
+    overflow: hidden;
+    touch-action: none;
   }
 
   #gameCanvas {
@@ -542,13 +604,44 @@ kbd {
 
   .hud {
     left: 8px;
-    right: auto;
-    bottom: 8px;
-    width: min(430px, calc(100vw - 16px));
+    right: 8px;
+    bottom: 112px;
+    width: auto;
+  }
+
+  .hud-card {
+    padding: 10px 12px;
+    border-radius: 18px;
+  }
+
+  #targetName {
+    font-size: clamp(19px, 5vw, 24px);
+  }
+
+  #targetHint {
+    font-size: clamp(13px, 3.4vw, 16px);
+  }
+
+  #deliverBtn {
+    display: none;
   }
 
   .hud-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .touch-controls:not(.hidden) {
+    display: flex;
+  }
+
+  .comic-bubble,
+  .comic-bubble.guide {
+    top: 66px;
+    font-size: clamp(20px, 5vw, 28px);
+    max-width: calc(100vw - 20px);
+    padding: 12px 18px;
   }
 
   

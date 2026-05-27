@@ -1,7 +1,7 @@
 import { neighbors } from "./data/neighbors.js";
 import { answersFromMode, buildConfig, pickRoute } from "./game/difficulty.js";
 import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
-import { bindKeyboard } from "./input/keyboard.js";
+import { bindKeyboard, bindTouchControls } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
 import { AudioEngine } from "./audio/audioEngine.js";
 import { createInitialState, currentTarget } from "./state/gameState.js";
@@ -112,6 +112,7 @@ export class App {
       this.state.comic = { text: this.state.message, tone: "guide", time: 2.4 };
       this.state.lastNavHintAt = this.state.floatTime;
       this.hud.show();
+      this.showTouchControls();
       this.hud.update(this.state);
     }
     this.updateComic();
@@ -127,6 +128,7 @@ export class App {
     window.addEventListener("resize", () => this.renderer.resize());
     window.addEventListener("bicycle-language-change", () => this.handleLanguageChanged());
     bindKeyboard(this.state, () => this.deliver());
+    bindTouchControls(this.state, () => this.deliver());
 
     this.screens.root.addEventListener("click", async (event) => {
       const button = event.target.closest("button");
@@ -155,6 +157,7 @@ export class App {
     this.state.comic = null;
     this.state.houseReaction = null;
     this.hud.hide();
+    this.hideTouchControls();
     this.updateComic();
     this.screens.title();
   }
@@ -169,6 +172,7 @@ export class App {
     this.state.comic = null;
     this.state.houseReaction = null;
     this.hud.hide();
+    this.hideTouchControls();
     this.updateComic();
     const record = loadRecord();
     this.screens.home(record, this.state.playerName);
@@ -198,6 +202,7 @@ export class App {
     this.state.lastNavHintAt = this.state.floatTime;
     this.screens.clear();
     this.hud.show();
+    this.showTouchControls();
     this.hud.update(this.state);
   }
 
@@ -280,6 +285,7 @@ export class App {
     this.state.comic = null;
     this.state.houseReaction = null;
     this.hud.hide();
+    this.hideTouchControls();
     this.updateComic();
     const count = this.state.delivered.length;
     const record = loadRecord();
@@ -291,6 +297,16 @@ export class App {
     };
     saveRecord(record);
     this.screens.summary(this.state, early);
+  }
+
+  showTouchControls() {
+    document.getElementById("touchControls")?.classList.remove("hidden");
+    const btn = document.getElementById("touchDeliverBtn");
+    if (btn) btn.textContent = t("deliverButton");
+  }
+
+  hideTouchControls() {
+    document.getElementById("touchControls")?.classList.add("hidden");
   }
 
   loop(now) {
