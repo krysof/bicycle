@@ -237,6 +237,7 @@ export class ThreeRenderer {
     this.birds = [];
     this.floatingBits = [];
     this.animals = [];
+    this.insects = [];
     this.passers = [];
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
@@ -289,6 +290,7 @@ export class ThreeRenderer {
     this.birds = [];
     this.floatingBits = [];
     this.animals = [];
+    this.insects = [];
     this.passers = [];
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
@@ -303,6 +305,7 @@ export class ThreeRenderer {
     this.player = null;
     this.walkParts = {};
     this.bike = null;
+    this.currentPlayerStyle = null;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
   }
@@ -394,14 +397,14 @@ export class ThreeRenderer {
     });
 
     const birdMat = new THREE.LineBasicMaterial({ color: 0x49626f, transparent: true, opacity: 0.55, fog: false });
-    for (let i = 0; i < 7; i += 1) {
+    for (let i = 0; i < 14; i += 1) {
       const geometry = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(-0.65, 0, 0),
         new THREE.Vector3(0, 0.28, 0),
         new THREE.Vector3(0.65, 0, 0),
       ]);
       const bird = new THREE.Line(geometry, birdMat);
-      bird.position.set(-58 + i * 18, 33 + (i % 3) * 4, -72 - (i % 2) * 18);
+      bird.position.set(-100 + i * 15, 29 + (i % 4) * 4, -78 - (i % 3) * 12);
       bird.scale.setScalar(0.72 + (i % 3) * 0.18);
       this.scene.add(bird);
       this.birds.push({ bird, baseX: bird.position.x, phase: i * 0.8, speed: 0.16 + i * 0.015 });
@@ -925,12 +928,29 @@ export class ThreeRenderer {
       { kind: "cat", color: 0xd59a55, x: -84, z: 55, range: 8, speed: 0.18, phase: 0 },
       { kind: "dog", color: 0x8a6248, x: -72, z: 62, range: 10, speed: 0.14, phase: 1.9 },
       { kind: "cat", color: 0x555555, x: 46, z: -70, range: 7, speed: 0.16, phase: 3.1 },
+      { kind: "sparrow", color: 0x8b6b48, x: -42, z: -53, range: 5, speed: 0.26, phase: 2.2 },
+      { kind: "sparrow", color: 0x6f5c46, x: 18, z: 30, range: 4, speed: 0.22, phase: 0.7 },
+      { kind: "rabbit", color: 0xf2f0e8, x: 82, z: 44, range: 6, speed: 0.20, phase: 1.1 },
+      { kind: "dog", color: 0xcaa06a, x: 67, z: -50, range: 7, speed: 0.15, phase: 4.4 },
+      { kind: "duck", color: 0xf0d56f, x: -101, z: 10, range: 3, speed: 0.18, phase: 2.8 },
+      { kind: "duck", color: 0xf2e2a0, x: -103, z: -38, range: 2.5, speed: 0.16, phase: 3.8 },
+      { kind: "cat", color: 0xf2efe6, x: -8, z: 72, range: 5, speed: 0.13, phase: 5.1 },
     ].forEach((cfg) => {
       const animal = this.createAnimal(cfg.kind, cfg.color);
       animal.position.set(cfg.x, 0, cfg.z);
       this.scene.add(animal);
       this.animals.push({ group: animal, ...cfg });
     });
+
+    const insectColors = [0xffcc66, 0x8bd3ff, 0xff9ecb, 0xc3ee7f, 0xb79cff];
+    for (let i = 0; i < 18; i += 1) {
+      const insect = this.createInsect(i % 3 === 0 ? "dragonfly" : "butterfly", insectColors[i % insectColors.length]);
+      const baseX = -96 + ((i * 23) % 192);
+      const baseZ = -70 + ((i * 31) % 140);
+      insect.position.set(baseX, 1.05 + (i % 5) * 0.22, baseZ);
+      this.scene.add(insect);
+      this.insects.push({ group: insect, baseX, baseZ, baseY: insect.position.y, phase: i * 0.59, speed: 0.75 + (i % 4) * 0.12, radius: 1.2 + (i % 4) * 0.35 });
+    }
 
     const passerConfigs = [
       { kind: "cyclist", dir: "h", lane: -72, start: -112, end: 112, offset: 2.0, speed: 4.6, phase: 0.03, color: 0x4f91d5 },
@@ -1072,15 +1092,78 @@ export class ThreeRenderer {
 
   createAnimal(kind, color) {
     const group = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(kind === "dog" ? 0.24 : 0.19, 12, 8), mat(color));
-    body.scale.set(kind === "dog" ? 1.35 : 1.18, 0.72, 0.7);
-    body.position.y = 0.28;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(kind === "dog" ? 0.14 : 0.12, 12, 8), mat(color));
-    head.position.set(0.24, 0.37, 0);
-    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.28, 6), mat(color));
-    tail.position.set(-0.28, 0.36, 0);
-    tail.rotation.z = Math.PI / 3;
-    group.add(body, head, tail);
+    const animalMat = mat(color);
+    const dark = mat(0x2f2b28);
+    const beakMat = mat(0xe7a93b);
+    const isBird = kind === "sparrow" || kind === "duck";
+    const isRabbit = kind === "rabbit";
+    const body = new THREE.Mesh(new THREE.SphereGeometry(kind === "dog" ? 0.24 : isBird ? 0.14 : 0.19, 14, 9), animalMat);
+    body.scale.set(kind === "dog" ? 1.35 : isBird ? 1.16 : 1.18, isBird ? 0.82 : 0.72, 0.72);
+    body.position.y = isBird ? 0.25 : 0.28;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(kind === "dog" ? 0.14 : isBird ? 0.095 : 0.12, 12, 8), animalMat);
+    head.position.set(isBird ? 0.20 : 0.24, isBird ? 0.36 : 0.37, 0);
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, kind === "dog" ? 0.28 : 0.20, 7), animalMat);
+    tail.position.set(isBird ? -0.18 : -0.28, isBird ? 0.31 : 0.36, 0);
+    tail.rotation.z = isBird ? Math.PI / 2.7 : Math.PI / 3;
+    const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), dark);
+    const eye2 = eye1.clone();
+    eye1.position.set(head.position.x + 0.075, head.position.y + 0.025, -0.04);
+    eye2.position.set(head.position.x + 0.075, head.position.y + 0.025, 0.04);
+    const legs = [];
+    for (let i = 0; i < 4; i += 1) {
+      if (isBird && i > 1) break;
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.18, 6), mat(isBird ? 0xd69a39 : color));
+      leg.position.set(i < 2 ? 0.10 : -0.12, 0.12, i % 2 ? 0.09 : -0.09);
+      legs.push(leg);
+    }
+    group.add(body, head, tail, eye1, eye2, ...legs);
+    if (kind === "cat" || isRabbit) {
+      const earGeo = new THREE.ConeGeometry(0.05, isRabbit ? 0.30 : 0.14, 8);
+      const ear1 = new THREE.Mesh(earGeo, animalMat);
+      const ear2 = ear1.clone();
+      ear1.position.set(0.22, isRabbit ? 0.58 : 0.50, -0.055);
+      ear2.position.set(0.22, isRabbit ? 0.58 : 0.50, 0.055);
+      ear1.rotation.z = -0.18; ear2.rotation.z = -0.18;
+      group.add(ear1, ear2);
+    }
+    if (kind === "dog") {
+      const ear1 = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.13, 0.055), mat(0x6a4d38));
+      const ear2 = ear1.clone();
+      ear1.position.set(0.20, 0.39, -0.12);
+      ear2.position.set(0.20, 0.39, 0.12);
+      group.add(ear1, ear2);
+    }
+    if (isBird) {
+      const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.018, 0.055), mat(kind === "duck" ? 0xf5f1d0 : 0x6e573b));
+      const wing2 = wing1.clone();
+      wing1.position.set(-0.02, 0.29, -0.105);
+      wing2.position.set(-0.02, 0.29, 0.105);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.10, 8), beakMat);
+      beak.rotation.z = -Math.PI / 2;
+      beak.position.set(0.305, head.position.y, 0);
+      group.add(wing1, wing2, beak);
+      group.userData.wings = [wing1, wing2];
+    }
+    group.userData.legs = legs;
+    return group;
+  }
+
+  createInsect(kind, color) {
+    const group = new THREE.Group();
+    const bodyMat = mat(kind === "dragonfly" ? 0x3b5f75 : 0x3d3a34);
+    const wingMat = transparentMat(color, kind === "dragonfly" ? 0.34 : 0.62);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, kind === "dragonfly" ? 0.34 : 0.16, 8), bodyMat);
+    body.rotation.z = Math.PI / 2;
+    const wingGeo = new THREE.PlaneGeometry(kind === "dragonfly" ? 0.24 : 0.18, kind === "dragonfly" ? 0.055 : 0.13);
+    const w1 = new THREE.Mesh(wingGeo, wingMat);
+    const w2 = w1.clone();
+    const w3 = new THREE.Mesh(wingGeo, wingMat);
+    const w4 = w3.clone();
+    w1.position.set(0.02, 0.04, -0.06); w2.position.set(0.02, 0.04, 0.06);
+    w3.position.set(-0.06, 0.04, -0.05); w4.position.set(-0.06, 0.04, 0.05);
+    w1.rotation.y = 0.45; w2.rotation.y = -0.45; w3.rotation.y = -0.35; w4.rotation.y = 0.35;
+    group.add(body, w1, w2, w3, w4);
+    group.userData.wings = [w1, w2, w3, w4];
     return group;
   }
 
@@ -1093,6 +1176,18 @@ export class ThreeRenderer {
       item.bit.rotation.z += 0.012;
     });
 
+    this.insects.forEach((item, i) => {
+      const p = t * item.speed + item.phase;
+      item.group.position.x = item.baseX + Math.sin(p) * item.radius;
+      item.group.position.z = item.baseZ + Math.cos(p * 0.78) * item.radius * 0.72;
+      item.group.position.y = item.baseY + Math.sin(p * 1.6) * 0.28;
+      item.group.rotation.y = Math.atan2(Math.cos(p), Math.sin(p)) + Math.PI / 2;
+      const wings = item.group.userData.wings || [];
+      wings.forEach((wing, wi) => {
+        wing.rotation.z = Math.sin(t * 18 + i + wi) * 0.32;
+      });
+    });
+
     const px = state?.player ? wx(state.player.x) : 9999;
     const pz = state?.player ? wz(state.player.y) : 9999;
     let near = null;
@@ -1103,6 +1198,13 @@ export class ThreeRenderer {
       item.group.position.z = item.z + Math.cos(t * item.speed * 0.7 + item.phase) * 1.8;
       item.group.rotation.y = Math.sin(t * item.speed + item.phase) > 0 ? 0 : Math.PI;
       item.group.position.y = Math.abs(Math.sin(t * 5 + i)) * 0.025;
+      const parts = item.group.userData || {};
+      (parts.legs || []).forEach((leg, li) => {
+        leg.rotation.z = Math.sin(t * 5.5 + i + li) * 0.20;
+      });
+      (parts.wings || []).forEach((wing, wi) => {
+        wing.rotation.x = Math.sin(t * 6 + i + wi) * 0.18;
+      });
       const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
       if (d < best && d < 5.8) { best = d; near = "animal"; }
     });
@@ -1164,6 +1266,34 @@ export class ThreeRenderer {
     this.nose.position.set(0.18, 1.42, 0);
     group.add(this.nose);
 
+    const eyeMat = mat(0x2c2724);
+    this.leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), eyeMat);
+    this.rightEye = this.leftEye.clone();
+    this.leftEye.position.set(0.175, 0.045, -0.065);
+    this.rightEye.position.set(0.175, 0.045, 0.065);
+    this.leftBrow = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.010, 0.014), mat(0x5a5148));
+    this.rightBrow = this.leftBrow.clone();
+    this.leftBrow.position.set(0.172, 0.078, -0.066);
+    this.rightBrow.position.set(0.172, 0.078, 0.066);
+    this.leftBrow.rotation.x = -0.10;
+    this.rightBrow.rotation.x = 0.10;
+    this.leftEar = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 7), mat(0xe0a77b));
+    this.rightEar = this.leftEar.clone();
+    this.leftEar.position.set(-0.02, 0.005, -0.195);
+    this.rightEar.position.set(-0.02, 0.005, 0.195);
+    this.glasses = new THREE.Group();
+    const glassMat = mat(0x6d6256);
+    const gl1 = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.006, 6, 18), glassMat);
+    const gl2 = gl1.clone();
+    gl1.position.set(0.184, 0.040, -0.066);
+    gl2.position.set(0.184, 0.040, 0.066);
+    gl1.rotation.y = Math.PI / 2;
+    gl2.rotation.y = Math.PI / 2;
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.010, 0.060), glassMat);
+    bridge.position.set(0.188, 0.040, 0);
+    this.glasses.add(gl1, gl2, bridge);
+    this.head.add(this.leftEye, this.rightEye, this.leftBrow, this.rightBrow, this.leftEar, this.rightEar, this.glasses);
+
     this.hair = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 10), mat(0x4a3a32));
     this.hair.position.set(-0.05, 1.43, 0);
     this.hair.scale.set(0.75, 0.95, 1.05);
@@ -1189,21 +1319,37 @@ export class ThreeRenderer {
     this.bag.position.set(-0.18, 0.9, 0.26);
     group.add(this.bag);
 
+    this.collar = new THREE.Group();
+    const collarLeft = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.09), mat(0xfffbef));
+    const collarRight = collarLeft.clone();
+    collarLeft.position.set(0.08, 1.17, -0.07);
+    collarRight.position.set(0.08, 1.17, 0.07);
+    collarLeft.rotation.z = -0.18;
+    collarRight.rotation.z = 0.18;
+    this.collar.add(collarLeft, collarRight);
+    group.add(this.collar);
+
     this.walkParts.leftLeg = this.limb(0x3f5f73, 0, 0.38, -0.11);
     this.walkParts.rightLeg = this.limb(0x3f5f73, 0, 0.38, 0.11);
     this.walkParts.leftArm = this.limb(0x2f7d5c, 0, 0.95, -0.25, 0.08);
     this.walkParts.rightArm = this.limb(0x2f7d5c, 0, 0.95, 0.25, 0.08);
     this.walkParts.leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.055, 0.09), mat(0x2f2b28));
     this.walkParts.rightFoot = this.walkParts.leftFoot.clone();
+    this.walkParts.leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), mat(0xf0c08d));
+    this.walkParts.rightHand = this.walkParts.leftHand.clone();
     this.walkParts.leftFoot.position.set(0.04, 0.12, -0.11);
     this.walkParts.rightFoot.position.set(0.04, 0.12, 0.11);
+    this.walkParts.leftHand.position.set(0.05, 0.80, -0.31);
+    this.walkParts.rightHand.position.set(0.05, 0.80, 0.31);
     group.add(
       this.walkParts.leftLeg,
       this.walkParts.rightLeg,
       this.walkParts.leftArm,
       this.walkParts.rightArm,
       this.walkParts.leftFoot,
-      this.walkParts.rightFoot
+      this.walkParts.rightFoot,
+      this.walkParts.leftHand,
+      this.walkParts.rightHand
     );
 
     this.heldPaper = this.createHeldPaper();
@@ -1233,6 +1379,13 @@ export class ThreeRenderer {
     this.walkParts.rightLeg.material.color.setHex(female ? 0x5d6380 : 0x3f5f73);
     this.walkParts.leftArm.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
     this.walkParts.rightArm.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
+    this.walkParts.leftHand.material.color.setHex(female ? 0xf2c7a2 : 0xf0c08d);
+    this.walkParts.rightHand.material.color.setHex(female ? 0xf2c7a2 : 0xf0c08d);
+    this.leftEar.material.color.setHex(female ? 0xf2c7a2 : 0xe0a77b);
+    this.rightEar.material.color.setHex(female ? 0xf2c7a2 : 0xe0a77b);
+    this.leftBrow.visible = !female;
+    this.rightBrow.visible = !female;
+    this.glasses.visible = !female || style === "female";
   }
 
   createHeldPaper() {
@@ -1519,6 +1672,8 @@ export class ThreeRenderer {
     this.walkParts.rightArm.visible = true;
     this.walkParts.leftFoot.visible = true;
     this.walkParts.rightFoot.visible = true;
+    this.walkParts.leftHand.visible = true;
+    this.walkParts.rightHand.visible = true;
 
     if (bikeMode) {
       const pedalCycle = this.bikeRoll;
@@ -1535,6 +1690,8 @@ export class ThreeRenderer {
       // 操作层面的左 / 右已经正确，这里只修正车把和前轮的视觉转向方向。
       const steer = THREE.MathUtils.lerp(parts.steerAngle || 0, -turnInput * 0.62, 0.28);
       parts.steerAngle = steer;
+      if (Math.abs(turnInput) > 0.08) parts.stopFootSide = turnInput > 0 ? "right" : "left";
+      if (!parts.stopFootSide) parts.stopFootSide = "left";
       if (parts.frontWheel) parts.frontWheel.rotation.y = steer;
       if (parts.frontRim) parts.frontRim.rotation.y = steer;
       if (parts.handleBar) parts.handleBar.rotation.y = steer * 1.15;
@@ -1542,8 +1699,9 @@ export class ThreeRenderer {
 
       const legSwing = pedaling ? Math.sin(pedalCycle * 1.65) : 0;
       const armSettle = pedaling ? Math.sin(pedalCycle * 0.82) * 0.025 : 0;
+      const sideLean = pedaling ? THREE.MathUtils.clamp(-steer * 0.20, -0.14, 0.14) : (parts.stopFootSide === "right" ? 0.045 : -0.045);
       this.body.position.y = pedaling ? 1.00 + Math.abs(legSwing) * 0.018 : 0.97;
-      this.body.rotation.z = pedaling ? -0.18 : -0.10;
+      this.body.rotation.z = pedaling ? -0.18 + sideLean * 0.62 : -0.10 + sideLean * 0.45;
       this.body.rotation.x = pedaling ? 0.10 : 0.04;
       this.head.position.set(0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
       this.nose.position.set(0.26, 1.47 + Math.abs(legSwing) * 0.012, 0);
@@ -1562,25 +1720,38 @@ export class ThreeRenderer {
         this.walkParts.leftFoot.rotation.set(0, 0, 0.22 + legSwing * 0.12);
         this.walkParts.rightFoot.rotation.set(0, 0, 0.22 - legSwing * 0.12);
       } else {
-        // 停车时一只脚自然落地支撑，另一只脚仍留在脚踏附近。
-        this.walkParts.leftLeg.position.set(-0.12, 0.34, -0.32);
-        this.walkParts.rightLeg.position.set(0.11, 0.55, 0.12);
-        this.walkParts.leftLeg.rotation.set(0.02, 0.06, 0.08);
-        this.walkParts.rightLeg.rotation.set(0.10, 0, 0.42);
-        this.walkParts.leftFoot.position.set(-0.08, 0.075, -0.38);
-        this.walkParts.rightFoot.position.set(0.16, 0.32, 0.20);
-        this.walkParts.leftFoot.rotation.set(0, 0, 0.03);
-        this.walkParts.rightFoot.rotation.set(0, 0, 0.18);
+        // 停车时按最后一次偏向放下对应侧脚，另一只脚仍留在脚踏附近。
+        if (parts.stopFootSide === "right") {
+          this.walkParts.leftLeg.position.set(-0.04, 0.55, -0.12);
+          this.walkParts.rightLeg.position.set(0.16, 0.34, 0.32);
+          this.walkParts.leftLeg.rotation.set(0.10, 0, 0.42);
+          this.walkParts.rightLeg.rotation.set(0.02, -0.06, 0.08);
+          this.walkParts.leftFoot.position.set(0.07, 0.32, -0.20);
+          this.walkParts.rightFoot.position.set(0.18, 0.075, 0.38);
+          this.walkParts.leftFoot.rotation.set(0, 0, 0.18);
+          this.walkParts.rightFoot.rotation.set(0, 0, 0.03);
+        } else {
+          this.walkParts.leftLeg.position.set(-0.12, 0.34, -0.32);
+          this.walkParts.rightLeg.position.set(0.11, 0.55, 0.12);
+          this.walkParts.leftLeg.rotation.set(0.02, 0.06, 0.08);
+          this.walkParts.rightLeg.rotation.set(0.10, 0, 0.42);
+          this.walkParts.leftFoot.position.set(-0.08, 0.075, -0.38);
+          this.walkParts.rightFoot.position.set(0.16, 0.32, 0.20);
+          this.walkParts.leftFoot.rotation.set(0, 0, 0.03);
+          this.walkParts.rightFoot.rotation.set(0, 0, 0.18);
+        }
       }
       this.walkParts.leftArm.position.set(0.34, 1.02, -0.20);
       this.walkParts.rightArm.position.set(0.34, 1.02, 0.20);
       this.walkParts.leftArm.rotation.set(0.12 + armSettle, 0, -0.85);
       this.walkParts.rightArm.rotation.set(0.12 - armSettle, 0, -0.85);
+      this.walkParts.leftHand.position.set(0.59, 0.88 + armSettle, -0.24);
+      this.walkParts.rightHand.position.set(0.59, 0.88 - armSettle, 0.24);
       this.heldPaper.position.set(0.62, 1.02 + Math.abs(legSwing) * 0.012, -0.28);
       this.heldPaper.rotation.set(0.22, 0.15, -0.30);
       this.skirt.position.set(-0.02, 0.73, 0);
       this.skirt.rotation.set(0.10, 0, -0.08);
-      this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 - steer * 0.05 : -0.045 - steer * 0.035;
+      this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 + sideLean : sideLean;
     } else {
       this.body.position.y = 0.92;
       this.body.rotation.z = 0;
@@ -1597,6 +1768,8 @@ export class ThreeRenderer {
       this.walkParts.rightArm.position.set(0.02, 0.95, 0.25);
       this.walkParts.leftFoot.position.set(0.04 + step * 0.06, 0.12, -0.11);
       this.walkParts.rightFoot.position.set(0.04 - step * 0.06, 0.12, 0.11);
+      this.walkParts.leftHand.position.set(0.05 - step * 0.08, 0.76, -0.31);
+      this.walkParts.rightHand.position.set(0.05 + step * 0.08, 0.76, 0.31);
       this.walkParts.leftLeg.rotation.set(0, 0, step);
       this.walkParts.rightLeg.rotation.set(0, 0, -step);
       this.walkParts.leftArm.rotation.set(0, 0, -step * 0.7);
@@ -1725,9 +1898,43 @@ export class ThreeRenderer {
   addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,3.0); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel(sceneLabel("shop"), "#345f86"); label.position.set(0,6.4,0.4); g.add(label); this.registerOccluder(g); this.scene.add(g); }
   addBusStop(x,z){ this.addSign(x,z,sceneLabel("bus")); const roof=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.09,0.55),mat(0x4e8fd6)); roof.position.set(x+0.62,0.95,z); this.scene.add(roof); }
   addField(x,z){ this.addPlane(x,0.055,z,12,8,0xb6d981,0.04); for(let i=0;i<8;i++) this.addPlane(x-5+i*1.4,0.08,z,0.12,7,0x8fbc66,0.04); }
-  addTorii(x,z){ const red=mat(0xd9543f); const g=new THREE.Group(); g.position.set(x,0,z); const p1=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,2.2,12),red); const p2=p1.clone(); p1.position.set(-0.75,1.1,0); p2.position.set(0.75,1.1,0); const top=new THREE.Mesh(new THREE.BoxGeometry(2.3,0.2,0.25),red); top.position.set(0,2.15,0); const mid=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.14,0.2),red); mid.position.set(0,1.7,0); g.add(p1,p2,top,mid); this.scene.add(g); }
+  addTorii(x,z){
+    const red=mat(0xd9543f);
+    const black=mat(0x2f2b28);
+    const stone=mat(COLORS.stone);
+    const wood=mat(0x6f3f2e);
+    const g=new THREE.Group();
+    g.position.set(x,0,z);
+    const base=new THREE.Mesh(new THREE.BoxGeometry(5.8,0.22,1.1),stone);
+    base.position.set(0,0.11,0.12);
+    const p1=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.26,4.6,16),red);
+    const p2=p1.clone();
+    p1.position.set(-1.65,2.42,0);
+    p2.position.set(1.65,2.42,0);
+    const top=new THREE.Mesh(new THREE.BoxGeometry(5.2,0.34,0.46),red);
+    top.position.set(0,4.72,0);
+    const cap=new THREE.Mesh(new THREE.BoxGeometry(5.85,0.18,0.62),black);
+    cap.position.set(0,4.98,0);
+    const mid=new THREE.Mesh(new THREE.BoxGeometry(3.9,0.24,0.38),red);
+    mid.position.set(0,3.82,0);
+    const plaque=new THREE.Mesh(new THREE.BoxGeometry(0.70,0.52,0.08),wood);
+    plaque.position.set(0,4.20,0.25);
+    const shrineBody=new THREE.Mesh(new THREE.BoxGeometry(3.8,2.2,2.7),mat(0xf2e2c7));
+    shrineBody.position.set(0,1.25,4.1);
+    const shrineRoof=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.42,3.3),mat(0x5b4a3d));
+    shrineRoof.position.set(0,2.58,4.1);
+    const steps=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.18,1.6),stone);
+    steps.position.set(0,0.16,2.1);
+    g.add(base,p1,p2,top,cap,mid,plaque,shrineBody,shrineRoof,steps);
+    this.registerOccluder(g);
+    this.scene.add(g);
+  }
   addStoneLantern(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); const stone=mat(COLORS.stone); const base=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.18,0.36),stone); base.position.y=0.09; const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.65,8),stone); pole.position.y=0.48; const top=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.25,0.4),stone); top.position.y=0.86; g.add(base,pole,top); this.scene.add(g); }
   addUtilityPole(x,z){ const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,2.8,12),mat(COLORS.wood)); pole.position.set(x,1.4,z); pole.castShadow=true; this.scene.add(pole); const arm=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.07,0.07),mat(COLORS.wood)); arm.position.set(x,2.55,z); this.scene.add(arm); }
   addSign(x,z,text){ const sign=this.makeSign(text,0.95,0.58); sign.position.set(x,0,z); this.scene.add(sign); }
   makeSign(text,w,h){ const g=new THREE.Group(); const board=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.08),mat(0x5d7b57)); board.position.y=0.95; g.add(board); const post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.82,8),mat(COLORS.wood)); post.position.y=0.42; g.add(post); const label=makeCanvasLabel(text,"#fff7db"); label.position.set(0,0.98,0.08); label.scale.set(w*1.2,h*0.5,1); g.add(label); return g; }
 }
+
+
+
+
