@@ -1,5 +1,5 @@
 import { neighbors } from "./data/neighbors.js";
-import { answersFromProfile, buildConfig, pickRoute } from "./game/difficulty.js";
+import { answersFromMode, buildConfig, pickRoute } from "./game/difficulty.js";
 import { tryDeliver, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
@@ -29,7 +29,8 @@ export class App {
     this.screens.root.addEventListener("click", (event) => {
       const button = event.target.closest("button");
       if (!button) return;
-      if (button.dataset.quick) this.quickStart(button.dataset.quick);
+      if (button.dataset.mode) this.startWithMode(button.dataset.mode);
+      if (button.dataset.quick) this.startWithMode(button.dataset.quick === "active" ? "bike" : "walk");
       if (button.dataset.action === "home") this.showHome();
     });
 
@@ -47,12 +48,12 @@ export class App {
     this.screens.home(loadRecord());
   }
 
-  quickStart(profile) {
-    this.state.answers = answersFromProfile(profile);
+  startWithMode(mode) {
+    this.state.answers = answersFromMode(mode);
     this.state.config = buildConfig(this.state.answers);
     this.state.route = pickRoute(neighbors, this.state.config);
     this.state.delivered = [];
-    this.state.player = { x: -350, y: 18, facing: 1 };
+    this.state.player = { x: -4300, y: -2850, facing: 1, headingX: 0.65, headingY: 0.76, headingAngle: 0 };
     this.startGame();
   }
 
@@ -60,8 +61,8 @@ export class App {
     this.state.screen = "game";
     this.state.isPlaying = true;
     this.state.isPaused = false;
-    const mode = this.state.config.moveMode === "bike" ? "骑车" : "步行";
-    this.state.message = `阿铃：今天是${this.state.config.routeName}，我们${mode}慢慢送。看发光的房子就好。`;
+    const mode = this.state.config.moveMode === "bike" ? "骑单车" : "步行";
+    this.state.message = `阿铃：今天选择${mode}。我会在后面陪着你，沿着大路看发光的房子就好。`;
     this.screens.clear();
     this.hud.show();
     this.hud.update(this.state);

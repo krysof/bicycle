@@ -127,25 +127,47 @@ label {
   margin-top: 26px;
 }
 
-.start-card {
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.start-card,
+.mode-card {
   min-height: 96px;
   text-align: left;
   border-radius: 24px;
   padding: 20px 24px;
 }
 
-.start-card strong {
+.mode-card {
+  min-height: 160px;
+}
+
+.start-card strong,
+.mode-card strong {
   display: block;
   font-size: clamp(27px, 3vw, 36px);
   line-height: 1.15;
 }
 
-.start-card span {
+.start-card span,
+.mode-card em {
   display: block;
   margin-top: 8px;
   font-size: clamp(18px, 2vw, 22px);
   font-weight: 600;
   opacity: 0.82;
+  font-style: normal;
+}
+
+.mode-icon {
+  display: block;
+  font-size: clamp(40px, 5vw, 62px);
+  line-height: 1;
+  margin-bottom: 10px;
 }
 
 .tiny-note {
@@ -326,6 +348,10 @@ kbd {
   }
 
   .hud-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-grid {
     grid-template-columns: 1fr;
   }
 }

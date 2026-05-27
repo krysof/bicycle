@@ -1,5 +1,7 @@
 import { currentTarget } from "../state/gameState.js";
 
+const BOUNDS = { minX: -5200, maxX: 5200, minY: -3900, maxY: 3900 };
+
 export function tryDeliver(state) {
   const target = currentTarget(state);
   if (!target) return { completed: true, delivered: false };
@@ -11,7 +13,7 @@ export function tryDeliver(state) {
     return { completed: !currentTarget(state), delivered: true };
   }
 
-  state.message = "阿铃：再靠近一点点就可以了。我会在目标旁边画一个发光圈。";
+  state.message = "阿铃：再靠近一点点就可以了。前方发光的房子就是目标。";
   return { completed: false, delivered: false };
 }
 
@@ -31,8 +33,11 @@ export function updatePlayer(state, dt) {
     const ny = dy / len;
     state.player.x += nx * state.config.speed * dt;
     state.player.y += ny * state.config.speed * dt;
+    state.player.headingX = nx;
+    state.player.headingY = ny;
+    state.player.headingAngle = Math.atan2(ny, nx);
     state.player.facing = nx >= 0 ? 1 : -1;
-    state.player.x = Math.max(-455, Math.min(455, state.player.x));
-    state.player.y = Math.max(-300, Math.min(320, state.player.y));
+    state.player.x = Math.max(BOUNDS.minX, Math.min(BOUNDS.maxX, state.player.x));
+    state.player.y = Math.max(BOUNDS.minY, Math.min(BOUNDS.maxY, state.player.y));
   }
 }
