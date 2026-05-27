@@ -31,7 +31,7 @@ export class Screens {
             <em>地图更远、能看到更多街景</em>
           </button>
         </div>
-        <p class="tiny-note">只需要选一种方式。进入后用方向键或 WASD 移动，靠近发光房子后按“投递报纸”。</p>
+        <p class="tiny-note">只需要选一种方式。进入后：↑/W 前进，↓/S 后退，←/A 和 →/D 轻轻转向；靠近发光房子后按“投递报纸”。</p>
       </section>`;
   }
 

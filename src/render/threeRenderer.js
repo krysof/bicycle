@@ -121,6 +121,10 @@ export class ThreeRenderer {
       hill.rotation.y = i * 0.31;
       this.scene.add(hill);
     }
+    const mountainFence = new THREE.Mesh(new THREE.BoxGeometry(MAP_W - 8, 0.55, 0.8), mat(0x7da16f));
+    mountainFence.position.set(0, 0.28, -82.5);
+    mountainFence.castShadow = true;
+    this.scene.add(mountainFence);
   }
 
   addRoadNetwork() {
@@ -202,6 +206,15 @@ export class ThreeRenderer {
   addLandmarks() {
     // 河流、桥、公园、商店街、神社、田地，分布在大地图不同区域
     this.addPlane(-102, 0.035, 0, 4.2, MAP_D - 8, COLORS.water, 0.03);
+    // 河岸护栏让“不能下河”在视觉上也成立，桥的位置保留开口。
+    for (const bankX of [-104.6, -99.4]) {
+      for (const [z, len] of [[-72, 28], [-24, 26], [24, 26], [72, 28]]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, len), mat(COLORS.wood));
+        rail.position.set(bankX, 0.27, z);
+        rail.castShadow = true;
+        this.scene.add(rail);
+      }
+    }
     for (const z of [-48, 0, 48]) { const b = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.2, 2.2), mat(0xb8875b)); b.position.set(-102, 0.18, z); b.castShadow = true; this.scene.add(b); }
     this.addPlane(-78, 0.05, 58, 18, 12, 0x71bb70, -0.03); this.addSign(-78, 50, "公園"); this.addBench(-82, 58); this.addBench(-74, 61); this.addTree(-86, 52, true, 1.3); this.addTree(-70, 55, false, 1.2);
     this.addShop(-70, -68); this.addVending(-78, -63); this.addVending(-64, -63); this.addBusStop(44, -70);
@@ -212,25 +225,111 @@ export class ThreeRenderer {
 
   addPlayer() {
     const group = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.56, 6, 16), mat(0x2f7d5c)); body.position.y = 0.92; body.castShadow = true; group.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 12), mat(0xf0c08d)); head.position.y = 1.42; head.castShadow = true; group.add(head);
-    const hat = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x716a63)); hat.position.y = 1.55; group.add(hat);
-    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.28, 0.18), mat(0x7a5a3b)); bag.position.set(0.32, 0.9, 0.03); group.add(bag);
-    this.walkParts.leftLeg = this.limb(0x3f5f73, -0.12, 0.38, 0); this.walkParts.rightLeg = this.limb(0x3f5f73, 0.12, 0.38, 0); group.add(this.walkParts.leftLeg, this.walkParts.rightLeg);
-    this.walkParts.leftArm = this.limb(0x2f7d5c, -0.32, 0.95, 0, 0.08); this.walkParts.rightArm = this.limb(0x2f7d5c, 0.32, 0.95, 0, 0.08); group.add(this.walkParts.leftArm, this.walkParts.rightArm);
-    this.bike = this.createBike(); this.bike.visible = false; group.add(this.bike);
-    this.player = group; this.scene.add(group);
+    this.body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.56, 6, 16), mat(0x2f7d5c));
+    this.body.position.y = 0.92;
+    this.body.castShadow = true;
+    group.add(this.body);
+
+    this.head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 12), mat(0xf0c08d));
+    this.head.position.y = 1.42;
+    this.head.castShadow = true;
+    group.add(this.head);
+
+    this.hat = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x716a63));
+    this.hat.position.y = 1.55;
+    group.add(this.hat);
+
+    this.bag = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.28, 0.18), mat(0x7a5a3b));
+    this.bag.position.set(0.32, 0.9, 0.03);
+    group.add(this.bag);
+
+    this.walkParts.leftLeg = this.limb(0x3f5f73, -0.12, 0.38, 0);
+    this.walkParts.rightLeg = this.limb(0x3f5f73, 0.12, 0.38, 0);
+    this.walkParts.leftArm = this.limb(0x2f7d5c, -0.32, 0.95, 0, 0.08);
+    this.walkParts.rightArm = this.limb(0x2f7d5c, 0.32, 0.95, 0, 0.08);
+    group.add(this.walkParts.leftLeg, this.walkParts.rightLeg, this.walkParts.leftArm, this.walkParts.rightArm);
+
+    this.bike = this.createBike();
+    this.bike.visible = false;
+    group.add(this.bike);
+    this.player = group;
+    this.scene.add(group);
   }
 
   limb(color, x, y, z, radius = 0.06) { const m = new THREE.Mesh(new THREE.CapsuleGeometry(radius, 0.38, 4, 8), mat(color)); m.position.set(x, y, z); m.castShadow = true; return m; }
 
+  cylinderBetween(a, b, radius, material) {
+    const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+    const dir = new THREE.Vector3().subVectors(b, a);
+    const length = dir.length();
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 10), material);
+    mesh.position.copy(mid);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    mesh.castShadow = true;
+    return mesh;
+  }
+
   createBike() {
-    const group = new THREE.Group(); group.position.y = 0.1;
-    const tireGeo = new THREE.TorusGeometry(0.34, 0.035, 10, 30); const wheelMat = mat(0x263044, 0.65);
-    const w1 = new THREE.Mesh(tireGeo, wheelMat); const w2 = new THREE.Mesh(tireGeo, wheelMat); w1.rotation.y = Math.PI / 2; w2.rotation.y = Math.PI / 2; w1.position.set(-0.55, 0.32, 0); w2.position.set(0.55, 0.32, 0); group.add(w1,w2);
-    const frameMat = mat(0x365a8a); const bars = [[0,0.55,0.05,1.05,0.05,0.05],[-0.25,0.67,0.05,0.62,0.04,0.04],[0.26,0.67,0.05,0.62,0.04,0.04]];
-    bars.forEach(([x,y,z,w,h,d]) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), frameMat); b.position.set(x,y,z); group.add(b); });
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.55,0.06), frameMat); handle.position.set(0.62,0.86,0); handle.rotation.z = -0.25; group.add(handle);
+    const group = new THREE.Group();
+    group.position.set(0.08, 0.04, 0);
+    const wheelMat = mat(0x1f2938, 0.58);
+    const rimMat = mat(0xe8edf0, 0.45, 0.08);
+    const frameMat = mat(0x2f6fb0, 0.55, 0.05);
+    const metalMat = mat(0xd9e2e7, 0.4, 0.12);
+
+    // 车轮沿前后方向排列；轮子平面是 X-Y，明显是二轮自行车而不是左右并排。
+    const tireGeo = new THREE.TorusGeometry(0.36, 0.035, 12, 36);
+    const rearWheel = new THREE.Mesh(tireGeo, wheelMat);
+    const frontWheel = new THREE.Mesh(tireGeo, wheelMat);
+    rearWheel.position.set(-0.72, 0.36, 0);
+    frontWheel.position.set(0.82, 0.36, 0);
+    rearWheel.castShadow = true;
+    frontWheel.castShadow = true;
+    group.add(rearWheel, frontWheel);
+
+    const rimGeo = new THREE.TorusGeometry(0.25, 0.012, 8, 28);
+    const rearRim = new THREE.Mesh(rimGeo, rimMat);
+    const frontRim = new THREE.Mesh(rimGeo, rimMat);
+    rearRim.position.copy(rearWheel.position);
+    frontRim.position.copy(frontWheel.position);
+    group.add(rearRim, frontRim);
+
+    const rearHub = new THREE.Vector3(-0.72, 0.36, 0);
+    const frontHub = new THREE.Vector3(0.82, 0.36, 0);
+    const seatTube = new THREE.Vector3(-0.18, 0.86, 0);
+    const handleTube = new THREE.Vector3(0.58, 0.92, 0);
+    const bottomBracket = new THREE.Vector3(-0.04, 0.48, 0);
+    [
+      [rearHub, seatTube], [seatTube, handleTube], [handleTube, frontHub],
+      [rearHub, bottomBracket], [bottomBracket, frontHub], [bottomBracket, seatTube]
+    ].forEach(([a, b]) => group.add(this.cylinderBetween(a, b, 0.026, frameMat)));
+
+    const saddle = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.22), mat(0x3b2f2f));
+    saddle.position.set(-0.2, 1.02, 0);
+    saddle.castShadow = true;
+    group.add(saddle);
+
+    const seatPost = this.cylinderBetween(new THREE.Vector3(-0.18, 0.86, 0), new THREE.Vector3(-0.2, 1.02, 0), 0.022, metalMat);
+    group.add(seatPost);
+
+    const handlePost = this.cylinderBetween(new THREE.Vector3(0.58, 0.92, 0), new THREE.Vector3(0.78, 1.18, 0), 0.024, metalMat);
+    const handleBar = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.62), metalMat);
+    handleBar.position.set(0.82, 1.2, 0);
+    group.add(handlePost, handleBar);
+
+    const basket = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.42), mat(0xc49a6c));
+    basket.position.set(1.02, 0.86, 0);
+    basket.castShadow = true;
+    group.add(basket);
+
+    const rack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.045, 0.34), metalMat);
+    rack.position.set(-0.78, 0.78, 0);
+    group.add(rack);
+
+    const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.045, 0.08), mat(0x333333));
+    pedal.position.set(-0.04, 0.48, 0.02);
+    group.add(pedal);
+
     return group;
   }
 
@@ -247,9 +346,29 @@ export class ThreeRenderer {
     const bikeMode = state.config?.moveMode === "bike"; this.bike.visible = bikeMode;
     const moving = state.keys.size > 0; const t = state.floatTime * (bikeMode ? 10 : 6);
     const step = moving ? Math.sin(t) * 0.35 : 0;
-    this.walkParts.leftLeg.visible = !bikeMode; this.walkParts.rightLeg.visible = !bikeMode; this.walkParts.leftArm.visible = !bikeMode; this.walkParts.rightArm.visible = !bikeMode;
-    this.walkParts.leftLeg.rotation.x = step; this.walkParts.rightLeg.rotation.x = -step; this.walkParts.leftArm.rotation.x = -step * 0.7; this.walkParts.rightArm.rotation.x = step * 0.7;
-    if (bikeMode) this.bike.rotation.z = moving ? Math.sin(t) * 0.025 : 0;
+    this.walkParts.leftLeg.visible = !bikeMode;
+    this.walkParts.rightLeg.visible = !bikeMode;
+    this.walkParts.leftArm.visible = !bikeMode;
+    this.walkParts.rightArm.visible = !bikeMode;
+    this.walkParts.leftLeg.rotation.x = step;
+    this.walkParts.rightLeg.rotation.x = -step;
+    this.walkParts.leftArm.rotation.x = -step * 0.7;
+    this.walkParts.rightArm.rotation.x = step * 0.7;
+
+    if (bikeMode) {
+      this.body.position.y = 1.02;
+      this.body.rotation.z = -0.16;
+      this.head.position.set(0.07, 1.48, 0);
+      this.hat.position.set(0.07, 1.61, 0);
+      this.bag.position.set(-0.48, 0.88, 0.24);
+      this.bike.rotation.z = moving ? Math.sin(t) * 0.025 : 0;
+    } else {
+      this.body.position.y = 0.92;
+      this.body.rotation.z = 0;
+      this.head.position.set(0, 1.42, 0);
+      this.hat.position.set(0, 1.55, 0);
+      this.bag.position.set(0.32, 0.9, 0.03);
+    }
   }
 
   updateTarget(state) {
@@ -260,10 +379,15 @@ export class ThreeRenderer {
 
   updateCamera(state) {
     const px = wx(state.player.x); const pz = wz(state.player.y);
-    if (!state.isPlaying) { this.camera.position.lerp(new THREE.Vector3(-102, 30, -76), 0.04); this.camera.lookAt(-96, 1.2, -64); return; }
-    const dx = state.player.headingX || 0.65; const dz = state.player.headingY || 0.76;
+    const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
     const distance = state.config?.moveMode === "bike" ? 8.6 : 7.2;
     const height = state.config?.moveMode === "bike" ? 4.2 : 3.7;
+    if (!state.isPlaying) {
+      const desiredHome = new THREE.Vector3(px - dx * 8.0, 4.2, pz - dz * 8.0);
+      this.camera.position.lerp(desiredHome, 0.04);
+      this.camera.lookAt(px + dx * 3.5, 1.0, pz + dz * 3.5);
+      return;
+    }
     const desired = new THREE.Vector3(px - dx * distance, height, pz - dz * distance);
     this.camera.position.lerp(desired, 0.075);
     this.camera.lookAt(px + dx * 2.5, 1.0, pz + dz * 2.5);

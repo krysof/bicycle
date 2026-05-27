@@ -53,7 +53,7 @@ export class App {
     this.state.config = buildConfig(this.state.answers);
     this.state.route = pickRoute(neighbors, this.state.config);
     this.state.delivered = [];
-    this.state.player = { x: -4300, y: -2850, facing: 1, headingX: 0.65, headingY: 0.76, headingAngle: 0 };
+    this.state.player = { x: -4300, y: -2850, facing: 1, headingX: 0.78, headingY: 0.62, headingAngle: 0.67 };
     this.startGame();
   }
 
@@ -62,7 +62,7 @@ export class App {
     this.state.isPlaying = true;
     this.state.isPaused = false;
     const mode = this.state.config.moveMode === "bike" ? "骑单车" : "步行";
-    this.state.message = `阿铃：今天选择${mode}。我会在后面陪着你，沿着大路看发光的房子就好。`;
+    this.state.message = `阿铃：今天选择${mode}。我会在后面陪着你，按上前进、下后退、左右轻轻转向，沿着大路看发光的房子就好。`;
     this.screens.clear();
     this.hud.show();
     this.hud.update(this.state);
