@@ -149,7 +149,15 @@ export class App {
     this.hud.endBtn.addEventListener("click", () => this.showSummary(true));
   }
 
+  prepareRandomWorld() {
+    this.state.worldSeed = Date.now() ^ Math.floor(Math.random() * 0x7fffffff);
+    this.state.worldLayout = createWorldLayout(this.state.worldSeed);
+    this.state.worldObstacles = createWorldObstacles(this.state.worldLayout);
+    this.renderer.setWorldLayout(this.state.worldLayout);
+  }
+
   showTitle() {
+    this.prepareRandomWorld();
     this.state.screen = "title";
     this.state.isPlaying = false;
     this.state.isPaused = false;
@@ -164,6 +172,8 @@ export class App {
   }
 
   showHome() {
+    const previousScreen = this.state.screen;
+    if (!this.state.worldLayout || previousScreen === "summary") this.prepareRandomWorld();
     this.rerollNames();
     this.state.screen = "home";
     this.state.isPlaying = false;
@@ -184,10 +194,7 @@ export class App {
     this.savePlayerName(this.getPlayerName());
     this.state.answers = answersFromMode(mode);
     this.state.config = buildConfig(this.state.answers);
-    this.state.worldSeed = Date.now() ^ Math.floor(Math.random() * 0x7fffffff);
-    this.state.worldLayout = createWorldLayout(this.state.worldSeed);
-    this.state.worldObstacles = createWorldObstacles(this.state.worldLayout);
-    this.renderer.setWorldLayout(this.state.worldLayout);
+    if (!this.state.worldLayout || !this.state.worldObstacles) this.prepareRandomWorld();
     this.state.player = pickStartPoint();
     this.state.route = pickRoute(neighbors, this.state.config, this.state.player);
     this.state.delivered = [];
