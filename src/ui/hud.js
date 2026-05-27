@@ -11,6 +11,9 @@ export class Hud {
     this.deliverBtn = document.getElementById("deliverBtn");
     this.pauseBtn = document.getElementById("pauseBtn");
     this.endBtn = document.getElementById("endBtn");
+    this.touchDeliverBtn = document.getElementById("touchDeliverBtn");
+    this.touchForwardBtn = document.getElementById("touchForwardBtn");
+    this.touchSteerLabel = document.getElementById("touchSteerLabel");
   }
 
   show() {
@@ -18,6 +21,9 @@ export class Hud {
     if (this.eyebrow) this.eyebrow.textContent = t("todayTask");
     this.deliverBtn.textContent = t("deliverButton");
     this.endBtn.textContent = t("endButton");
+    if (this.touchDeliverBtn) this.touchDeliverBtn.textContent = t("deliverButton");
+    if (this.touchForwardBtn) this.touchForwardBtn.textContent = t("touchForward");
+    if (this.touchSteerLabel) this.touchSteerLabel.textContent = t("touchSteer");
   }
 
   hide() {

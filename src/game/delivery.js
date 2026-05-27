@@ -98,8 +98,8 @@ export function updatePlayer(state, dt) {
   if (state.keys.has("arrowright") || state.keys.has("d")) turn += 1;
   turn = Math.max(-1, Math.min(1, turn));
   if (mode === "bike") {
-    // 自行车不应像原地旋转的角色；速度越慢，转向越温和。
-    const movementGrip = Math.min(1, Math.max(0.18, Math.abs(throttle)));
+    // 自行车不应像原地旋转的角色；只有按住前进 / 后退移动时才逐渐改变朝向。
+    const movementGrip = Math.min(1, Math.abs(throttle));
     turn *= movementGrip;
   }
   if (turn) state.player.headingAngle += turn * turnRate * dt;

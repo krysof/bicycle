@@ -402,12 +402,18 @@ export class App {
 
   showTouchControls() {
     document.getElementById("touchControls")?.classList.remove("hidden");
-    const btn = document.getElementById("touchDeliverBtn");
-    if (btn) btn.textContent = t("deliverButton");
+    const deliver = document.getElementById("touchDeliverBtn");
+    const forward = document.getElementById("touchForwardBtn");
+    const steer = document.getElementById("touchSteerLabel");
+    if (deliver) deliver.textContent = t("deliverButton");
+    if (forward) forward.textContent = t("touchForward");
+    if (steer) steer.textContent = t("touchSteer");
   }
 
   hideTouchControls() {
     document.getElementById("touchControls")?.classList.add("hidden");
+    this.state.touchThrottle = 0;
+    this.state.touchSteer = 0;
   }
 
   loop(now) {

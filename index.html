@@ -20,13 +20,16 @@
     <div id="comicBubble" class="comic-bubble hidden" aria-live="polite"></div>
 
     <div id="touchControls" class="touch-controls hidden" aria-label="Touch controls">
-      <div id="touchJoystick" class="touch-joystick" aria-label="Virtual joystick">
+      <div id="touchJoystick" class="touch-joystick" aria-label="Steering">
         <div class="touch-joystick-ring">
           <div id="touchStick" class="touch-stick"></div>
         </div>
-        <span class="touch-joystick-label">MOVE</span>
+        <span id="touchSteerLabel" class="touch-joystick-label">左右</span>
       </div>
-      <button id="touchDeliverBtn" class="touch-deliver" type="button">投递</button>
+      <div class="touch-action-stack">
+        <button id="touchForwardBtn" class="touch-forward" type="button">前进</button>
+        <button id="touchDeliverBtn" class="touch-deliver" type="button">投递</button>
+      </div>
     </div>
 
     <section id="hud" class="hud hidden" aria-label="游戏操作面板">

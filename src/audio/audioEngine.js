@@ -299,7 +299,7 @@ export class AudioEngine {
 
   update(state, dt) {
     if (!this.started || !this.ctx) return;
-    const movingForward = state.keys?.has("arrowup") || state.keys?.has("w");
+    const movingForward = state.keys?.has("arrowup") || state.keys?.has("w") || (state.touchThrottle || 0) > 0.05;
     const movingBack = state.keys?.has("arrowdown") || state.keys?.has("s");
     const bike = state.config?.moveMode === "bike";
     const moving = state.isPlaying && !state.isPaused && bike && (movingForward || movingBack);

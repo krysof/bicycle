@@ -20,35 +20,21 @@ export function bindTouchControls(state, onDeliver) {
   const root = document.getElementById("touchControls");
   const joystick = document.getElementById("touchJoystick");
   const stick = document.getElementById("touchStick");
+  const forward = document.getElementById("touchForwardBtn");
   const deliver = document.getElementById("touchDeliverBtn");
   if (!root) return;
 
-  const touchKeys = ["arrowup", "arrowdown", "arrowleft", "arrowright"];
-
-  const endKey = (key) => {
-    state.keys.delete(key);
-  };
-
-  const clearTouchKeys = () => {
-    touchKeys.forEach((key) => state.keys.delete(key));
-    state.touchThrottle = 0;
+  const clearTouchSteer = () => {
     state.touchSteer = 0;
   };
 
-  const setTouchKeys = (dx, dy) => {
-    clearTouchKeys();
+  const setTouchSteer = (dx) => {
     const steerDeadZone = 0.16;
-    const throttleDeadZone = 0.18;
     const steer = Math.abs(dx) > steerDeadZone
       ? Math.sign(dx) * Math.min(1, ((Math.abs(dx) - steerDeadZone) / (1 - steerDeadZone)) ** 1.35)
       : 0;
-    const throttle = Math.abs(dy) > throttleDeadZone
-      ? Math.sign(-dy) * Math.min(1, (Math.abs(dy) - throttleDeadZone) / (1 - throttleDeadZone))
-      : 0;
     state.touchSteer = steer;
-    state.touchThrottle = throttle;
-    // 摇杆使用连续数值控制，避免像键盘一样“一按到底”导致手机端转向过猛。
-    // 不再向 keys 写入方向键，防止键盘式满转向和摇杆数值双重叠加。
+    // 手机端摇杆只控制左右方向；前进由右侧独立按钮按住触发。
   };
 
   if (joystick && stick) {
@@ -60,14 +46,9 @@ export function bindTouchControls(state, onDeliver) {
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
       let dx = event.clientX - cx;
-      let dy = event.clientY - cy;
-      const len = Math.hypot(dx, dy);
-      if (len > max) {
-        dx = (dx / len) * max;
-        dy = (dy / len) * max;
-      }
-      stick.style.transform = `translate(${dx}px, ${dy}px)`;
-      setTouchKeys(dx / max, dy / max);
+      dx = Math.max(-max, Math.min(max, dx));
+      stick.style.transform = `translate(${dx}px, 0)`;
+      setTouchSteer(dx / max);
     };
 
     const start = (event) => {
@@ -88,7 +69,7 @@ export function bindTouchControls(state, onDeliver) {
       if (activePointerId !== event.pointerId) return;
       event.preventDefault();
       activePointerId = null;
-      clearTouchKeys();
+      clearTouchSteer();
       joystick.classList.remove("active");
       stick.style.transform = "translate(0, 0)";
     };
@@ -99,29 +80,37 @@ export function bindTouchControls(state, onDeliver) {
     joystick.addEventListener("pointercancel", end);
     joystick.addEventListener("lostpointercapture", () => {
       activePointerId = null;
-      clearTouchKeys();
+      clearTouchSteer();
       joystick.classList.remove("active");
       stick.style.transform = "translate(0, 0)";
     });
   }
 
-  root.querySelectorAll("[data-touch-key]").forEach((button) => {
-    const key = button.dataset.touchKey;
+  if (forward) {
+    let forwardPointerId = null;
     const start = (event) => {
       event.preventDefault();
-      state.keys.add(key);
-      button.classList.add("active");
+      forwardPointerId = event.pointerId;
+      forward.setPointerCapture?.(event.pointerId);
+      state.touchThrottle = 1;
+      forward.classList.add("active");
     };
     const end = (event) => {
+      if (forwardPointerId !== null && event.pointerId !== forwardPointerId) return;
       event.preventDefault();
-      endKey(key);
-      button.classList.remove("active");
+      forwardPointerId = null;
+      state.touchThrottle = 0;
+      forward.classList.remove("active");
     };
-    button.addEventListener("pointerdown", start);
-    button.addEventListener("pointerup", end);
-    button.addEventListener("pointercancel", end);
-    button.addEventListener("pointerleave", end);
-  });
+    forward.addEventListener("pointerdown", start);
+    forward.addEventListener("pointerup", end);
+    forward.addEventListener("pointercancel", end);
+    forward.addEventListener("lostpointercapture", () => {
+      forwardPointerId = null;
+      state.touchThrottle = 0;
+      forward.classList.remove("active");
+    });
+  }
 
   deliver?.addEventListener("pointerdown", (event) => {
     event.preventDefault();
