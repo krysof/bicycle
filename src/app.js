@@ -3,11 +3,11 @@ import { answersFromMode, buildConfig, pickRoute } from "./game/difficulty.js";
 import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
-import { createInitialState } from "./state/gameState.js";
+import { createInitialState, currentTarget } from "./state/gameState.js";
 import { loadRecord, saveRecord, todayKey } from "./state/storage.js";
 import { Hud } from "./ui/hud.js";
 import { Screens } from "./ui/screens.js";
-import { applyDocumentLanguage, t } from "./i18n.js";
+import { applyDocumentLanguage, changeLanguage, languageOptions, locale, t } from "./i18n.js";
 
 export class App {
   constructor() {
@@ -16,6 +16,15 @@ export class App {
     this.renderer = new ThreeRenderer(document.getElementById("gameCanvas"));
     this.screens = new Screens(document.getElementById("ui"));
     this.hud = new Hud();
+    this.setupLanguageSelector();
+  }
+
+  setupLanguageSelector() {
+    const select = document.getElementById("languageSelect");
+    if (!select) return;
+    select.innerHTML = languageOptions.map((item) => `<option value="${item.code}">${item.label}</option>`).join("");
+    select.value = locale;
+    select.addEventListener("change", () => changeLanguage(select.value));
   }
 
   start() {
@@ -72,6 +81,8 @@ export class App {
     this.state.isPaused = false;
     const mode = this.state.config.moveMode === "bike" ? t("modeBike") : t("modeWalk");
     this.state.message = t("startMessage", mode);
+    this.state.comic = { text: this.state.message, tone: "guide", time: 3.0 };
+    this.state.lastNavHintAt = this.state.floatTime;
     this.screens.clear();
     this.hud.show();
     this.hud.update(this.state);
@@ -86,6 +97,7 @@ export class App {
   togglePause() {
     this.state.isPaused = !this.state.isPaused;
     this.state.message = this.state.isPaused ? t("rest") : t("resumeMsg");
+    this.state.comic = { text: this.state.message, tone: "guide", time: 2.2 };
     this.hud.update(this.state);
   }
 
@@ -98,6 +110,40 @@ export class App {
     } else {
       el.className = "comic-bubble hidden";
     }
+  }
+
+  updateNavigationHint() {
+    if (!this.state.isPlaying || this.state.isPaused || this.state.delivery?.active || this.state.comic) return;
+    if ((this.state.floatTime - (this.state.lastNavHintAt ?? -99)) < 5.2) return;
+    const target = currentTarget(this.state);
+    if (!target) return;
+
+    const tx = target.deliveryX ?? target.x;
+    const ty = target.deliveryY ?? target.y;
+    const vx = tx - this.state.player.x;
+    const vy = ty - this.state.player.y;
+    const distance = Math.hypot(vx, vy);
+    if (distance < 1) return;
+
+    const toX = vx / distance;
+    const toY = vy / distance;
+    const hx = this.state.player.headingX || 1;
+    const hy = this.state.player.headingY || 0;
+    const cross = hx * toY - hy * toX;
+    const dot = hx * toX + hy * toY;
+    const angle = Math.atan2(cross, dot);
+    const key = distance <= (this.state.config.assistRadius || 260) * 1.7
+      ? "navArrive"
+      : Math.abs(angle) < 0.38
+        ? "navStraight"
+        : angle > 0
+          ? "navLeft"
+          : "navRight";
+
+    this.state.comic = { text: t(key), tone: "guide", time: 2.6 };
+    this.state.message = t(key);
+    this.state.lastNavHintAt = this.state.floatTime;
+    this.hud.update(this.state);
   }
 
   showSummary(early) {
@@ -127,6 +173,7 @@ export class App {
     updatePlayer(this.state, dt);
     const deliveryResult = updateDelivery(this.state, dt);
     if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 650);
+    this.updateNavigationHint();
     this.renderer.render(this.state);
     this.updateComic();
     requestAnimationFrame((time) => this.loop(time));

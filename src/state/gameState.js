@@ -15,6 +15,7 @@ export function createInitialState() {
     delivery: null,
     comic: null,
     houseReaction: null,
+    lastNavHintAt: -99,
   };
 }
 

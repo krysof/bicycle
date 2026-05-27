@@ -48,6 +48,10 @@ const dict = {
     routeBike: "单车远行路线",
     routeWalk: "步行安心路线",
     thanksLabel: "谢谢!",
+    navStraight: "阿铃：顺着这条路慢慢走就好。",
+    navLeft: "阿铃：前方差不多要向左转。",
+    navRight: "阿铃：前方差不多要向右转。",
+    navArrive: "阿铃：快到了，看到小光圈就可以投递。",
   },
   zhHant: {
     lang: "zh-TW",
@@ -98,6 +102,10 @@ const dict = {
     routeBike: "單車遠行路線",
     routeWalk: "步行安心路線",
     thanksLabel: "謝謝!",
+    navStraight: "阿鈴：順著這條路慢慢走就好。",
+    navLeft: "阿鈴：前方差不多要向左轉。",
+    navRight: "阿鈴：前方差不多要向右轉。",
+    navArrive: "阿鈴：快到了，看到小光圈就可以投遞。",
   },
   ja: {
     lang: "ja",
@@ -148,6 +156,10 @@ const dict = {
     routeBike: "自転車ゆったりコース",
     routeWalk: "歩いて安心コース",
     thanksLabel: "ありがとう!",
+    navStraight: "アリン：この道をゆっくり進みましょう。",
+    navLeft: "アリン：この先で左へ曲がりましょう。",
+    navRight: "アリン：この先で右へ曲がりましょう。",
+    navArrive: "アリン：もうすぐです。小さな光の輪で投げましょう。",
   },
   en: {
     lang: "en",
@@ -198,6 +210,10 @@ const dict = {
     routeBike: "Bicycle neighborhood route",
     routeWalk: "Gentle walking route",
     thanksLabel: "Thanks!",
+    navStraight: "Arin: Keep going gently along this road.",
+    navLeft: "Arin: We will turn left soon.",
+    navRight: "Arin: We will turn right soon.",
+    navArrive: "Arin: Almost there. Throw at the small glowing ring.",
   },
 };
 
@@ -212,6 +228,13 @@ function detectLanguage() {
   if (lang.startsWith("zh")) return "zhHans";
   return "en";
 }
+
+export const languageOptions = [
+  { code: "ja", label: "日本語" },
+  { code: "en", label: "English" },
+  { code: "zhHant", label: "繁體中文" },
+  { code: "zhHans", label: "简体中文" },
+];
 
 export const locale = detectLanguage();
 export const i18n = dict[locale];
@@ -230,4 +253,12 @@ export function nt(neighbor, field) {
 
 export function applyDocumentLanguage() {
   document.documentElement.lang = i18n.lang;
+}
+
+export function changeLanguage(nextLocale) {
+  if (!languageOptions.some((item) => item.code === nextLocale)) return;
+  localStorage.setItem("bicycle-lang", nextLocale);
+  const url = new URL(window.location.href);
+  url.searchParams.set("lang", nextLocale);
+  window.location.href = url.toString();
 }

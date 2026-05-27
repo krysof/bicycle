@@ -67,6 +67,50 @@ function makeCanvasLabel(text, color = "#2f5f49") {
   return sprite;
 }
 function colorFromIndex(i, list) { return list[Math.abs(i) % list.length]; }
+function makeSkyTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, "#8fd4ff");
+  grad.addColorStop(0.52, "#cfeeff");
+  grad.addColorStop(1, "#fff0c9");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+function makeCloudTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 180;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgba(255,255,255,0.88)";
+  ctx.shadowColor = "rgba(120,160,190,0.22)";
+  ctx.shadowBlur = 18;
+  [[126,104,72],[202,78,92],[292,100,82],[372,112,58]].forEach(([x,y,r]) => { ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); });
+  ctx.fillRect(110, 102, 280, 52);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+function makeSunTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createRadialGradient(128, 128, 20, 128, 128, 126);
+  grad.addColorStop(0, "rgba(255,255,230,1)");
+  grad.addColorStop(0.34, "rgba(255,216,122,.92)");
+  grad.addColorStop(1, "rgba(255,216,122,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
 function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
   return neighbors.some((n) => {
     const hx = wx(n.x);
@@ -87,7 +131,7 @@ export class ThreeRenderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xbfe5ff);
+    this.scene.background = makeSkyTexture();
     this.scene.fog = new THREE.Fog(0xdff2ff, 68, 190);
 
     this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 260);
@@ -95,6 +139,8 @@ export class ThreeRenderer {
     this.camera.lookAt(-95, 1, -60);
 
     this.clockObjects = [];
+    this.clouds = [];
+    this.birds = [];
     this.houseMap = new Map();
     this.targetRing = null;
     this.targetBeam = null;
@@ -104,6 +150,8 @@ export class ThreeRenderer {
     this.player = null;
     this.walkParts = {};
     this.bike = null;
+    this.bikeRoll = 0;
+    this.lastBikeAnimTime = 0;
     this.lastTargetScale = 1;
 
     this.createWorld();
@@ -131,6 +179,7 @@ export class ThreeRenderer {
 
   createWorld() {
     this.addLights();
+    this.addSkyDetails();
     this.addGround();
     this.addRoadNetwork();
     this.addTargetHouses();
@@ -151,6 +200,69 @@ export class ThreeRenderer {
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.left = -120; sun.shadow.camera.right = 120; sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
     this.scene.add(sun);
+  }
+
+  addSkyDetails() {
+    const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSunTexture(), transparent: true, depthWrite: false, fog: false }));
+    sun.position.set(-72, 48, -96);
+    sun.scale.set(19, 19, 1);
+    this.scene.add(sun);
+
+
+    const cloudSpriteMat = new THREE.SpriteMaterial({ map: makeCloudTexture(), transparent: true, opacity: 0.92, depthWrite: false, fog: false });
+    [
+      [-62, 27, -48, 24, 8.5, 0.10],
+      [12, 31, -56, 30, 10, 0.08],
+      [72, 26, -42, 22, 7.5, 0.11],
+    ].forEach(([x, y, z, sx, sy, speed], idx) => {
+      const sprite = new THREE.Sprite(cloudSpriteMat.clone());
+      sprite.position.set(x, y, z);
+      sprite.scale.set(sx, sy, 1);
+      this.scene.add(sprite);
+      this.clouds.push({ group: sprite, baseX: x, phase: idx * 1.2 + 4, speed, amplitude: 3.5 + idx });
+    });
+
+    const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.86, depthWrite: false, fog: false });
+    const cloudSeeds = [
+      [-82, 39, -68, 1.15, 0.09],
+      [-28, 46, -92, 0.92, 0.12],
+      [32, 42, -82, 1.05, 0.08],
+      [86, 37, -64, 0.82, 0.11],
+      [-104, 34, 12, 0.74, 0.07],
+      [72, 48, 18, 0.88, 0.10],
+    ];
+    cloudSeeds.forEach(([x, y, z, scale, speed], idx) => {
+      const group = new THREE.Group();
+      group.position.set(x, y, z);
+      const parts = [
+        [-1.35, 0, 0, 1.25, 0.54, 0.44],
+        [-0.45, 0.18, 0.02, 1.35, 0.68, 0.52],
+        [0.58, 0.05, 0, 1.55, 0.58, 0.48],
+        [1.55, -0.03, 0.02, 1.05, 0.46, 0.40],
+      ];
+      parts.forEach(([px, py, pz, sx, sy, sz]) => {
+        const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), cloudMat);
+        puff.position.set(px * scale, py * scale, pz * scale);
+        puff.scale.set(sx * scale, sy * scale, sz * scale);
+        group.add(puff);
+      });
+      this.scene.add(group);
+      this.clouds.push({ group, baseX: x, phase: idx * 1.7, speed, amplitude: 5 + idx });
+    });
+
+    const birdMat = new THREE.LineBasicMaterial({ color: 0x49626f, transparent: true, opacity: 0.55, fog: false });
+    for (let i = 0; i < 7; i += 1) {
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-0.65, 0, 0),
+        new THREE.Vector3(0, 0.28, 0),
+        new THREE.Vector3(0.65, 0, 0),
+      ]);
+      const bird = new THREE.Line(geometry, birdMat);
+      bird.position.set(-58 + i * 18, 33 + (i % 3) * 4, -72 - (i % 2) * 18);
+      bird.scale.setScalar(0.72 + (i % 3) * 0.18);
+      this.scene.add(bird);
+      this.birds.push({ bird, baseX: bird.position.x, phase: i * 0.8, speed: 0.16 + i * 0.015 });
+    }
   }
 
   addGround() {
@@ -553,6 +665,8 @@ export class ThreeRenderer {
     frontWheel.position.set(0.82, 0.36, 0);
     rearWheel.castShadow = true;
     frontWheel.castShadow = true;
+    this.addWheelDetails(rearWheel);
+    this.addWheelDetails(frontWheel);
     group.add(rearWheel, frontWheel);
 
     const rimGeo = new THREE.TorusGeometry(0.25, 0.012, 8, 28);
@@ -594,11 +708,25 @@ export class ThreeRenderer {
     rack.position.set(-0.78, 0.78, 0);
     group.add(rack);
 
-    const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.045, 0.08), mat(0x333333));
-    pedal.position.set(-0.04, 0.48, 0.02);
-    group.add(pedal);
+    const crank = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.045, 14), mat(0x444444));
+    crank.position.set(-0.04, 0.48, 0.02);
+    crank.rotation.x = Math.PI / 2;
+    const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.045, 0.08), mat(0x333333));
+    pedal.position.set(-0.04, 0.48, 0.08);
+    group.add(crank, pedal);
 
+    group.userData = { rearWheel, frontWheel, rearRim, frontRim, pedal, crank, handleBar, basket };
     return group;
+  }
+
+  addWheelDetails(wheel) {
+    const spokeMat = mat(0xe8edf0, 0.42, 0.15);
+    const spokeA = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.015, 0.012), spokeMat);
+    const spokeB = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.015, 0.012), spokeMat);
+    spokeB.rotation.z = Math.PI / 2;
+    const valve = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.022), mat(0xfff4b8));
+    valve.position.y = 0.30;
+    wheel.add(spokeA, spokeB, valve);
   }
 
   addTargetMarker() {
@@ -720,30 +848,71 @@ export class ThreeRenderer {
     const dx = state.player.headingX || 0.65; const dz = state.player.headingY || 0.76;
     this.player.rotation.y = Math.atan2(-dz, dx);
     const bikeMode = state.config?.moveMode === "bike"; this.bike.visible = bikeMode;
-    const moving = state.keys.size > 0; const t = state.floatTime * (bikeMode ? 10 : 6);
+    const forward = state.keys.has("arrowup") || state.keys.has("w");
+    const backward = state.keys.has("arrowdown") || state.keys.has("s");
+    const pedaling = bikeMode && (forward || backward);
+    const throttle = forward ? 1 : backward ? -0.42 : 0;
+    const animDt = Math.min(0.05, Math.max(0, (state.floatTime || 0) - this.lastBikeAnimTime));
+    this.lastBikeAnimTime = state.floatTime || 0;
+    if (pedaling) this.bikeRoll += throttle * animDt * ((state.config?.speed || 430) * WORLD_SCALE / 0.36);
+
+    const moving = forward || backward;
+    const t = bikeMode ? this.bikeRoll : state.floatTime * 6;
     const step = moving ? Math.sin(t) * 0.35 : 0;
-    this.walkParts.leftLeg.visible = !bikeMode;
-    this.walkParts.rightLeg.visible = !bikeMode;
-    this.walkParts.leftArm.visible = !bikeMode;
-    this.walkParts.rightArm.visible = !bikeMode;
-    this.walkParts.leftLeg.rotation.x = step;
-    this.walkParts.rightLeg.rotation.x = -step;
-    this.walkParts.leftArm.rotation.x = -step * 0.7;
-    this.walkParts.rightArm.rotation.x = step * 0.7;
+
+    this.walkParts.leftLeg.visible = true;
+    this.walkParts.rightLeg.visible = true;
+    this.walkParts.leftArm.visible = true;
+    this.walkParts.rightArm.visible = true;
 
     if (bikeMode) {
-      this.body.position.y = 1.02;
-      this.body.rotation.z = -0.16;
-      this.head.position.set(0.07, 1.48, 0);
-      this.hat.position.set(0.07, 1.61, 0);
-      this.bag.position.set(-0.48, 0.88, 0.24);
-      this.bike.rotation.z = moving ? Math.sin(t) * 0.025 : 0;
+      const pedalCycle = this.bikeRoll;
+      const parts = this.bike.userData || {};
+      if (parts.rearWheel) parts.rearWheel.rotation.z = -this.bikeRoll;
+      if (parts.frontWheel) parts.frontWheel.rotation.z = -this.bikeRoll;
+      if (parts.rearRim) parts.rearRim.rotation.z = -this.bikeRoll;
+      if (parts.frontRim) parts.frontRim.rotation.z = -this.bikeRoll;
+      if (parts.pedal) {
+        parts.pedal.rotation.z = -pedalCycle * 1.65;
+        parts.pedal.position.y = 0.48 + Math.sin(pedalCycle * 1.65) * 0.085;
+      }
+      if (parts.crank) parts.crank.rotation.z = -pedalCycle * 1.65;
+
+      const legSwing = pedaling ? Math.sin(pedalCycle * 1.65) : 0;
+      const armSettle = pedaling ? Math.sin(pedalCycle * 0.82) * 0.025 : 0;
+      this.body.position.y = 1.00 + Math.abs(legSwing) * 0.018;
+      this.body.rotation.z = -0.18;
+      this.body.rotation.x = 0.10;
+      this.head.position.set(0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
+      this.hat.position.set(0.08, 1.60 + Math.abs(legSwing) * 0.012, 0);
+      this.bag.position.set(-0.50, 0.88, 0.24);
+      this.bag.rotation.z = 0.08 + armSettle;
+
+      this.walkParts.leftLeg.position.set(-0.17, 0.55, -0.10);
+      this.walkParts.rightLeg.position.set(0.18, 0.55, 0.10);
+      this.walkParts.leftLeg.rotation.set(0.50 + legSwing * 0.42, 0, -0.18);
+      this.walkParts.rightLeg.rotation.set(0.50 - legSwing * 0.42, 0, 0.18);
+      this.walkParts.leftArm.position.set(0.25, 1.02, -0.18);
+      this.walkParts.rightArm.position.set(0.25, 1.02, 0.18);
+      this.walkParts.leftArm.rotation.set(0.92 + armSettle, 0, 0.55);
+      this.walkParts.rightArm.rotation.set(0.92 - armSettle, 0, -0.55);
+      this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 : 0;
     } else {
       this.body.position.y = 0.92;
       this.body.rotation.z = 0;
+      this.body.rotation.x = 0;
       this.head.position.set(0, 1.42, 0);
       this.hat.position.set(0, 1.55, 0);
       this.bag.position.set(0.32, 0.9, 0.03);
+      this.bag.rotation.z = 0;
+      this.walkParts.leftLeg.position.set(-0.12, 0.38, 0);
+      this.walkParts.rightLeg.position.set(0.12, 0.38, 0);
+      this.walkParts.leftArm.position.set(-0.32, 0.95, 0);
+      this.walkParts.rightArm.position.set(0.32, 0.95, 0);
+      this.walkParts.leftLeg.rotation.set(step, 0, 0);
+      this.walkParts.rightLeg.rotation.set(-step, 0, 0);
+      this.walkParts.leftArm.rotation.set(-step * 0.7, 0, 0);
+      this.walkParts.rightArm.rotation.set(step * 0.7, 0, 0);
     }
   }
 
@@ -770,8 +939,10 @@ export class ThreeRenderer {
   }
 
   updateAnimatedObjects(t) {
-    if (this.targetRing?.visible) { const pulse = 1 + Math.sin(t * 3) * 0.08; this.targetRing.scale.multiplyScalar(pulse / this.lastTargetScale); this.lastTargetScale = pulse; this.targetBeam.material.opacity = 0.30 + Math.sin(t * 2.4) * 0.08; } else this.lastTargetScale = 1;
+    if (this.targetRing?.visible) { const pulse = 1 + Math.sin(t * 3) * 0.045; this.targetRing.scale.multiplyScalar(pulse / this.lastTargetScale); this.lastTargetScale = pulse; this.targetBeam.material.opacity = 0.24 + Math.sin(t * 2.4) * 0.06; } else this.lastTargetScale = 1;
     this.clockObjects.forEach((obj, i) => { obj.rotation.y = Math.sin(t * 0.35 + i) * 0.045; });
+    this.clouds.forEach((item) => { item.group.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * item.amplitude; });
+    this.birds.forEach((item) => { item.bird.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * 5.5; item.bird.position.y += Math.sin(t * 0.8 + item.phase) * 0.002; });
   }
 
   addPlane(x, y, z, w, d, color, rot = 0) { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), mat(color)); mesh.position.set(x, y, z); mesh.rotation.y = rot; mesh.receiveShadow = true; this.scene.add(mesh); return mesh; }

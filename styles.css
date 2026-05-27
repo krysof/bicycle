@@ -269,19 +269,20 @@ button:disabled {
 .hud {
   position: fixed;
   left: 18px;
-  right: 18px;
+  right: auto;
   bottom: 18px;
+  width: min(470px, calc(100vw - 36px));
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   pointer-events: none;
 }
 
 .hud-card {
-  width: min(980px, 100%);
+  width: 100%;
   border-radius: 24px;
-  background: var(--paper);
+  background: rgba(255, 251, 238, 0.90);
   box-shadow: var(--shadow);
-  padding: 18px;
+  padding: 16px;
   pointer-events: auto;
   border: 3px solid rgba(47, 125, 92, 0.18);
   backdrop-filter: blur(10px);
@@ -292,15 +293,70 @@ button:disabled {
   margin: 4px 0;
 }
 
+#targetName {
+  font-size: clamp(24px, 2.3vw, 32px);
+}
+
+#targetHint {
+  font-size: clamp(16px, 1.45vw, 19px);
+  color: var(--muted);
+}
+
+#companionLine {
+  display: none;
+}
+
 #deliverBtn {
-  min-height: 72px;
-  font-size: clamp(24px, 2.6vw, 32px);
+  min-height: 64px;
+  font-size: clamp(22px, 2.1vw, 28px);
 }
 
 #pauseBtn,
 #endBtn {
-  font-size: clamp(18px, 1.8vw, 21px);
+  font-size: clamp(16px, 1.45vw, 19px);
   background: rgba(255, 250, 240, 0.86);
+}
+
+
+.language-panel {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 251, 238, 0.9);
+  border: 2px solid rgba(47, 125, 92, 0.18);
+  box-shadow: 0 10px 24px rgba(68, 47, 22, 0.16);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.language-panel label {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.language-panel select {
+  min-height: 42px;
+  max-width: 148px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff8e8;
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  padding: 6px 34px 6px 12px;
+  cursor: pointer;
+  outline: 2px solid transparent;
+}
+
+.language-panel select:focus-visible {
+  outline-color: rgba(47, 125, 92, 0.42);
 }
 
 .hidden {
@@ -315,12 +371,12 @@ button:disabled {
   z-index: 8;
   min-width: 220px;
   max-width: min(720px, calc(100vw - 32px));
-  padding: 18px 28px;
+  padding: 16px 26px;
   border: 5px solid #1f2b38;
   border-radius: 28px;
   background: #fffdf2;
   color: #1f2b38;
-  font-size: clamp(30px, 4vw, 54px);
+  font-size: clamp(27px, 3.3vw, 48px);
   font-weight: 1000;
   text-align: center;
   letter-spacing: 0.04em;
@@ -355,6 +411,14 @@ button:disabled {
 .comic-bubble.hint {
   background: #fff6dd;
   color: #7c4a1d;
+}
+
+.comic-bubble.guide {
+  top: 74px;
+  background: #fffdf2;
+  color: #2f5f49;
+  font-size: clamp(23px, 2.4vw, 36px);
+  box-shadow: 7px 7px 0 rgba(31, 43, 56, 0.18);
 }
 
 @keyframes comicPop {
@@ -402,10 +466,18 @@ kbd {
     border-radius: 20px;
   }
 
+  .language-panel {
+    top: 8px;
+    right: 8px;
+    transform: scale(0.94);
+    transform-origin: top right;
+  }
+
   .hud {
     left: 8px;
-    right: 8px;
+    right: auto;
     bottom: 8px;
+    width: min(430px, calc(100vw - 16px));
   }
 
   .hud-actions {
