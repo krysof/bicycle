@@ -1,16 +1,21 @@
-import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS } from "../data/world.js";
+import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS, WORLD_SCALE } from "../data/world.js";
 import { currentTarget } from "../state/gameState.js";
 import { nt, t } from "../i18n.js";
 
+// 要和 ThreeRenderer.updateTarget() 里的黄框视觉半径保持一致：
+// 黄框半径约 4.15 个场景单位；隐形可投递范围 = 黄框半径再向外扩大 1 倍，即总半径 2 倍。
+const VISIBLE_TARGET_RING_RADIUS_SCENE = 4.15;
+const INVISIBLE_DELIVERY_RADIUS_MULTIPLIER = 2;
+
 export function deliveryDistance(state, target = currentTarget(state)) {
   if (!target) return Infinity;
-  const deliveryX = target.deliveryX ?? target.x;
-  const deliveryY = target.deliveryY ?? target.y;
-  return Math.hypot(state.player.x - deliveryX, state.player.y - deliveryY);
+  // 判定中心改为“黄框 / 房屋中心”，不是路边投递点。
+  // 这样进入黄框外一圈的隐形范围时，头顶就会出现报纸图标。
+  return Math.hypot(state.player.x - target.x, state.player.y - target.y);
 }
 
-export function deliveryTriggerRadius(state) {
-  return (state.config?.assistRadius || 220) * 2;
+export function deliveryTriggerRadius() {
+  return (VISIBLE_TARGET_RING_RADIUS_SCENE / WORLD_SCALE) * INVISIBLE_DELIVERY_RADIUS_MULTIPLIER;
 }
 
 export function canDeliverNow(state, target = currentTarget(state)) {
