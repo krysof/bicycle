@@ -1,0 +1,248 @@
+:root {
+  color-scheme: light;
+  --bg: #f6efe1;
+  --paper: rgba(255, 252, 243, 0.94);
+  --ink: #243044;
+  --muted: #566477;
+  --accent: #2f7d5c;
+  --accent-2: #f0b44d;
+  --danger-soft: #ffe3d5;
+  --shadow: 0 16px 40px rgba(59, 42, 21, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  font-family: "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  background: linear-gradient(160deg, #e9f3e8, #f8efd8 52%, #dbeafb);
+  color: var(--ink);
+}
+
+#gameCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+.ui {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.screen {
+  width: min(920px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 3px solid rgba(47, 125, 92, 0.18);
+  border-radius: 28px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  padding: clamp(22px, 4vw, 44px);
+  pointer-events: auto;
+}
+
+.screen.narrow {
+  width: min(720px, 100%);
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: clamp(34px, 5vw, 58px);
+  line-height: 1.08;
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: clamp(26px, 3vw, 36px);
+}
+
+p,
+li,
+label {
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.65;
+}
+
+.lead {
+  font-size: clamp(21px, 2.2vw, 27px);
+  color: var(--muted);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.button-row,
+.hud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+button,
+.choice {
+  min-height: 56px;
+  border: 2px solid rgba(36, 48, 68, 0.14);
+  border-radius: 18px;
+  background: #fffaf0;
+  color: var(--ink);
+  font: inherit;
+  font-size: 21px;
+  font-weight: 750;
+  padding: 14px 20px;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(59, 42, 21, 0.08);
+}
+
+button:hover,
+button:focus-visible,
+.choice:hover {
+  outline: 4px solid rgba(47, 125, 92, 0.2);
+  transform: translateY(-1px);
+}
+
+button.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+button.secondary {
+  background: #fff4d6;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.question {
+  padding: 18px;
+  margin: 18px 0;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.choice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.choice input {
+  width: 24px;
+  height: 24px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.card {
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+  padding: 18px;
+  border: 2px solid rgba(47, 125, 92, 0.13);
+}
+
+.card strong {
+  display: block;
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.hud {
+  position: fixed;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.hud-card {
+  width: min(980px, 100%);
+  border-radius: 24px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  pointer-events: auto;
+  border: 3px solid rgba(47, 125, 92, 0.18);
+}
+
+.hud-card h2,
+.hud-card p {
+  margin: 4px 0;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.soft-warning {
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--danger-soft);
+  color: #6b3d28;
+}
+
+kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #ccd;
+  box-shadow: inset 0 -2px 0 #dde;
+}
+
+@media (max-width: 640px) {
+  body {
+    overflow: auto;
+  }
+
+  #gameCanvas {
+    position: fixed;
+  }
+
+  .ui {
+    padding: 12px;
+  }
+
+  .screen {
+    max-height: calc(100vh - 24px);
+    border-radius: 20px;
+  }
+
+  .hud {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+}
+

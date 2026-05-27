@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>今天也要送到 - 3D 陪伴送报原型</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="gameCanvas" aria-label="3D 社区送报游戏画面"></canvas>
+
+    <main id="ui" class="ui" aria-live="polite"></main>
+
+    <section id="hud" class="hud hidden" aria-label="游戏操作面板">
+      <div class="hud-card">
+        <p class="eyebrow">今日任务</p>
+        <h2 id="targetName">准备出发</h2>
+        <p id="targetHint">按方向键或 WASD 移动。</p>
+        <p id="companionLine">阿铃：不着急，我们慢慢来。</p>
+        <div class="hud-actions">
+          <button id="deliverBtn" class="primary">投递报纸</button>
+          <button id="pauseBtn">暂停</button>
+          <button id="endBtn">提前总结</button>
+        </div>
+      </div>
+    </section>
+
+    <script src="./src/main.js" defer></script>
+  </body>
+</html>
+
