@@ -942,37 +942,130 @@ export class ThreeRenderer {
       { kind: "cyclist", dir: "v", lane: 64, start: 82, end: -82, offset: 2.0, speed: 4.8, phase: 0.75, color: 0x5aaa77 },
       { kind: "pedestrian", dir: "h", lane: 72, start: -108, end: 108, offset: -6.3, speed: 2.2, phase: 0.82, color: 0x9c7556 },
     ];
+    const roadLanes = [-72, -48, -24, 0, 24, 48, 72];
+    const personColors = [0x7b87c8, 0xb86695, 0xd59a34, 0x5aaa77, 0x8a6fb0, 0x9c7556, 0x4f91d5, 0xd66b53];
+    for (let i = 0; i < 22; i += 1) {
+      const horizontal = i % 2 === 0;
+      const lane = roadLanes[i % roadLanes.length];
+      const reverse = i % 5 === 0;
+      passerConfigs.push({
+        kind: "pedestrian",
+        dir: horizontal ? "h" : "v",
+        lane,
+        start: reverse ? 108 : -108,
+        end: reverse ? -108 : 108,
+        offset: (i % 4 < 2 ? -6.4 : 6.4) + ((i % 3) - 1) * 0.35,
+        speed: 1.45 + (i % 5) * 0.28,
+        phase: (i * 0.137) % 1,
+        color: personColors[i % personColors.length],
+        style: i,
+      });
+    }
+    for (let i = 0; i < 7; i += 1) {
+      const horizontal = i % 2 === 1;
+      passerConfigs.push({
+        kind: "cyclist",
+        dir: horizontal ? "h" : "v",
+        lane: roadLanes[(i * 2 + 1) % roadLanes.length],
+        start: i % 3 === 0 ? 112 : -112,
+        end: i % 3 === 0 ? -112 : 112,
+        offset: i % 2 === 0 ? 2.4 : -2.4,
+        speed: 4.0 + (i % 4) * 0.45,
+        phase: (0.21 + i * 0.113) % 1,
+        color: personColors[(i + 3) % personColors.length],
+        style: i + 30,
+      });
+    }
     passerConfigs.forEach((cfg) => {
-      const group = cfg.kind === "cyclist" ? this.createAmbientCyclist(cfg.color) : this.createAmbientPedestrian(cfg.color);
+      const group = cfg.kind === "cyclist" ? this.createAmbientCyclist(cfg.color, cfg.style || 0) : this.createAmbientPedestrian(cfg.color, cfg.style || 0);
       this.scene.add(group);
       this.passers.push({ group, ...cfg });
     });
   }
 
-  createAmbientPedestrian(color) {
+  createAmbientPedestrian(color, style = 0) {
     const group = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.46, 4, 10), mat(color));
-    body.position.y = 0.78;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), mat(0xf0c08d));
-    head.position.y = 1.22;
-    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.08), mat(0x6a523d));
-    bag.position.set(0.18, 0.72, 0.04);
-    group.add(body, head, bag);
+    const skinColors = [0xf0c08d, 0xe6b07d, 0xf2cfaa, 0xd9a06f];
+    const pantsColors = [0x2f4f64, 0x5d6380, 0x594f6f, 0x6f5a43];
+    const hairColors = [0x3f332a, 0x6b5a4c, 0x202020, 0x8c7c68];
+    const skin = skinColors[style % skinColors.length];
+    const pants = pantsColors[(style + 1) % pantsColors.length];
+    const hair = hairColors[(style + 2) % hairColors.length];
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.48, 5, 12), mat(color));
+    body.position.y = 0.82;
+    const scarf = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.055, 0.20), mat(style % 2 ? 0xffe08a : 0xe85f79));
+    scarf.position.set(0.02, 1.04, 0.02);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 10), mat(skin));
+    head.position.y = 1.24;
+    const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.151, 14, 8), mat(hair));
+    hairCap.scale.set(1.05, 0.52, 1.0);
+    hairCap.position.set(0, 1.31, -0.012);
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.075, 16), mat(style % 3 === 0 ? 0xd6b56d : 0x5d7b57));
+    hat.position.set(0, 1.38, 0);
+    hat.visible = style % 4 === 0;
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.018, 16), mat(style % 3 === 0 ? 0xd6b56d : 0x5d7b57));
+    brim.position.set(0, 1.34, 0);
+    brim.visible = hat.visible;
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), mat(skin));
+    nose.position.set(0.13, 1.24, 0);
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.22, 0.09), mat(style % 2 ? 0x7b5c47 : 0x345f86));
+    bag.position.set(0.20, 0.76, 0.08);
+    const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.34, 4, 8), mat(skin));
+    const rightArm = leftArm.clone();
+    leftArm.position.set(0.02, 0.88, -0.21);
+    rightArm.position.set(0.02, 0.88, 0.21);
+    const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.38, 4, 8), mat(pants));
+    const rightLeg = leftLeg.clone();
+    leftLeg.position.set(-0.02, 0.40, -0.075);
+    rightLeg.position.set(-0.02, 0.40, 0.075);
+    const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.055, 0.07), mat(0x2f2b28));
+    const rightShoe = leftShoe.clone();
+    leftShoe.position.set(0.035, 0.12, -0.08);
+    rightShoe.position.set(0.035, 0.12, 0.08);
+    const accessory = new THREE.Group();
+    if (style % 5 === 0) {
+      const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.62, 8), mat(0x7b5c47));
+      cane.position.set(0.24, 0.38, 0.24);
+      cane.rotation.z = -0.18;
+      accessory.add(cane);
+    } else if (style % 5 === 1) {
+      const shopping = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.20, 0.10), mat(0xfff0c8));
+      shopping.position.set(0.22, 0.52, -0.27);
+      accessory.add(shopping);
+    } else if (style % 5 === 2) {
+      const umbrella = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.56, 8), mat(0x4f6175));
+      umbrella.position.set(0.24, 0.68, -0.25);
+      umbrella.rotation.z = 0.32;
+      const top = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 6), mat(0x8a6fb0));
+      top.scale.set(1, 0.32, 1);
+      top.position.set(0.33, 1.00, -0.25);
+      accessory.add(umbrella, top);
+    }
+    group.add(body, scarf, head, hairCap, hat, brim, nose, bag, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe, accessory);
+    group.userData.parts = { leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe, bag, accessory };
     return group;
   }
 
-  createAmbientCyclist(color) {
-    const group = this.createAmbientPedestrian(color);
+  createAmbientCyclist(color, style = 0) {
+    const group = this.createAmbientPedestrian(color, style);
     group.scale.setScalar(0.92);
     const wheelMat = mat(0x1f2938);
     const rear = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.025, 8, 24), wheelMat);
     const front = rear.clone();
     rear.position.set(-0.42, 0.24, 0);
     front.position.set(0.48, 0.24, 0);
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.035, 0.04), mat(0xdddddd));
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.035, 0.04), mat(style % 2 ? 0xdddddd : 0xd9543f));
     frame.position.set(0.03, 0.52, 0);
-    group.add(rear, front, frame);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.36), mat(0x444444));
+    handle.position.set(0.60, 0.72, 0);
+    const basket = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.14, 0.24), mat(0xcaa66a));
+    basket.position.set(0.68, 0.52, 0);
+    const rack = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.045, 0.22), mat(0x666666));
+    rack.position.set(-0.48, 0.52, 0);
+    group.add(rear, front, frame, handle, basket, rack);
     group.userData.wheels = [rear, front];
+    group.userData.handle = handle;
+    group.userData.basket = basket;
     return group;
   }
 
@@ -1026,7 +1119,21 @@ export class ThreeRenderer {
         item.group.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
       }
       item.group.position.y = item.kind === "pedestrian" ? Math.abs(Math.sin(t * item.speed * 2.2 + i)) * 0.035 : 0;
-      if (item.kind === "cyclist" && item.group.userData.wheels) item.group.userData.wheels.forEach((w) => (w.rotation.z -= 0.22));
+      const walkPhase = t * item.speed * 2.4 + i;
+      const parts = item.group.userData.parts || {};
+      if (parts.leftLeg) parts.leftLeg.rotation.z = Math.sin(walkPhase) * 0.35;
+      if (parts.rightLeg) parts.rightLeg.rotation.z = -Math.sin(walkPhase) * 0.35;
+      if (parts.leftArm) parts.leftArm.rotation.z = -Math.sin(walkPhase) * 0.28;
+      if (parts.rightArm) parts.rightArm.rotation.z = Math.sin(walkPhase) * 0.28;
+      if (parts.leftShoe) parts.leftShoe.position.x = 0.035 + Math.sin(walkPhase) * 0.035;
+      if (parts.rightShoe) parts.rightShoe.position.x = 0.035 - Math.sin(walkPhase) * 0.035;
+      if (parts.bag) parts.bag.rotation.z = Math.sin(walkPhase * 0.7) * 0.08;
+      if (parts.accessory) parts.accessory.rotation.z = Math.sin(walkPhase * 0.55) * 0.05;
+      if (item.kind === "cyclist" && item.group.userData.wheels) {
+        item.group.userData.wheels.forEach((w) => (w.rotation.z -= 0.22));
+        if (item.group.userData.handle) item.group.userData.handle.rotation.y = Math.sin(t * 1.6 + i) * 0.10;
+        if (item.group.userData.basket) item.group.userData.basket.rotation.y = Math.sin(t * 1.6 + i) * 0.05;
+      }
       const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
       if (d < best && d < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = d; near = item.kind; }
     });
