@@ -942,11 +942,12 @@ export class ThreeRenderer {
       { kind: "cyclist", dir: "v", lane: 64, start: 82, end: -82, offset: 2.0, speed: 4.8, phase: 0.75, color: 0x5aaa77 },
       { kind: "pedestrian", dir: "h", lane: 72, start: -108, end: 108, offset: -6.3, speed: 2.2, phase: 0.82, color: 0x9c7556 },
     ];
-    const roadLanes = [-72, -48, -24, 0, 24, 48, 72];
+    const horizontalLanes = ROAD_Z;
+    const verticalLanes = ROAD_X;
     const personColors = [0x7b87c8, 0xb86695, 0xd59a34, 0x5aaa77, 0x8a6fb0, 0x9c7556, 0x4f91d5, 0xd66b53];
     for (let i = 0; i < 22; i += 1) {
       const horizontal = i % 2 === 0;
-      const lane = roadLanes[i % roadLanes.length];
+      const lane = horizontal ? horizontalLanes[i % horizontalLanes.length] : verticalLanes[i % verticalLanes.length];
       const reverse = i % 5 === 0;
       passerConfigs.push({
         kind: "pedestrian",
@@ -966,7 +967,7 @@ export class ThreeRenderer {
       passerConfigs.push({
         kind: "cyclist",
         dir: horizontal ? "h" : "v",
-        lane: roadLanes[(i * 2 + 1) % roadLanes.length],
+        lane: horizontal ? horizontalLanes[(i * 2 + 1) % horizontalLanes.length] : verticalLanes[(i * 2 + 1) % verticalLanes.length],
         start: i % 3 === 0 ? 112 : -112,
         end: i % 3 === 0 ? -112 : 112,
         offset: i % 2 === 0 ? 2.4 : -2.4,
@@ -1192,7 +1193,18 @@ export class ThreeRenderer {
     this.walkParts.rightLeg = this.limb(0x3f5f73, 0, 0.38, 0.11);
     this.walkParts.leftArm = this.limb(0x2f7d5c, 0, 0.95, -0.25, 0.08);
     this.walkParts.rightArm = this.limb(0x2f7d5c, 0, 0.95, 0.25, 0.08);
-    group.add(this.walkParts.leftLeg, this.walkParts.rightLeg, this.walkParts.leftArm, this.walkParts.rightArm);
+    this.walkParts.leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.055, 0.09), mat(0x2f2b28));
+    this.walkParts.rightFoot = this.walkParts.leftFoot.clone();
+    this.walkParts.leftFoot.position.set(0.04, 0.12, -0.11);
+    this.walkParts.rightFoot.position.set(0.04, 0.12, 0.11);
+    group.add(
+      this.walkParts.leftLeg,
+      this.walkParts.rightLeg,
+      this.walkParts.leftArm,
+      this.walkParts.rightArm,
+      this.walkParts.leftFoot,
+      this.walkParts.rightFoot
+    );
 
     this.heldPaper = this.createHeldPaper();
     group.add(this.heldPaper);
@@ -1505,6 +1517,8 @@ export class ThreeRenderer {
     this.walkParts.rightLeg.visible = true;
     this.walkParts.leftArm.visible = true;
     this.walkParts.rightArm.visible = true;
+    this.walkParts.leftFoot.visible = true;
+    this.walkParts.rightFoot.visible = true;
 
     if (bikeMode) {
       const pedalCycle = this.bikeRoll;
@@ -1528,9 +1542,9 @@ export class ThreeRenderer {
 
       const legSwing = pedaling ? Math.sin(pedalCycle * 1.65) : 0;
       const armSettle = pedaling ? Math.sin(pedalCycle * 0.82) * 0.025 : 0;
-      this.body.position.y = 1.00 + Math.abs(legSwing) * 0.018;
-      this.body.rotation.z = -0.18;
-      this.body.rotation.x = 0.10;
+      this.body.position.y = pedaling ? 1.00 + Math.abs(legSwing) * 0.018 : 0.97;
+      this.body.rotation.z = pedaling ? -0.18 : -0.10;
+      this.body.rotation.x = pedaling ? 0.10 : 0.04;
       this.head.position.set(0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
       this.nose.position.set(0.26, 1.47 + Math.abs(legSwing) * 0.012, 0);
       this.hair.position.set(-0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
@@ -1538,10 +1552,26 @@ export class ThreeRenderer {
       this.bag.position.set(-0.50, 0.88, 0.24);
       this.bag.rotation.z = 0.08 + armSettle;
 
-      this.walkParts.leftLeg.position.set(-0.04, 0.55, -0.12);
-      this.walkParts.rightLeg.position.set(0.10, 0.55, 0.12);
-      this.walkParts.leftLeg.rotation.set(0.10, 0, 0.46 + legSwing * 0.35);
-      this.walkParts.rightLeg.rotation.set(0.10, 0, 0.46 - legSwing * 0.35);
+      if (pedaling) {
+        this.walkParts.leftLeg.position.set(-0.04, 0.55, -0.12);
+        this.walkParts.rightLeg.position.set(0.10, 0.55, 0.12);
+        this.walkParts.leftLeg.rotation.set(0.10, 0, 0.46 + legSwing * 0.35);
+        this.walkParts.rightLeg.rotation.set(0.10, 0, 0.46 - legSwing * 0.35);
+        this.walkParts.leftFoot.position.set(0.07, 0.32 + Math.sin(pedalCycle * 1.65) * 0.08, -0.20);
+        this.walkParts.rightFoot.position.set(0.14, 0.32 - Math.sin(pedalCycle * 1.65) * 0.08, 0.20);
+        this.walkParts.leftFoot.rotation.set(0, 0, 0.22 + legSwing * 0.12);
+        this.walkParts.rightFoot.rotation.set(0, 0, 0.22 - legSwing * 0.12);
+      } else {
+        // 停车时一只脚自然落地支撑，另一只脚仍留在脚踏附近。
+        this.walkParts.leftLeg.position.set(-0.12, 0.34, -0.32);
+        this.walkParts.rightLeg.position.set(0.11, 0.55, 0.12);
+        this.walkParts.leftLeg.rotation.set(0.02, 0.06, 0.08);
+        this.walkParts.rightLeg.rotation.set(0.10, 0, 0.42);
+        this.walkParts.leftFoot.position.set(-0.08, 0.075, -0.38);
+        this.walkParts.rightFoot.position.set(0.16, 0.32, 0.20);
+        this.walkParts.leftFoot.rotation.set(0, 0, 0.03);
+        this.walkParts.rightFoot.rotation.set(0, 0, 0.18);
+      }
       this.walkParts.leftArm.position.set(0.34, 1.02, -0.20);
       this.walkParts.rightArm.position.set(0.34, 1.02, 0.20);
       this.walkParts.leftArm.rotation.set(0.12 + armSettle, 0, -0.85);
@@ -1550,7 +1580,7 @@ export class ThreeRenderer {
       this.heldPaper.rotation.set(0.22, 0.15, -0.30);
       this.skirt.position.set(-0.02, 0.73, 0);
       this.skirt.rotation.set(0.10, 0, -0.08);
-      this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 - steer * 0.05 : -steer * 0.035;
+      this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 - steer * 0.05 : -0.045 - steer * 0.035;
     } else {
       this.body.position.y = 0.92;
       this.body.rotation.z = 0;
@@ -1565,10 +1595,14 @@ export class ThreeRenderer {
       this.walkParts.rightLeg.position.set(0, 0.38, 0.11);
       this.walkParts.leftArm.position.set(0.02, 0.95, -0.25);
       this.walkParts.rightArm.position.set(0.02, 0.95, 0.25);
+      this.walkParts.leftFoot.position.set(0.04 + step * 0.06, 0.12, -0.11);
+      this.walkParts.rightFoot.position.set(0.04 - step * 0.06, 0.12, 0.11);
       this.walkParts.leftLeg.rotation.set(0, 0, step);
       this.walkParts.rightLeg.rotation.set(0, 0, -step);
       this.walkParts.leftArm.rotation.set(0, 0, -step * 0.7);
       this.walkParts.rightArm.rotation.set(0, 0, step * 0.7);
+      this.walkParts.leftFoot.rotation.set(0, 0, step * 0.18);
+      this.walkParts.rightFoot.rotation.set(0, 0, -step * 0.18);
       this.heldPaper.position.set(0.34, 0.93 + Math.abs(step) * 0.025, -0.29);
       this.heldPaper.rotation.set(0.22, 0.2, -0.26);
       this.skirt.position.set(0, 0.68, 0);
