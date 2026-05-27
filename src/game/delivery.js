@@ -1,11 +1,14 @@
 import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS } from "../data/world.js";
 import { currentTarget } from "../state/gameState.js";
+import { nt, t } from "../i18n.js";
 
 export function requestDelivery(state) {
   const target = currentTarget(state);
   if (!target) return { completed: true, delivered: false };
 
-  const distance = Math.hypot(state.player.x - target.x, state.player.y - target.y);
+  const targetX = target.deliveryX ?? target.x;
+  const targetY = target.deliveryY ?? target.y;
+  const distance = Math.hypot(state.player.x - targetX, state.player.y - targetY);
   if (state.delivery?.active) return { completed: false, delivered: false, flying: true };
 
   if (distance <= state.config.assistRadius) {
@@ -14,18 +17,18 @@ export function requestDelivery(state) {
       t: 0,
       duration: 0.75,
       targetId: target.id,
-      targetName: target.name,
-      thanks: target.thanks,
+      targetName: nt(target, "name"),
+      thanks: nt(target, "thanks"),
       start: { x: state.player.x + state.player.headingX * 45, y: state.player.y + state.player.headingY * 45 },
-      end: { x: target.x, y: target.y },
+      end: { x: targetX, y: targetY },
     };
-    state.comic = { text: "えいっ!", tone: "throw", time: 0.7 };
-    state.message = "阿铃：报纸飞过去了！";
+    state.comic = { text: t("comicThrow"), tone: "throw", time: 0.7 };
+    state.message = t("flying");
     return { completed: false, delivered: false, flying: true };
   }
 
-  state.comic = { text: "もう少し近く!", tone: "hint", time: 1.1 };
-  state.message = "阿铃：再靠近一点点就可以了。前方发光的房子就是目标。";
+  state.comic = { text: t("comicHint"), tone: "hint", time: 1.1 };
+  state.message = t("closer");
   return { completed: false, delivered: false };
 }
 
@@ -46,8 +49,8 @@ export function updateDelivery(state, dt) {
   const thanks = state.delivery.thanks;
   state.delivered.push(deliveredId);
   state.houseReaction = { id: deliveredId, time: 1.3 };
-  state.comic = { text: "ドン! ありがとう!", tone: "success", time: 1.4 };
-  state.message = `阿铃：送到了！${thanks}`;
+  state.comic = { text: t("comicSuccess"), tone: "success", time: 1.4 };
+  state.message = t("delivered", thanks);
   state.delivery = null;
   return { completed: !currentTarget(state), delivered: true };
 }

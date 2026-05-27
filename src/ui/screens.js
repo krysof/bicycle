@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 export class Screens {
   constructor(root) {
     this.root = root;
@@ -10,28 +11,28 @@ export class Screens {
   home(record) {
     const last = record.lastSummary;
     const yesterday = last
-      ? `上次你送到了 ${last.count} 户，大家都很高兴。今天也慢慢来。`
-      : "今天我会陪你在更大的町内慢慢送报。";
+      ? t("greetingLast", last.count)
+      : t("greetingFirst");
 
     this.root.innerHTML = `
       <section class="screen narrow home-screen simple-home">
-        <div class="stamp">昭和町内会</div>
-        <p class="eyebrow">第三人称 3D 送报</p>
-        <h1>今天骑车送报</h1>
-        <p class="lead">阿铃：早上好，见到你真高兴。${yesterday}</p>
-        <div class="mode-grid" aria-label="选择移动方式">
+        <div class="stamp">${t("stamp")}</div>
+        <p class="eyebrow">${t("eyebrow")}</p>
+        <h1>${t("homeTitle")}</h1>
+        <p class="lead">${t("companionHello", yesterday)}</p>
+        <div class="mode-grid" aria-label="${t("chooseMode")}">
           <button class="mode-card primary" data-mode="bike">
             <span class="mode-icon">🚲</span>
-            <strong>开始骑单车</strong>
-            <em>默认模式，沿着道路送报</em>
+            <strong>${t("startBike")}</strong>
+            <em>${t("startBikeHint")}</em>
           </button>
           <button class="mode-card" data-mode="walk">
             <span class="mode-icon">🚶</span>
-            <strong>改为步行</strong>
-            <em>速度慢、路线短、最安心</em>
+            <strong>${t("startWalk")}</strong>
+            <em>${t("startWalkHint")}</em>
           </button>
         </div>
-        <p class="tiny-note">只需要选一种方式。默认骑单车。进入后：↑/W 前进，↓/S 后退，←/A 和 →/D 轻轻转向；靠近路边发光房子后按“投递报纸”。</p>
+        <p class="tiny-note">${t("homeNote")}</p>
       </section>`;
   }
 
@@ -39,18 +40,18 @@ export class Screens {
     const count = state.delivered.length;
     this.root.innerHTML = `
       <section class="screen narrow">
-        <p class="eyebrow">今日总结</p>
-        <h1>${early ? "今天先到这里" : "今天也送到了"}</h1>
-        <p class="lead">阿铃：你完成了 ${count} 户送报，收到了 ${count} 句感谢。今天也辛苦了。</p>
+        <p class="eyebrow">${t("todaySummary")}</p>
+        <h1>${early ? t("stopToday") : t("doneToday")}</h1>
+        <p class="lead">${t("summaryLead", count)}</p>
         <div class="cards">
-          <div class="card"><strong>${count} 户</strong><p>今日送达</p></div>
-          <div class="card"><strong>${state.config?.routeName || "安心路线"}</strong><p>今日路线</p></div>
-          <div class="card"><strong>${state.config?.moveMode === "bike" ? "骑单车" : "步行"}</strong><p>移动方式</p></div>
+          <div class="card"><strong>${count}</strong><p>${t("deliveredCount")}</p></div>
+          <div class="card"><strong>${state.config?.routeNameKey ? t(state.config.routeNameKey) : (state.config?.routeName || "Route")}</strong><p>${t("route")}</p></div>
+          <div class="card"><strong>${state.config?.moveMode === "bike" ? t("modeBike") : t("modeWalk")}</strong><p>${t("mode")}</p></div>
         </div>
         <div class="button-row">
-          <button class="primary" data-action="home">回到首页</button>
-          <button data-mode="walk">步行再来一次</button>
-          <button data-mode="bike">骑单车再来一次</button>
+          <button class="primary" data-action="home">${t("home")}</button>
+          <button data-mode="walk">${t("walkAgain")}</button>
+          <button data-mode="bike">${t("bikeAgain")}</button>
         </div>
       </section>`;
   }

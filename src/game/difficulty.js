@@ -15,11 +15,12 @@ export function answersFromProfile(profile = "normal") {
 export function buildConfig(answers) {
   const moveMode = answers.moveMode || "walk";
   const count = answers.count || (moveMode === "bike" ? 6 : 4);
+  const routeNameKey = moveMode === "bike" ? "routeBike" : "routeWalk";
   const routeName = moveMode === "bike" ? "单车远行路线" : "步行安心路线";
   const assistRadius = moveMode === "bike" ? 620 : 440;
   const speed = moveMode === "bike" ? 430 : 145;
   const memoryCount = 0;
-  return { count, moveMode, routeName, assistRadius, speed, memoryCount };
+  return { count, moveMode, routeName, routeNameKey, assistRadius, speed, memoryCount };
 }
 
 export function pickRoute(neighbors, config) {

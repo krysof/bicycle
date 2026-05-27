@@ -1,6 +1,7 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
 import { currentTarget } from "../state/gameState.js";
+import { nt, t } from "../i18n.js";
 
 const WORLD_SCALE = 1 / 45;
 const MAP_W = 235;
@@ -66,6 +67,15 @@ function makeCanvasLabel(text, color = "#2f5f49") {
   return sprite;
 }
 function colorFromIndex(i, list) { return list[Math.abs(i) % list.length]; }
+function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
+  return neighbors.some((n) => {
+    const hx = wx(n.x);
+    const hz = wz(n.y);
+    const dx = wx(n.deliveryX ?? n.x);
+    const dz = wz(n.deliveryY ?? n.y);
+    return (Math.abs(x - hx) < marginX && Math.abs(z - hz) < marginZ) || Math.hypot(x - dx, z - dz) < 7.2;
+  });
+}
 
 export class ThreeRenderer {
   constructor(canvas) {
@@ -210,7 +220,9 @@ export class ThreeRenderer {
         const side = idx % 2 ? -1 : 1;
         const z = roadZ + side * 9.2;
         if (z < -82 || z > 82) continue;
-        this.addResidentialLot(x + ((idx % 3) - 1) * 1.2, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.15 + (idx % 2) * 0.08, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
+        const lotX = x + ((idx % 3) - 1) * 1.2;
+        if (isReservedSceneSpot(lotX, z)) { idx += 1; continue; }
+        this.addResidentialLot(lotX, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.15 + (idx % 2) * 0.08, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
         idx += 1;
       }
     }
@@ -221,7 +233,9 @@ export class ThreeRenderer {
         const side = idx % 2 ? -1 : 1;
         const x = roadX + side * 9.0;
         if (x < -108 || x > 108) continue;
-        const lot = this.addResidentialLot(x, z + ((idx % 3) - 1) * 1.0, colorFromIndex(idx, roofColors), colorFromIndex(idx + 1, wallColors), 1.05 + (idx % 3) * 0.06, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
+        const lotZ = z + ((idx % 3) - 1) * 1.0;
+        if (isReservedSceneSpot(x, lotZ)) { idx += 1; continue; }
+        const lot = this.addResidentialLot(x, lotZ, colorFromIndex(idx, roofColors), colorFromIndex(idx + 1, wallColors), 1.05 + (idx % 3) * 0.06, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
         lot.rotation.y += Math.PI / 2;
         idx += 1;
       }
@@ -231,7 +245,7 @@ export class ThreeRenderer {
     for (let i = 0; i < 80; i += 1) {
       const x = -108 + ((i * 37) % 216);
       const z = -80 + ((i * 53) % 160);
-      if (Math.abs(x % 32) < 6 || Math.abs(z % 24) < 7) continue;
+      if (Math.abs(x % 32) < 6 || Math.abs(z % 24) < 7 || isReservedSceneSpot(x, z, 8.5, 7.5)) continue;
       this.addTree(x, z, i % 5 === 0, 0.75 + (i % 4) * 0.06);
     }
   }
@@ -262,8 +276,10 @@ export class ThreeRenderer {
   addHouse(n) {
     const group = new THREE.Group();
     group.position.set(wx(n.x), 0, wz(n.y));
+    const frontZ = wz(n.deliveryY ?? n.y) - wz(n.y);
+    if (frontZ < 0) group.rotation.y = Math.PI;
     this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 2.65, TARGET_VARIANTS[n.id] || "house-red");
-    const label = makeCanvasLabel(n.name, "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
+    const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
     this.scene.add(group); this.houseMap.set(n.id, group);
   }
@@ -625,8 +641,8 @@ export class ThreeRenderer {
 
     const px = wx(state.player.x);
     const pz = wz(state.player.y);
-    const tx = wx(target.x);
-    const tz = wz(target.y);
+    const tx = wx(target.deliveryX ?? target.x);
+    const tz = wz(target.deliveryY ?? target.y);
     const toTarget = new THREE.Vector2(tx - px, tz - pz);
     if (toTarget.lengthSq() < 0.001) return;
     toTarget.normalize();
@@ -655,7 +671,7 @@ export class ThreeRenderer {
   }
 
   addReactionSprite() {
-    this.reactionSprite = makeCanvasLabel("ありがとう!", "#d94a4a");
+    this.reactionSprite = makeCanvasLabel(t("thanksLabel"), "#d94a4a");
     this.reactionSprite.visible = false;
     this.reactionSprite.scale.set(4.2, 1.25, 1);
     this.scene.add(this.reactionSprite);
@@ -733,7 +749,7 @@ export class ThreeRenderer {
 
   updateTarget(state) {
     const target = currentTarget(state); const visible = Boolean(target && state.isPlaying); this.targetRing.visible = visible; this.targetBeam.visible = visible; if (!visible) return;
-    const x = wx(target.x); const z = wz(target.y); const radius = (state.config?.assistRadius || 180) * WORLD_SCALE;
+    const x = wx(target.deliveryX ?? target.x); const z = wz(target.deliveryY ?? target.y); const radius = (state.config?.assistRadius || 180) * WORLD_SCALE;
     this.targetRing.position.set(x, 0.12, z); this.targetRing.scale.setScalar(radius); this.targetBeam.position.set(x, 4.0, z);
   }
 

@@ -7,9 +7,11 @@ import { createInitialState } from "./state/gameState.js";
 import { loadRecord, saveRecord, todayKey } from "./state/storage.js";
 import { Hud } from "./ui/hud.js";
 import { Screens } from "./ui/screens.js";
+import { applyDocumentLanguage, t } from "./i18n.js";
 
 export class App {
   constructor() {
+    applyDocumentLanguage();
     this.state = createInitialState();
     this.renderer = new ThreeRenderer(document.getElementById("gameCanvas"));
     this.screens = new Screens(document.getElementById("ui"));
@@ -68,8 +70,8 @@ export class App {
     this.state.screen = "game";
     this.state.isPlaying = true;
     this.state.isPaused = false;
-    const mode = this.state.config.moveMode === "bike" ? "骑单车" : "步行";
-    this.state.message = `阿铃：今天选择${mode}。我会在后面陪着你，按上前进、下后退、左右轻轻转向，沿着大路看发光的房子就好。`;
+    const mode = this.state.config.moveMode === "bike" ? t("modeBike") : t("modeWalk");
+    this.state.message = t("startMessage", mode);
     this.screens.clear();
     this.hud.show();
     this.hud.update(this.state);
@@ -83,7 +85,7 @@ export class App {
 
   togglePause() {
     this.state.isPaused = !this.state.isPaused;
-    this.state.message = this.state.isPaused ? "阿铃：我们休息一下，不着急。" : "阿铃：休息好了，我们继续慢慢来。";
+    this.state.message = this.state.isPaused ? t("rest") : t("resumeMsg");
     this.hud.update(this.state);
   }
 

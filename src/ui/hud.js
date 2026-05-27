@@ -1,8 +1,10 @@
 import { currentTarget } from "../state/gameState.js";
+import { nt, t } from "../i18n.js";
 
 export class Hud {
   constructor() {
     this.root = document.getElementById("hud");
+    this.eyebrow = document.getElementById("hudEyebrow");
     this.targetName = document.getElementById("targetName");
     this.targetHint = document.getElementById("targetHint");
     this.companionLine = document.getElementById("companionLine");
@@ -13,6 +15,9 @@ export class Hud {
 
   show() {
     this.root.classList.remove("hidden");
+    if (this.eyebrow) this.eyebrow.textContent = t("todayTask");
+    this.deliverBtn.textContent = t("deliverButton");
+    this.endBtn.textContent = t("endButton");
   }
 
   hide() {
@@ -24,13 +29,13 @@ export class Hud {
     const done = state.delivered.length;
     const total = state.route.length;
     if (!target) {
-      this.targetName.textContent = "今天的报纸都送到了";
-      this.targetHint.textContent = "准备查看总结。";
+      this.targetName.textContent = t("targetDone");
+      this.targetHint.textContent = t("summaryReady");
     } else {
-      this.targetName.textContent = `${done + 1}/${total} 送给：${target.name}`;
-      this.targetHint.textContent = `靠近发光房子，按大按钮投递「${target.paper}」。`;
+      this.targetName.textContent = t("deliverTo", done + 1, total, nt(target, "name"));
+      this.targetHint.textContent = t("targetHint", nt(target, "paper"));
     }
     this.companionLine.textContent = state.message;
-    this.pauseBtn.textContent = state.isPaused ? "继续" : "休息";
+    this.pauseBtn.textContent = state.isPaused ? t("resume") : t("pause");
   }
 }
