@@ -14,6 +14,8 @@ export function createInitialState() {
     delivered: [],
     player: { x: -4320, y: -3240, facing: 1, headingX: 1, headingY: 0, headingAngle: 0 },
     keys: new Set(),
+    touchThrottle: 0,
+    touchSteer: 0,
     isPlaying: false,
     isPaused: false,
     message: "阿铃：今天见到你真高兴。",

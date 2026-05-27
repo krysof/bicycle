@@ -689,12 +689,17 @@ kbd {
   }
 
   .ui {
-    padding: 12px;
+    padding: 8px;
   }
 
   .screen {
-    max-height: calc(100vh - 24px);
-    border-radius: 20px;
+    max-height: calc(100dvh - 16px);
+    border-radius: 18px;
+    padding: 12px;
+  }
+
+  .screen::before {
+    display: none;
   }
 
   .language-panel {
@@ -762,49 +767,110 @@ kbd {
   }
 
   
-.name-field {
-  display: grid;
-  gap: 8px;
-  margin: 18px 0 6px;
-  padding: 16px 18px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.62);
-  border: 2px solid rgba(47, 125, 92, 0.12);
-}
+  .simple-home {
+    width: min(100%, 430px);
+  }
 
-.name-field span {
-  font-weight: 900;
-  color: var(--accent);
-  font-size: clamp(18px, 1.8vw, 22px);
-}
+  .simple-home .stamp,
+  .simple-home .eyebrow,
+  .simple-home .tiny-note {
+    display: none;
+  }
 
-.name-field input {
-  min-height: 58px;
-  border: 2px solid rgba(36, 48, 68, 0.16);
-  border-radius: 18px;
-  background: #fffdf5;
-  color: var(--ink);
-  font: inherit;
-  font-size: clamp(24px, 2.7vw, 32px);
-  font-weight: 850;
-  padding: 10px 16px;
-}
+  .simple-home h1 {
+    margin: 0 0 4px;
+    font-size: clamp(25px, 7vw, 32px);
+    line-height: 1.05;
+  }
 
-.name-field em {
-  color: var(--muted);
-  font-style: normal;
-  font-size: clamp(15px, 1.5vw, 18px);
-}
+  .simple-home .lead {
+    margin: 0 0 6px;
+    font-size: clamp(13px, 3.5vw, 15px);
+    line-height: 1.3;
+    max-height: 2.6em;
+    overflow: hidden;
+  }
 
-.mode-grid {
-    grid-template-columns: 1fr;
+  .simple-home .name-field {
+    gap: 4px;
+    margin: 6px 0;
+    padding: 8px 10px;
+    border-radius: 15px;
+  }
+
+  .simple-home .name-field span {
+    font-size: 14px;
+  }
+
+  .simple-home .name-field input {
+    min-height: 40px;
+    border-radius: 13px;
+    font-size: 18px;
+    padding: 6px 10px;
+  }
+
+  .simple-home .name-field em {
+    display: none;
+  }
+
+  .status-panel {
+    margin-top: 6px;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .status-title {
+    margin-bottom: 6px;
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+  .mode-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   .status-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
   }
 
   .status-card {
-    min-height: 78px;
+    min-height: 50px;
+    padding: 6px 4px;
+    border-radius: 14px;
+    text-align: center;
+  }
+
+  .status-card strong {
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  .status-card em {
+    display: none;
+  }
+
+  .mode-card {
+    min-height: 74px;
+    padding: 8px 6px;
+    border-radius: 16px;
+    text-align: center;
+  }
+
+  .mode-icon {
+    font-size: 24px;
+    margin-bottom: 3px;
+  }
+
+  .mode-card strong {
+    font-size: clamp(15px, 4.2vw, 18px);
+  }
+
+  .mode-card em {
+    margin-top: 3px;
+    font-size: clamp(11px, 3.1vw, 13px);
+    line-height: 1.2;
   }
 }

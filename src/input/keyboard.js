@@ -31,15 +31,24 @@ export function bindTouchControls(state, onDeliver) {
 
   const clearTouchKeys = () => {
     touchKeys.forEach((key) => state.keys.delete(key));
+    state.touchThrottle = 0;
+    state.touchSteer = 0;
   };
 
   const setTouchKeys = (dx, dy) => {
     clearTouchKeys();
-    const threshold = 0.24;
-    if (dy < -threshold) state.keys.add("arrowup");
-    if (dy > threshold) state.keys.add("arrowdown");
-    if (dx < -threshold) state.keys.add("arrowleft");
-    if (dx > threshold) state.keys.add("arrowright");
+    const steerDeadZone = 0.16;
+    const throttleDeadZone = 0.18;
+    const steer = Math.abs(dx) > steerDeadZone
+      ? Math.sign(dx) * Math.min(1, ((Math.abs(dx) - steerDeadZone) / (1 - steerDeadZone)) ** 1.35)
+      : 0;
+    const throttle = Math.abs(dy) > throttleDeadZone
+      ? Math.sign(-dy) * Math.min(1, (Math.abs(dy) - throttleDeadZone) / (1 - throttleDeadZone))
+      : 0;
+    state.touchSteer = steer;
+    state.touchThrottle = throttle;
+    // 摇杆使用连续数值控制，避免像键盘一样“一按到底”导致手机端转向过猛。
+    // 不再向 keys 写入方向键，防止键盘式满转向和摇杆数值双重叠加。
   };
 
   if (joystick && stick) {

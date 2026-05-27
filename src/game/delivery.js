@@ -83,23 +83,30 @@ export function updatePlayer(state, dt) {
   if (!state.isPlaying || state.isPaused) return;
 
   const mode = state.config?.moveMode || "walk";
-  const turnRate = mode === "bike" ? 1.65 : 2.15;
+  const turnRate = mode === "bike" ? 1.08 : 2.0;
   const speed = state.config.speed;
   const reverseFactor = mode === "bike" ? 0.36 : 0.55;
 
-  let turn = 0;
+  let throttle = 0;
+  if (state.touchThrottle) throttle += state.touchThrottle > 0 ? state.touchThrottle : state.touchThrottle * reverseFactor;
+  if (state.keys.has("arrowup") || state.keys.has("w")) throttle = Math.max(throttle, 1);
+  if (state.keys.has("arrowdown") || state.keys.has("s")) throttle = Math.min(throttle, -reverseFactor);
+
+  let turn = state.touchSteer || 0;
   // 第三人称“生化危机式”控制：左键向画面左侧转，右键向画面右侧转。
   if (state.keys.has("arrowleft") || state.keys.has("a")) turn -= 1;
   if (state.keys.has("arrowright") || state.keys.has("d")) turn += 1;
+  turn = Math.max(-1, Math.min(1, turn));
+  if (mode === "bike") {
+    // 自行车不应像原地旋转的角色；速度越慢，转向越温和。
+    const movementGrip = Math.min(1, Math.max(0.18, Math.abs(throttle)));
+    turn *= movementGrip;
+  }
   if (turn) state.player.headingAngle += turn * turnRate * dt;
 
   state.player.headingX = Math.cos(state.player.headingAngle);
   state.player.headingY = Math.sin(state.player.headingAngle);
   state.player.facing = state.player.headingX >= 0 ? 1 : -1;
-
-  let throttle = 0;
-  if (state.keys.has("arrowup") || state.keys.has("w")) throttle += 1;
-  if (state.keys.has("arrowdown") || state.keys.has("s")) throttle -= reverseFactor;
 
   if (throttle) {
     const step = speed * throttle * dt;
