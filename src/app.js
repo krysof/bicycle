@@ -45,6 +45,7 @@ export class App {
     this.playerNameIsRandom = true;
     this.refreshCompanionName();
     this.state.playerName = this.randomDefaultName();
+    this.state.playerStyle = this.playerNameIndex % 2 === 1 ? "female" : "male";
   }
 
   refreshCompanionName() {

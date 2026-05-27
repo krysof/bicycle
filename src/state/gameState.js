@@ -7,6 +7,7 @@ export function createInitialState() {
     worldSeed: 1,
     worldLayout: null,
     worldObstacles: null,
+    playerStyle: "male",
     playerName: "",
     delivered: [],
     player: { x: -4320, y: -3240, facing: 1, headingX: 1, headingY: 0, headingAngle: 0 },

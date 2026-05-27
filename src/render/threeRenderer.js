@@ -865,24 +865,54 @@ export class ThreeRenderer {
     this.body.castShadow = true;
     group.add(this.body);
 
+    this.skirt = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.36, 14), mat(0xb86695));
+    this.skirt.position.y = 0.68;
+    this.skirt.castShadow = true;
+    this.skirt.visible = false;
+    group.add(this.skirt);
+
     this.head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 12), mat(0xf0c08d));
     this.head.position.y = 1.42;
     this.head.castShadow = true;
     group.add(this.head);
+
+    this.nose = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), mat(0xd89a73));
+    this.nose.position.set(0.18, 1.42, 0);
+    group.add(this.nose);
+
+    this.hair = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 10), mat(0x4a3a32));
+    this.hair.position.set(-0.05, 1.43, 0);
+    this.hair.scale.set(0.75, 0.95, 1.05);
+    this.hair.visible = false;
+    group.add(this.hair);
+
+    this.mustache = new THREE.Group();
+    const mustacheMat = mat(0x5a5148);
+    const mustacheLeft = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.025, 0.035), mustacheMat);
+    const mustacheRight = mustacheLeft.clone();
+    mustacheLeft.position.set(0.202, 1.35, -0.045);
+    mustacheRight.position.set(0.202, 1.35, 0.045);
+    mustacheLeft.rotation.y = -0.18;
+    mustacheRight.rotation.y = 0.18;
+    this.mustache.add(mustacheLeft, mustacheRight);
+    group.add(this.mustache);
 
     this.hat = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x716a63));
     this.hat.position.y = 1.55;
     group.add(this.hat);
 
     this.bag = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.28, 0.18), mat(0x7a5a3b));
-    this.bag.position.set(0.32, 0.9, 0.03);
+    this.bag.position.set(-0.18, 0.9, 0.26);
     group.add(this.bag);
 
-    this.walkParts.leftLeg = this.limb(0x3f5f73, -0.12, 0.38, 0);
-    this.walkParts.rightLeg = this.limb(0x3f5f73, 0.12, 0.38, 0);
-    this.walkParts.leftArm = this.limb(0x2f7d5c, -0.32, 0.95, 0, 0.08);
-    this.walkParts.rightArm = this.limb(0x2f7d5c, 0.32, 0.95, 0, 0.08);
+    this.walkParts.leftLeg = this.limb(0x3f5f73, 0, 0.38, -0.11);
+    this.walkParts.rightLeg = this.limb(0x3f5f73, 0, 0.38, 0.11);
+    this.walkParts.leftArm = this.limb(0x2f7d5c, 0, 0.95, -0.25, 0.08);
+    this.walkParts.rightArm = this.limb(0x2f7d5c, 0, 0.95, 0.25, 0.08);
     group.add(this.walkParts.leftLeg, this.walkParts.rightLeg, this.walkParts.leftArm, this.walkParts.rightArm);
+
+    this.heldPaper = this.createHeldPaper();
+    group.add(this.heldPaper);
 
     this.bike = this.createBike();
     this.bike.visible = false;
@@ -892,6 +922,34 @@ export class ThreeRenderer {
     group.add(this.paperReadyIcon);
     this.player = group;
     this.scene.add(group);
+  }
+
+  applyPlayerStyle(style = "male") {
+    if (this.currentPlayerStyle === style) return;
+    this.currentPlayerStyle = style;
+    const female = style === "female";
+    this.body.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
+    this.hat.material.color.setHex(female ? 0x8a6fb0 : 0x716a63);
+    this.bag.material.color.setHex(female ? 0x8b5e3c : 0x7a5a3b);
+    this.skirt.visible = female;
+    this.hair.visible = female;
+    this.mustache.visible = !female;
+    this.walkParts.leftLeg.material.color.setHex(female ? 0x5d6380 : 0x3f5f73);
+    this.walkParts.rightLeg.material.color.setHex(female ? 0x5d6380 : 0x3f5f73);
+    this.walkParts.leftArm.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
+    this.walkParts.rightArm.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
+  }
+
+  createHeldPaper() {
+    const group = new THREE.Group();
+    const paper = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.035, 0.32), mat(0xfffbef));
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.04, 0.05), mat(0x2f6fb0));
+    band.position.z = 0.012;
+    const corner = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.038, 0.08), mat(0xe8e1ca));
+    corner.position.set(0.17, 0.004, -0.10);
+    group.add(paper, band, corner);
+    group.rotation.set(0.25, 0.1, -0.18);
+    return group;
   }
 
   createPaperReadyIcon() {
@@ -1136,6 +1194,7 @@ export class ThreeRenderer {
 
   updatePlayer(state) {
     if (!this.player) return;
+    this.applyPlayerStyle(state.playerStyle || "male");
     this.player.position.set(wx(state.player.x), 0, wz(state.player.y));
     const dx = state.player.headingX || 0.65; const dz = state.player.headingY || 0.76;
     this.player.rotation.y = Math.atan2(-dz, dx);
@@ -1184,35 +1243,47 @@ export class ThreeRenderer {
       this.body.rotation.z = -0.18;
       this.body.rotation.x = 0.10;
       this.head.position.set(0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
+      this.nose.position.set(0.26, 1.47 + Math.abs(legSwing) * 0.012, 0);
+      this.hair.position.set(-0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
       this.hat.position.set(0.08, 1.60 + Math.abs(legSwing) * 0.012, 0);
       this.bag.position.set(-0.50, 0.88, 0.24);
       this.bag.rotation.z = 0.08 + armSettle;
 
-      this.walkParts.leftLeg.position.set(-0.17, 0.55, -0.10);
-      this.walkParts.rightLeg.position.set(0.18, 0.55, 0.10);
-      this.walkParts.leftLeg.rotation.set(0.50 + legSwing * 0.42, 0, -0.18);
-      this.walkParts.rightLeg.rotation.set(0.50 - legSwing * 0.42, 0, 0.18);
-      this.walkParts.leftArm.position.set(0.25, 1.02, -0.18);
-      this.walkParts.rightArm.position.set(0.25, 1.02, 0.18);
-      this.walkParts.leftArm.rotation.set(0.92 + armSettle, 0, 0.55);
-      this.walkParts.rightArm.rotation.set(0.92 - armSettle, 0, -0.55);
+      this.walkParts.leftLeg.position.set(-0.04, 0.55, -0.12);
+      this.walkParts.rightLeg.position.set(0.10, 0.55, 0.12);
+      this.walkParts.leftLeg.rotation.set(0.10, 0, 0.46 + legSwing * 0.35);
+      this.walkParts.rightLeg.rotation.set(0.10, 0, 0.46 - legSwing * 0.35);
+      this.walkParts.leftArm.position.set(0.34, 1.02, -0.20);
+      this.walkParts.rightArm.position.set(0.34, 1.02, 0.20);
+      this.walkParts.leftArm.rotation.set(0.12 + armSettle, 0, -0.85);
+      this.walkParts.rightArm.rotation.set(0.12 - armSettle, 0, -0.85);
+      this.heldPaper.position.set(0.62, 1.02 + Math.abs(legSwing) * 0.012, -0.28);
+      this.heldPaper.rotation.set(0.22, 0.15, -0.30);
+      this.skirt.position.set(-0.02, 0.73, 0);
+      this.skirt.rotation.set(0.10, 0, -0.08);
       this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 - steer * 0.05 : -steer * 0.035;
     } else {
       this.body.position.y = 0.92;
       this.body.rotation.z = 0;
       this.body.rotation.x = 0;
       this.head.position.set(0, 1.42, 0);
+      this.nose.position.set(0.18, 1.42, 0);
+      this.hair.position.set(-0.05, 1.43, 0);
       this.hat.position.set(0, 1.55, 0);
-      this.bag.position.set(0.32, 0.9, 0.03);
+      this.bag.position.set(-0.18, 0.9, 0.26);
       this.bag.rotation.z = 0;
-      this.walkParts.leftLeg.position.set(-0.12, 0.38, 0);
-      this.walkParts.rightLeg.position.set(0.12, 0.38, 0);
-      this.walkParts.leftArm.position.set(-0.32, 0.95, 0);
-      this.walkParts.rightArm.position.set(0.32, 0.95, 0);
-      this.walkParts.leftLeg.rotation.set(step, 0, 0);
-      this.walkParts.rightLeg.rotation.set(-step, 0, 0);
-      this.walkParts.leftArm.rotation.set(-step * 0.7, 0, 0);
-      this.walkParts.rightArm.rotation.set(step * 0.7, 0, 0);
+      this.walkParts.leftLeg.position.set(0, 0.38, -0.11);
+      this.walkParts.rightLeg.position.set(0, 0.38, 0.11);
+      this.walkParts.leftArm.position.set(0.02, 0.95, -0.25);
+      this.walkParts.rightArm.position.set(0.02, 0.95, 0.25);
+      this.walkParts.leftLeg.rotation.set(0, 0, step);
+      this.walkParts.rightLeg.rotation.set(0, 0, -step);
+      this.walkParts.leftArm.rotation.set(0, 0, -step * 0.7);
+      this.walkParts.rightArm.rotation.set(0, 0, step * 0.7);
+      this.heldPaper.position.set(0.34, 0.93 + Math.abs(step) * 0.025, -0.29);
+      this.heldPaper.rotation.set(0.22, 0.2, -0.26);
+      this.skirt.position.set(0, 0.68, 0);
+      this.skirt.rotation.set(0, 0, 0);
     }
     if (this.paperReadyIcon) {
       const ready = canDeliverNow(state);
