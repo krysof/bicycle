@@ -10,6 +10,7 @@ const MAP_W = 235;
 const MAP_D = 178;
 const ROAD_X = [-96, -64, -32, 0, 32, 64, 96];
 const ROAD_Z = [-72, -48, -24, 0, 24, 48, 72];
+const NAV_ARROW_COUNT = 10;
 const COLORS = {
   grass: 0xbfe6a6,
   grass2: 0xa9d88e,
@@ -1078,16 +1079,13 @@ export class ThreeRenderer {
     shape.lineTo(0.7, 1.0);
     shape.closePath();
     const geometry = new THREE.ShapeGeometry(shape);
-    const materials = [
-      transparentMat(0x00d7ff, 0.92),
-      transparentMat(0xfff04a, 0.86),
-      transparentMat(0x00d7ff, 0.72),
-    ];
-    for (let i = 0; i < 3; i += 1) {
-      const arrow = new THREE.Mesh(geometry, materials[i]);
+    for (let i = 0; i < NAV_ARROW_COUNT; i += 1) {
+      const color = i % 3 === 1 ? 0xfff04a : 0x00d7ff;
+      const opacity = Math.max(0.42, 0.94 - i * 0.045);
+      const arrow = new THREE.Mesh(geometry, transparentMat(color, opacity));
       arrow.rotation.x = -Math.PI / 2;
       arrow.position.y = 0.13 + i * 0.01;
-      arrow.scale.setScalar(1.0 - i * 0.12);
+      arrow.scale.setScalar(Math.max(0.46, 1.0 - i * 0.045));
       arrow.visible = false;
       this.scene.add(arrow);
       this.navigationArrows.push(arrow);
@@ -1116,9 +1114,9 @@ export class ThreeRenderer {
 
     // 箭头沿道路中心线排布，再最后进入路边投递点；不再直线穿过房屋。
     this.navigationArrows.forEach((arrow, i) => {
-      let sample = samplePath(path, Math.min(total, 4.2 + i * 5.2));
+      let sample = samplePath(path, Math.min(total, 4.2 + i * 7.2));
       if (nearTarget) {
-        const dist = 2.0 + i * 2.65;
+        const dist = 2.0 + i * 3.9;
         const angle = orthogonalAngleToward(px, pz, ringX, ringZ);
         const dx = Math.cos(-angle);
         const dz = Math.sin(-angle);
@@ -1132,7 +1130,7 @@ export class ThreeRenderer {
       const distToTarget = nearTarget ? distToRing : Math.hypot(deliveryX - px, deliveryZ - pz);
       const proximity = Math.max(0, Math.min(1, 1 - distToTarget / 38));
       const pulse = 1 + Math.sin((state.floatTime || 0) * 4 + i) * 0.08;
-      const base = 0.82 + proximity * 0.34 - i * 0.08;
+      const base = Math.max(0.48, 0.9 + proximity * 0.26 - i * 0.035);
       arrow.scale.setScalar(base * pulse);
     });
   }
