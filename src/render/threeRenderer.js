@@ -153,7 +153,7 @@ export class ThreeRenderer {
         if ((idx + Math.floor(gx)) % 3 === 0) { idx += 1; continue; }
         const x = gx + ((idx * 7) % 7) - 3;
         const z = gz + ((idx * 5) % 6) - 3;
-        this.addDecorHouse(x, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 0.78 + (idx % 3) * 0.08);
+        this.addDecorHouse(x, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.08 + (idx % 3) * 0.1);
         idx += 1;
       }
     }
@@ -170,15 +170,15 @@ export class ThreeRenderer {
   addHouse(n) {
     const group = new THREE.Group();
     group.position.set(wx(n.x), 0, wz(n.y));
-    this.addHouseParts(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 1.15);
-    const label = makeCanvasLabel(n.name, "#2e6650"); label.position.set(0, 2.6, 0.22); group.add(label);
+    this.addHouseParts(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 1.75);
+    const label = makeCanvasLabel(n.name, "#2e6650"); label.position.set(0, 3.8, 0.28); group.add(label);
     this.addLandmark(group, n.landmark);
     this.scene.add(group); this.houseMap.set(n.id, group);
   }
 
   addDecorHouse(x, z, roof, wall, scale = 1) {
     const group = new THREE.Group(); group.position.set(x, 0, z); group.rotation.y = ((x + z) % 7) * 0.035; group.scale.setScalar(scale);
-    this.addHouseParts(group, roof, wall, 0x76583f, 0.9); this.scene.add(group);
+    this.addHouseParts(group, roof, wall, 0x76583f, 1.28); this.scene.add(group);
   }
 
   addHouseParts(group, roofColor, wallColor, trimColor, scale) {
@@ -381,16 +381,16 @@ export class ThreeRenderer {
     const px = wx(state.player.x); const pz = wz(state.player.y);
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
     const distance = state.config?.moveMode === "bike" ? 8.6 : 7.2;
-    const height = state.config?.moveMode === "bike" ? 4.2 : 3.7;
+    const height = state.config?.moveMode === "bike" ? 3.8 : 3.35;
     if (!state.isPlaying) {
       const desiredHome = new THREE.Vector3(px - dx * 8.0, 4.2, pz - dz * 8.0);
       this.camera.position.lerp(desiredHome, 0.04);
-      this.camera.lookAt(px + dx * 3.5, 1.0, pz + dz * 3.5);
+      this.camera.lookAt(px + dx * 3.5, 0.85, pz + dz * 3.5);
       return;
     }
     const desired = new THREE.Vector3(px - dx * distance, height, pz - dz * distance);
     this.camera.position.lerp(desired, 0.075);
-    this.camera.lookAt(px + dx * 2.5, 1.0, pz + dz * 2.5);
+    this.camera.lookAt(px + dx * 2.8, 0.85, pz + dz * 2.8);
   }
 
   updateAnimatedObjects(t) {
@@ -402,7 +402,7 @@ export class ThreeRenderer {
   addTree(x, z, sakura = false, scale = 1) { const group = new THREE.Group(); group.position.set(x, 0, z); group.scale.setScalar(scale); const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.13,0.88,10), mat(COLORS.wood)); trunk.position.y=0.44; trunk.castShadow=true; group.add(trunk); const crownColor=sakura?0xffbdd0:0x6fb96e; for(let i=0;i<5;i++){ const c=new THREE.Mesh(new THREE.SphereGeometry(0.43,16,12), mat(crownColor)); c.position.set(Math.cos(i*1.3)*0.23,1.04+(i%2)*0.13,Math.sin(i*1.7)*0.23); c.castShadow=true; group.add(c); this.clockObjects.push(c);} this.scene.add(group); }
   addBench(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); const s=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.24),mat(COLORS.wood)); s.position.y=0.35; const b=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.2),mat(COLORS.wood)); b.position.set(0,0.58,-0.16); g.add(s,b); this.scene.add(g); }
   addVending(x,z){ const body=new THREE.Mesh(new THREE.BoxGeometry(0.65,1.3,0.42),mat(0xd94a4a)); body.position.set(x,0.67,z); body.castShadow=true; this.scene.add(body); const panel=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.025),mat(0xfff4e4)); panel.position.set(x,0.95,z+0.225); this.scene.add(panel); }
-  addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,1.35); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel("商店", "#345f86"); label.position.set(0,3.0,0.2); g.add(label); this.scene.add(g); }
+  addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,1.85); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel("商店", "#345f86"); label.position.set(0,4.05,0.25); g.add(label); this.scene.add(g); }
   addBusStop(x,z){ this.addSign(x,z,"バス"); const roof=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.09,0.55),mat(0x4e8fd6)); roof.position.set(x+0.62,0.95,z); this.scene.add(roof); }
   addField(x,z){ this.addPlane(x,0.055,z,12,8,0xb6d981,0.04); for(let i=0;i<8;i++) this.addPlane(x-5+i*1.4,0.08,z,0.12,7,0x8fbc66,0.04); }
   addTorii(x,z){ const red=mat(0xd9543f); const g=new THREE.Group(); g.position.set(x,0,z); const p1=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,2.2,12),red); const p2=p1.clone(); p1.position.set(-0.75,1.1,0); p2.position.set(0.75,1.1,0); const top=new THREE.Mesh(new THREE.BoxGeometry(2.3,0.2,0.25),red); top.position.set(0,2.15,0); const mid=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.14,0.2),red); mid.position.set(0,1.7,0); g.add(p1,p2,top,mid); this.scene.add(g); }

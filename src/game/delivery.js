@@ -25,8 +25,9 @@ export function updatePlayer(state, dt) {
   const reverseFactor = mode === "bike" ? 0.36 : 0.55;
 
   let turn = 0;
-  if (state.keys.has("arrowleft") || state.keys.has("a")) turn += 1;
-  if (state.keys.has("arrowright") || state.keys.has("d")) turn -= 1;
+  // 第三人称“生化危机式”控制：左键向画面左侧转，右键向画面右侧转。
+  if (state.keys.has("arrowleft") || state.keys.has("a")) turn -= 1;
+  if (state.keys.has("arrowright") || state.keys.has("d")) turn += 1;
   if (turn) state.player.headingAngle += turn * turnRate * dt;
 
   state.player.headingX = Math.cos(state.player.headingAngle);
