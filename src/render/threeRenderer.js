@@ -20,6 +20,28 @@ const COLORS = {
   lane: 0xf4efe0,
 };
 
+const BUILDING_VARIANTS = [
+  "house-red", "house-blue", "house-green", "house-brown", "modern-home", "old-wood",
+  "convenience", "supermarket", "hospital", "clinic", "pharmacy", "post-office",
+  "apartment", "office", "bank", "police", "community", "school",
+  "library", "cafe", "restaurant", "bakery", "barber", "flower",
+  "bookstore", "fish-shop", "bathhouse", "parking"
+];
+
+const TARGET_VARIANTS = {
+  tanaka: "house-red",
+  suzuki: "flower",
+  yamamoto: "modern-home",
+  kobayashi: "hospital",
+  sato: "old-wood",
+  mori: "bookstore",
+  ito: "fish-shop",
+  watanabe: "apartment",
+  nakamura: "bakery",
+  kato: "community",
+};
+
+
 function wx(x) { return x * WORLD_SCALE; }
 function wz(y) { return y * WORLD_SCALE; }
 function mat(color, roughness = 0.82, metalness = 0.02) {
@@ -66,6 +88,7 @@ export class ThreeRenderer {
     this.houseMap = new Map();
     this.targetRing = null;
     this.targetBeam = null;
+    this.navigationArrows = [];
     this.player = null;
     this.walkParts = {};
     this.bike = null;
@@ -86,6 +109,7 @@ export class ThreeRenderer {
   render(state) {
     this.updatePlayer(state);
     this.updateTarget(state);
+    this.updateNavigationArrows(state);
     this.updateCamera(state);
     this.updateAnimatedObjects(state.floatTime, state);
     this.renderer.render(this.scene, this.camera);
@@ -100,6 +124,7 @@ export class ThreeRenderer {
     this.addLandmarks();
     this.addPlayer();
     this.addTargetMarker();
+    this.addNavigationArrows();
   }
 
   addLights() {
@@ -179,7 +204,7 @@ export class ThreeRenderer {
         const side = idx % 2 ? -1 : 1;
         const z = roadZ + side * 9.2;
         if (z < -82 || z > 82) continue;
-        this.addResidentialLot(x + ((idx % 3) - 1) * 1.2, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.15 + (idx % 2) * 0.08);
+        this.addResidentialLot(x + ((idx % 3) - 1) * 1.2, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.15 + (idx % 2) * 0.08, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
         idx += 1;
       }
     }
@@ -190,7 +215,7 @@ export class ThreeRenderer {
         const side = idx % 2 ? -1 : 1;
         const x = roadX + side * 9.0;
         if (x < -108 || x > 108) continue;
-        const lot = this.addResidentialLot(x, z + ((idx % 3) - 1) * 1.0, colorFromIndex(idx, roofColors), colorFromIndex(idx + 1, wallColors), 1.05 + (idx % 3) * 0.06);
+        const lot = this.addResidentialLot(x, z + ((idx % 3) - 1) * 1.0, colorFromIndex(idx, roofColors), colorFromIndex(idx + 1, wallColors), 1.05 + (idx % 3) * 0.06, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
         lot.rotation.y += Math.PI / 2;
         idx += 1;
       }
@@ -205,7 +230,7 @@ export class ThreeRenderer {
     }
   }
 
-  addResidentialLot(x, z, roof, wall, scale = 1) {
+  addResidentialLot(x, z, roof, wall, scale = 1, variant = "house-red") {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     group.rotation.y = ((x + z) % 5) * 0.018;
@@ -223,7 +248,7 @@ export class ThreeRenderer {
       group.add(fence);
     }
 
-    this.addHouseParts(group, roof, wall, 0x76583f, 2.05 * scale);
+    this.addBuildingVariant(group, variant, roof, wall, 2.05 * scale);
     this.scene.add(group);
     return group;
   }
@@ -231,7 +256,7 @@ export class ThreeRenderer {
   addHouse(n) {
     const group = new THREE.Group();
     group.position.set(wx(n.x), 0, wz(n.y));
-    this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 2.65);
+    this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 2.65, TARGET_VARIANTS[n.id] || "house-red");
     const label = makeCanvasLabel(n.name, "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
     this.scene.add(group); this.houseMap.set(n.id, group);
@@ -242,7 +267,7 @@ export class ThreeRenderer {
     this.addHouseParts(group, roof, wall, 0x76583f, 2.05); this.scene.add(group);
   }
 
-  addTargetLot(group, roofColor, wallColor, trimColor, scale) {
+  addTargetLot(group, roofColor, wallColor, trimColor, scale, variant = "house-red") {
     const yard = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.04, 6.8), mat(0xd7ecc2));
     yard.position.set(0, 0.06, 0.25);
     yard.receiveShadow = true;
@@ -254,7 +279,93 @@ export class ThreeRenderer {
       fence.castShadow = true;
       group.add(fence);
     }
-    this.addHouseParts(group, roofColor, wallColor, trimColor, scale);
+    this.addBuildingVariant(group, variant, roofColor, wallColor, scale);
+  }
+
+  addBuildingVariant(group, variant, roofColor, wallColor, scale) {
+    const commercial = {
+      convenience: ["コンビニ", 0x4aa3df, 0xffffff, 1.05, 1.15],
+      supermarket: ["スーパー", 0xf39c34, 0xfff2d1, 1.55, 1.25],
+      hospital: ["病院", 0xf8f8ff, 0xe6f4ff, 1.45, 1.55],
+      clinic: ["診療所", 0x5aaa77, 0xe8f8e8, 1.2, 1.25],
+      pharmacy: ["薬", 0x3dbb70, 0xf0fff2, 1.05, 1.15],
+      "post-office": ["郵便", 0xd94a4a, 0xfff0e8, 1.15, 1.2],
+      apartment: ["アパート", 0x7890a8, 0xe8edf2, 1.25, 1.9],
+      office: ["ビル", 0x7f8fa6, 0xe9eef5, 1.15, 2.25],
+      bank: ["銀行", 0x6678a8, 0xf0f3ff, 1.25, 1.35],
+      police: ["交番", 0x4f91d5, 0xffffff, 0.95, 1.15],
+      community: ["町内会", 0x9c7556, 0xffefcf, 1.35, 1.15],
+      school: ["学校", 0xc78d4d, 0xfff0d4, 1.6, 1.45],
+      library: ["図書館", 0x8a6fb0, 0xf1eaff, 1.35, 1.3],
+      cafe: ["喫茶", 0x8b5e3c, 0xffead7, 1.0, 1.1],
+      restaurant: ["食堂", 0xd66b53, 0xffefe4, 1.2, 1.1],
+      bakery: ["パン", 0xd59a34, 0xfff0c8, 1.05, 1.1],
+      barber: ["理容", 0x4f91d5, 0xf5fbff, 0.95, 1.05],
+      flower: ["花屋", 0xb86695, 0xffe6ef, 1.05, 1.05],
+      bookstore: ["本屋", 0x5c7aa0, 0xe8f1ff, 1.05, 1.12],
+      "fish-shop": ["魚屋", 0x5c9ab5, 0xe0f6fb, 1.05, 1.08],
+      bathhouse: ["湯", 0x4f91d5, 0xe8f8ff, 1.15, 1.2],
+      parking: ["P", 0x555555, 0xd8d8d8, 1.0, 0.55],
+    };
+
+    if (commercial[variant]) {
+      const [label, roof, wall, widthScale, heightScale] = commercial[variant];
+      this.addBoxBuilding(group, roof, wall, scale * widthScale, scale * heightScale, label, variant);
+      return;
+    }
+
+    const oldStyle = variant === "old-wood";
+    const modern = variant === "modern-home";
+    const chosenRoof = variant === "house-blue" ? 0x4f91d5 : variant === "house-green" ? 0x5aaa77 : variant === "house-brown" ? 0x9c7556 : roofColor;
+    this.addHouseParts(group, chosenRoof, oldStyle ? 0xd8c3a5 : modern ? 0xf4f7f9 : wallColor, oldStyle ? 0x6b4d33 : 0x76583f, scale * (modern ? 1.08 : 1));
+    if (modern) {
+      const balcony = new THREE.Mesh(new THREE.BoxGeometry(1.2 * scale, 0.12 * scale, 0.32 * scale), mat(0xd9dde2));
+      balcony.position.set(-0.2 * scale, 1.15 * scale, 1.03 * scale);
+      group.add(balcony);
+    }
+  }
+
+  addBoxBuilding(group, roofColor, wallColor, scale, heightScale, label, variant) {
+    const w = 2.65 * scale;
+    const d = 1.95 * scale;
+    const h = 1.25 * scale * heightScale;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(wallColor));
+    body.position.y = h / 2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 1.06, 0.22 * scale, d * 1.06), mat(roofColor));
+    roof.position.y = h + 0.12 * scale;
+    roof.castShadow = true;
+    group.add(roof);
+
+    const sign = makeCanvasLabel(label, variant === "hospital" ? "#d94a4a" : "#24506d");
+    sign.position.set(0, h * 0.72, d / 2 + 0.08 * scale);
+    sign.scale.set(Math.min(4.2, w * 0.78), 1.0, 1);
+    group.add(sign);
+
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.62 * scale, 0.04), mat(0x5d4a3a));
+    door.position.set(w * 0.22, 0.34 * scale, d / 2 + 0.03);
+    group.add(door);
+
+    const winMat = mat(0xfff4b8, 0.45);
+    const floors = Math.max(1, Math.floor(heightScale * 2));
+    for (let f = 0; f < floors; f += 1) {
+      for (let i = -1; i <= 1; i += 1) {
+        const win = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.24 * scale, 0.035), winMat);
+        win.position.set(i * 0.62 * scale, 0.75 * scale + f * 0.58 * scale, d / 2 + 0.04);
+        group.add(win);
+      }
+    }
+
+    if (variant === "parking") {
+      const pMark = makeCanvasLabel("P", "#ffffff");
+      pMark.position.set(0, 0.12, 0.2);
+      pMark.rotation.x = -Math.PI / 2;
+      pMark.scale.set(2.2, 1.0, 1);
+      group.add(pMark);
+    }
   }
 
   addHouseParts(group, roofColor, wallColor, trimColor, scale) {
@@ -412,6 +523,59 @@ export class ThreeRenderer {
   addTargetMarker() {
     this.targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.085, 12, 128), transparentMat(0xffa500, 1.0)); this.targetRing.rotation.x = Math.PI / 2; this.scene.add(this.targetRing);
     this.targetBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.35, 8.0, 40, 1, true), transparentMat(0xffc247, 0.34)); this.targetBeam.position.y = 4.0; this.scene.add(this.targetBeam);
+  }
+
+  addNavigationArrows() {
+    const shape = new THREE.Shape();
+    shape.moveTo(2.2, 0);
+    shape.lineTo(0.7, -1.0);
+    shape.lineTo(0.7, -0.42);
+    shape.lineTo(-2.2, -0.42);
+    shape.lineTo(-2.2, 0.42);
+    shape.lineTo(0.7, 0.42);
+    shape.lineTo(0.7, 1.0);
+    shape.closePath();
+    const geometry = new THREE.ShapeGeometry(shape);
+    const materials = [
+      transparentMat(0x00d7ff, 0.92),
+      transparentMat(0xfff04a, 0.86),
+      transparentMat(0x00d7ff, 0.72),
+    ];
+    for (let i = 0; i < 3; i += 1) {
+      const arrow = new THREE.Mesh(geometry, materials[i]);
+      arrow.rotation.x = -Math.PI / 2;
+      arrow.position.y = 0.13 + i * 0.01;
+      arrow.scale.setScalar(1.0 - i * 0.12);
+      arrow.visible = false;
+      this.scene.add(arrow);
+      this.navigationArrows.push(arrow);
+    }
+  }
+
+  updateNavigationArrows(state) {
+    const target = currentTarget(state);
+    const visible = Boolean(target && state.isPlaying);
+    this.navigationArrows.forEach((arrow) => (arrow.visible = visible));
+    if (!visible) return;
+
+    const px = wx(state.player.x);
+    const pz = wz(state.player.y);
+    const tx = wx(target.x);
+    const tz = wz(target.y);
+    const toTarget = new THREE.Vector2(tx - px, tz - pz);
+    if (toTarget.lengthSq() < 0.001) return;
+    toTarget.normalize();
+    const angle = -Math.atan2(toTarget.y, toTarget.x);
+
+    // 在玩家前方道路上放 3 个大箭头，像导航一样指向下一户。
+    this.navigationArrows.forEach((arrow, i) => {
+      const dist = 4.0 + i * 3.2;
+      arrow.position.x = px + toTarget.x * dist;
+      arrow.position.z = pz + toTarget.y * dist;
+      arrow.rotation.z = angle;
+      const pulse = 1 + Math.sin((state.floatTime || 0) * 4 + i) * 0.08;
+      arrow.scale.setScalar((1.0 - i * 0.1) * pulse);
+    });
   }
 
   updatePlayer(state) {
