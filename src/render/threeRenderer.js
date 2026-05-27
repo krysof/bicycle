@@ -517,7 +517,7 @@ export class ThreeRenderer {
 
   addDecorHouse(x, z, roof, wall, scale = 1) {
     const group = new THREE.Group(); group.position.set(x, 0, z); group.rotation.y = ((x + z) % 7) * 0.035; group.scale.setScalar(scale);
-    this.addHouseParts(group, roof, wall, 0x76583f, 2.05); this.registerOccluder(group); this.scene.add(group);
+    this.addHouseParts(group, roof, wall, 0x76583f, 2.05, "decor"); this.registerOccluder(group); this.scene.add(group);
   }
 
   addTargetLot(group, roofColor, wallColor, trimColor, scale, variant = "house-red") {
@@ -531,6 +531,25 @@ export class ThreeRenderer {
       fence.position.set(px, 0.22, pz);
       fence.castShadow = true;
       group.add(fence);
+    }
+    const pathMat = mat(0xd0c0a8);
+    for (let i = 0; i < 5; i += 1) {
+      const stone = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.035, 0.36), pathMat);
+      stone.position.set(0.55 + Math.sin(i) * 0.12, 0.105, 2.65 - i * 0.62);
+      stone.rotation.y = (i % 2 ? -0.08 : 0.08);
+      stone.receiveShadow = true;
+      group.add(stone);
+    }
+    const gateLeft = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.12), fenceMat);
+    gateLeft.position.set(-0.52, 0.32, 3.15);
+    const gateRight = gateLeft.clone(); gateRight.position.x = 1.45;
+    const gateTop = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.10, 0.12), fenceMat);
+    gateTop.position.set(0.46, 0.58, 3.15);
+    group.add(gateLeft, gateRight, gateTop);
+    for (let i = 0; i < 6; i += 1) {
+      const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), mat(i % 2 ? 0x74b86f : 0x5da45f));
+      shrub.position.set(-3.35 + i * 0.42, 0.22, 2.78 + (i % 2) * 0.08);
+      group.add(shrub);
     }
     this.addBuildingVariant(group, variant, roofColor, wallColor, scale);
   }
@@ -570,7 +589,7 @@ export class ThreeRenderer {
     const oldStyle = variant === "old-wood";
     const modern = variant === "modern-home";
     const chosenRoof = variant === "house-blue" ? 0x4f91d5 : variant === "house-green" ? 0x5aaa77 : variant === "house-brown" ? 0x9c7556 : roofColor;
-    this.addHouseParts(group, chosenRoof, oldStyle ? 0xd8c3a5 : modern ? 0xf4f7f9 : wallColor, oldStyle ? 0x6b4d33 : 0x76583f, scale * (modern ? 1.08 : 1));
+    this.addHouseParts(group, chosenRoof, oldStyle ? 0xd8c3a5 : modern ? 0xf4f7f9 : wallColor, oldStyle ? 0x6b4d33 : 0x76583f, scale * (modern ? 1.08 : 1), variant);
     if (modern) {
       const balcony = new THREE.Mesh(new THREE.BoxGeometry(1.2 * scale, 0.12 * scale, 0.32 * scale), mat(0xd9dde2));
       balcony.position.set(-0.2 * scale, 1.15 * scale, 1.03 * scale);
@@ -623,44 +642,156 @@ export class ThreeRenderer {
     }
   }
 
-  addHouseParts(group, roofColor, wallColor, trimColor, scale) {
+  addHouseParts(group, roofColor, wallColor, trimColor, scale, variant = "house") {
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.35 * scale, 1.18 * scale, 1.85 * scale), mat(wallColor));
     body.position.y = 0.66 * scale; body.castShadow = true; body.receiveShadow = true; group.add(body);
+    const foundation = new THREE.Mesh(new THREE.BoxGeometry(2.55 * scale, 0.18 * scale, 2.02 * scale), mat(0xc9c1b1));
+    foundation.position.set(0, 0.12 * scale, 0);
+    foundation.receiveShadow = true;
+    group.add(foundation);
     const roof = new THREE.Mesh(new THREE.ConeGeometry(1.75 * scale, 0.82 * scale, 4), mat(roofColor));
     roof.position.y = 1.58 * scale; roof.rotation.y = Math.PI / 4; roof.castShadow = true; group.add(roof);
+    const eaveFront = new THREE.Mesh(new THREE.BoxGeometry(2.62 * scale, 0.10 * scale, 0.16 * scale), mat(roofColor));
+    eaveFront.position.set(0, 1.30 * scale, 1.03 * scale);
+    const eaveBack = eaveFront.clone(); eaveBack.position.z = -1.03 * scale;
+    const eaveLeft = new THREE.Mesh(new THREE.BoxGeometry(0.16 * scale, 0.10 * scale, 2.20 * scale), mat(roofColor));
+    eaveLeft.position.set(-1.31 * scale, 1.30 * scale, 0);
+    const eaveRight = eaveLeft.clone(); eaveRight.position.x = 1.31 * scale;
+    group.add(eaveFront, eaveBack, eaveLeft, eaveRight);
     const door = new THREE.Mesh(new THREE.BoxGeometry(0.32 * scale, 0.6 * scale, 0.04), mat(trimColor)); door.position.set(0.58 * scale, 0.34 * scale, 0.95 * scale); group.add(door);
+    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.70 * scale, 0.035), mat(0xf7efd8));
+    doorFrame.position.set(0.58 * scale, 0.38 * scale, 0.93 * scale);
+    group.add(doorFrame);
+    door.position.z = 0.975 * scale;
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.035 * scale, 10, 8), mat(0xf3c35a));
+    knob.position.set(0.68 * scale, 0.36 * scale, 1.01 * scale);
+    group.add(knob);
     const win = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.3 * scale, 0.035), mat(0xfff4b8, 0.45)); win.position.set(-0.55 * scale, 0.78 * scale, 0.96 * scale); group.add(win);
+    const upperWin = win.clone(); upperWin.scale.set(0.82, 0.78, 1); upperWin.position.set(0.18 * scale, 1.03 * scale, 0.97 * scale); group.add(upperWin);
+    this.addWindowFrame(group, -0.55 * scale, 0.78 * scale, 0.995 * scale, 0.48 * scale, 0.34 * scale, scale, "front");
+    this.addWindowFrame(group, 0.18 * scale, 1.03 * scale, 1.005 * scale, 0.38 * scale, 0.27 * scale, scale, "front");
     const mailbox = new THREE.Mesh(new THREE.BoxGeometry(0.24 * scale, 0.22 * scale, 0.19 * scale), mat(0xdc604c)); mailbox.position.set(1.55 * scale, 0.36 * scale, 1.08 * scale); mailbox.castShadow = true; group.add(mailbox);
-    this.addHomeDetails(group, scale);
+    this.addHomeDetails(group, scale, variant, roofColor, trimColor);
   }
 
-  addHomeDetails(group, scale) {
+  addWindowFrame(group, x, y, z, w, h, scale, side = "front") {
+    const frameMat = mat(0x5f6f73);
+    const glassMat = mat(0xe9f7ff, 0.35);
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(w * 0.92, h * 0.86, 0.026 * scale), glassMat);
+    glass.position.set(x, y, z + (side === "front" ? 0.004 * scale : 0));
+    if (side === "left") glass.rotation.y = Math.PI / 2;
+    group.add(glass);
+    const bars = [
+      [w, 0.035 * scale, 0.03 * scale, 0, h / 2, 0],
+      [w, 0.035 * scale, 0.03 * scale, 0, -h / 2, 0],
+      [0.035 * scale, h, 0.03 * scale, -w / 2, 0, 0],
+      [0.035 * scale, h, 0.03 * scale, w / 2, 0, 0],
+      [0.025 * scale, h * 0.86, 0.032 * scale, 0, 0, 0],
+      [w * 0.86, 0.022 * scale, 0.032 * scale, 0, 0, 0],
+    ];
+    bars.forEach(([bw, bh, bd, ox, oy, oz]) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), frameMat);
+      b.position.set(x + ox, y + oy, z + oz);
+      if (side === "left") b.rotation.y = Math.PI / 2;
+      group.add(b);
+    });
+  }
+
+  addHomeDetails(group, scale, variant = "house", roofColor = 0x9c7556, trimColor = 0x76583f) {
     const roofRidge = new THREE.Mesh(new THREE.BoxGeometry(2.2 * scale, 0.08 * scale, 0.08 * scale), mat(0x6d4b3a));
     roofRidge.position.set(0, 1.98 * scale, 0);
     roofRidge.rotation.y = Math.PI / 4;
     group.add(roofRidge);
 
+    for (let i = -2; i <= 2; i += 1) {
+      const tile = new THREE.Mesh(new THREE.BoxGeometry(1.85 * scale, 0.026 * scale, 0.035 * scale), mat(0x5f463c));
+      tile.position.set(i * 0.22 * scale, 1.71 * scale - Math.abs(i) * 0.035 * scale, 0.56 * scale + i * 0.02 * scale);
+      tile.rotation.y = Math.PI / 4;
+      group.add(tile);
+    }
+
+    const gutter = new THREE.Mesh(new THREE.BoxGeometry(2.42 * scale, 0.045 * scale, 0.055 * scale), mat(0x6f7f82));
+    gutter.position.set(0, 1.24 * scale, 1.11 * scale);
+    const downPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * scale, 0.025 * scale, 0.92 * scale, 8), mat(0x6f7f82));
+    downPipe.position.set(-1.18 * scale, 0.78 * scale, 1.12 * scale);
+    group.add(gutter, downPipe);
+
     const sideWin = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.26 * scale, 0.035), mat(0xe9f7ff, 0.4));
     sideWin.position.set(-1.18 * scale, 0.82 * scale, 0.18 * scale);
     sideWin.rotation.y = Math.PI / 2;
     group.add(sideWin);
+    this.addWindowFrame(group, -1.205 * scale, 0.82 * scale, 0.18 * scale, 0.36 * scale, 0.28 * scale, scale, "left");
 
     const ac = new THREE.Mesh(new THREE.BoxGeometry(0.32 * scale, 0.2 * scale, 0.16 * scale), mat(0xd8dde0));
     ac.position.set(-1.25 * scale, 0.58 * scale, -0.45 * scale);
     ac.castShadow = true;
     group.add(ac);
+    for (let i = 0; i < 3; i += 1) {
+      const vent = new THREE.Mesh(new THREE.BoxGeometry(0.24 * scale, 0.012 * scale, 0.01 * scale), mat(0x8f9aa0));
+      vent.position.set(-1.34 * scale, (0.54 + i * 0.045) * scale, -0.36 * scale);
+      vent.rotation.y = Math.PI / 2;
+      group.add(vent);
+    }
 
     for (const x of [-1.2, 1.05]) {
       const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.08 * scale, 0.1 * scale, 0.14 * scale, 8), mat(0x9c5c3c));
       pot.position.set(x * scale, 0.13 * scale, 1.12 * scale);
       const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.13 * scale, 10, 8), mat(0x5aaa77));
       leaf.position.set(x * scale, 0.28 * scale, 1.12 * scale);
-      group.add(pot, leaf);
+      const flower = new THREE.Mesh(new THREE.SphereGeometry(0.045 * scale, 8, 6), mat(x < 0 ? 0xff8eaa : 0xf5d34e));
+      flower.position.set(x * scale, 0.40 * scale, 1.13 * scale);
+      group.add(pot, leaf, flower);
     }
 
     const namePlate = new THREE.Mesh(new THREE.BoxGeometry(0.26 * scale, 0.12 * scale, 0.03), mat(0xfff6d7));
     namePlate.position.set(0.98 * scale, 0.72 * scale, 0.98 * scale);
     group.add(namePlate);
+
+    const porch = new THREE.Mesh(new THREE.BoxGeometry(0.75 * scale, 0.12 * scale, 0.45 * scale), mat(0xc8b9a2));
+    porch.position.set(0.58 * scale, 0.12 * scale, 1.22 * scale);
+    const porchMat = new THREE.Mesh(new THREE.BoxGeometry(0.62 * scale, 0.025 * scale, 0.36 * scale), mat(0x8b6a4f));
+    porchMat.position.set(0.58 * scale, 0.195 * scale, 1.24 * scale);
+    group.add(porch, porchMat);
+
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07 * scale, 12, 8), mat(0xffe6a6));
+    lamp.position.set(0.34 * scale, 0.82 * scale, 1.04 * scale);
+    const lampCap = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.035 * scale, 0.06 * scale), mat(trimColor));
+    lampCap.position.set(0.34 * scale, 0.90 * scale, 1.04 * scale);
+    group.add(lamp, lampCap);
+
+    const meter = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.28 * scale, 0.04 * scale), mat(0xe8edf0));
+    meter.position.set(-0.98 * scale, 0.48 * scale, 0.98 * scale);
+    group.add(meter);
+
+    if (variant === "old-wood" || variant === "decor") {
+      for (let i = -4; i <= 4; i += 1) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(0.035 * scale, 0.92 * scale, 0.025 * scale), mat(0x8a6545));
+        slat.position.set(i * 0.23 * scale, 0.72 * scale, 1.005 * scale);
+        group.add(slat);
+      }
+    }
+
+    if (variant === "modern-home") {
+      const railMat = mat(0xbfc8d0);
+      for (let i = -3; i <= 3; i += 1) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.035 * scale, 0.28 * scale, 0.035 * scale), railMat);
+        rail.position.set((-0.58 + i * 0.18) * scale, 1.28 * scale, 1.20 * scale);
+        group.add(rail);
+      }
+      const topRail = new THREE.Mesh(new THREE.BoxGeometry(1.28 * scale, 0.04 * scale, 0.04 * scale), railMat);
+      topRail.position.set(-0.05 * scale, 1.43 * scale, 1.20 * scale);
+      group.add(topRail);
+    }
+
+    if (variant === "house-green") {
+      const vineMat = mat(0x4f9a59);
+      for (let i = 0; i < 4; i += 1) {
+        const vine = new THREE.Mesh(new THREE.BoxGeometry(0.035 * scale, (0.34 + i * 0.08) * scale, 0.03 * scale), vineMat);
+        vine.position.set((-1.02 + i * 0.12) * scale, (0.58 + i * 0.08) * scale, 1.02 * scale);
+        vine.rotation.z = -0.4 + i * 0.2;
+        group.add(vine);
+      }
+    }
   }
 
   addCommercialDetails(group, scale, w, d, h, variant) {
@@ -669,6 +800,12 @@ export class ThreeRenderer {
     awning.position.set(0, h * 0.48, d / 2 + 0.14 * scale);
     awning.castShadow = true;
     group.add(awning);
+
+    for (let i = -3; i <= 3; i += 1) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry((w * 0.75) / 8, 0.17 * scale, 0.295 * scale), mat(i % 2 ? 0xffffff : awningColor));
+      stripe.position.set(i * (w * 0.75 / 7), h * 0.485, d / 2 + 0.155 * scale);
+      group.add(stripe);
+    }
 
     if (variant === "hospital") {
       const crossA = new THREE.Mesh(new THREE.BoxGeometry(0.52 * scale, 0.12 * scale, 0.04), mat(0xd94a4a));
@@ -682,11 +819,49 @@ export class ThreeRenderer {
     roofUnit.position.set(w * 0.28, h + 0.32 * scale, -d * 0.12);
     roofUnit.castShadow = true;
     group.add(roofUnit);
+    const roofFan = new THREE.Mesh(new THREE.CylinderGeometry(0.13 * scale, 0.13 * scale, 0.08 * scale, 16), mat(0x9aa5aa));
+    roofFan.position.set(w * 0.28, h + 0.50 * scale, -d * 0.12);
+    roofFan.rotation.x = Math.PI / 2;
+    group.add(roofFan);
+
+    const glassDoor = new THREE.Mesh(new THREE.BoxGeometry(0.48 * scale, 0.68 * scale, 0.035), mat(0xbfe8ff, 0.25));
+    glassDoor.position.set(-w * 0.16, 0.38 * scale, d / 2 + 0.055);
+    group.add(glassDoor);
+    const doorBar = new THREE.Mesh(new THREE.BoxGeometry(0.04 * scale, 0.62 * scale, 0.04), mat(0x607078));
+    doorBar.position.set(-w * 0.16, 0.38 * scale, d / 2 + 0.08);
+    group.add(doorBar);
 
     for (const x of [-0.42, 0, 0.42]) {
       const poster = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.32 * scale, 0.035), mat(x === 0 ? 0xfff04a : 0x87d37c));
       poster.position.set(x * w * 0.5, 0.54 * scale, d / 2 + 0.05);
       group.add(poster);
+    }
+
+    const sideSign = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.86 * scale, 0.08 * scale), mat(variant === "post-office" ? 0xd94a4a : 0x446b8f));
+    sideSign.position.set(-w / 2 - 0.08 * scale, h * 0.56, d / 2 + 0.06);
+    group.add(sideSign);
+
+    for (let f = 0; f < Math.max(1, Math.floor(h / (0.85 * scale))); f += 1) {
+      const sideWindow = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.23 * scale, 0.42 * scale), mat(0xe9f7ff, 0.36));
+      sideWindow.position.set(w / 2 + 0.025, 0.78 * scale + f * 0.58 * scale, -d * 0.15);
+      group.add(sideWindow);
+    }
+
+    if (["convenience", "supermarket", "pharmacy"].includes(variant)) {
+      const rackMat = mat(0x78848a);
+      for (let i = 0; i < 3; i += 1) {
+        const rack = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.045 * scale, 0.18 * scale), rackMat);
+        rack.position.set((0.42 + i * 0.24) * scale, 0.28 * scale, d / 2 + 0.18 * scale);
+        group.add(rack);
+      }
+    }
+
+    if (variant === "parking") {
+      for (let i = -1; i <= 1; i += 1) {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(0.045 * scale, 0.018 * scale, 1.05 * scale), mat(0xffffff));
+        line.position.set(i * 0.52 * scale, 0.08 * scale, d / 2 + 0.22 * scale);
+        group.add(line);
+      }
     }
   }
 
