@@ -159,6 +159,18 @@ export class App {
     this.renderer.setWorldLayout(this.state.worldLayout);
   }
 
+  prepareRoutesForModeSelection() {
+    if (!this.state.worldLayout || !this.state.worldObstacles) this.prepareRandomWorld();
+    this.state.preparedRuns = {};
+    ["bike", "walk"].forEach((mode) => {
+      const answers = answersFromMode(mode);
+      const config = buildConfig(answers);
+      const player = pickStartPoint();
+      const route = pickRoute(neighbors, config, player);
+      this.state.preparedRuns[mode] = { answers, config, player, route };
+    });
+  }
+
   showTitle() {
     if (!this.state.worldLayout || !this.state.worldObstacles) this.prepareRandomWorld();
     this.state.screen = "title";
@@ -178,6 +190,7 @@ export class App {
     const previousScreen = this.state.screen;
     if (!this.state.worldLayout || previousScreen === "summary") this.prepareRandomWorld();
     this.rerollNames();
+    this.prepareRoutesForModeSelection();
     this.state.screen = "home";
     this.state.isPlaying = false;
     this.state.isPaused = false;
@@ -195,11 +208,13 @@ export class App {
   startWithMode(mode) {
     this.audio.start();
     this.savePlayerName(this.getPlayerName());
-    this.state.answers = answersFromMode(mode);
-    this.state.config = buildConfig(this.state.answers);
+    if (!this.state.preparedRuns?.[mode]) this.prepareRoutesForModeSelection();
+    const prepared = this.state.preparedRuns[mode];
+    this.state.answers = { ...prepared.answers };
+    this.state.config = { ...prepared.config };
     if (!this.state.worldLayout || !this.state.worldObstacles) this.prepareRandomWorld();
-    this.state.player = pickStartPoint();
-    this.state.route = pickRoute(neighbors, this.state.config, this.state.player);
+    this.state.player = { ...prepared.player };
+    this.state.route = [...prepared.route];
     this.state.delivered = [];
     this.state.delivery = null;
     this.state.comic = null;

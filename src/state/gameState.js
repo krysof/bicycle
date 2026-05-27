@@ -4,6 +4,7 @@ export function createInitialState() {
     answers: {},
     config: null,
     route: [],
+    preparedRuns: {},
     worldSeed: 1,
     worldLayout: null,
     worldObstacles: null,
