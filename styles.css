@@ -214,6 +214,10 @@ html[data-locale="en"] select {
   background: rgba(255, 251, 238, 0.86);
 }
 
+.home-screen {
+  background: rgba(255, 251, 238, 0.86);
+}
+
 .title-start {
   width: min(430px, 100%);
   min-height: 150px;
@@ -528,17 +532,7 @@ button:disabled {
   touch-action: none;
 }
 
-.touch-dpad {
-  width: 174px;
-  height: 174px;
-  display: grid;
-  grid-template-columns: repeat(3, 58px);
-  grid-template-rows: repeat(3, 58px);
-  gap: 0;
-  pointer-events: auto;
-}
-
-.touch-btn,
+.touch-joystick,
 .touch-deliver {
   user-select: none;
   -webkit-user-select: none;
@@ -546,24 +540,53 @@ button:disabled {
   box-shadow: 0 8px 18px rgba(31, 43, 56, 0.18);
 }
 
-.touch-btn {
-  min-height: 54px;
-  width: 54px;
-  padding: 0;
-  border-radius: 18px;
-  font-size: 24px;
-  background: rgba(255, 251, 238, 0.92);
+.touch-joystick {
+  width: 168px;
+  height: 168px;
+  border-radius: 999px;
+  position: relative;
+  pointer-events: auto;
+  background: radial-gradient(circle, rgba(255, 251, 238, 0.78), rgba(255, 251, 238, 0.46));
+  border: 3px solid rgba(255, 255, 255, 0.62);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(6px);
 }
 
-.touch-btn.active {
-  transform: translateY(2px) scale(0.96);
-  background: #fff1b8;
+.touch-joystick-ring {
+  width: 126px;
+  height: 126px;
+  border-radius: 999px;
+  border: 3px dashed rgba(47, 125, 92, 0.42);
+  background:
+    linear-gradient(90deg, transparent 48%, rgba(47, 125, 92, 0.22) 49%, rgba(47, 125, 92, 0.22) 51%, transparent 52%),
+    linear-gradient(0deg, transparent 48%, rgba(47, 125, 92, 0.22) 49%, rgba(47, 125, 92, 0.22) 51%, transparent 52%);
+  display: grid;
+  place-items: center;
 }
 
-.touch-up { grid-column: 2; grid-row: 1; }
-.touch-left { grid-column: 1; grid-row: 2; }
-.touch-down { grid-column: 2; grid-row: 3; }
-.touch-right { grid-column: 3; grid-row: 2; }
+.touch-stick {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff7d8, #f0b44d);
+  border: 3px solid rgba(86, 55, 26, 0.18);
+  box-shadow: inset 0 -6px 12px rgba(86, 55, 26, 0.12), 0 8px 16px rgba(31, 43, 56, 0.22);
+  transition: transform 0.06s linear;
+}
+
+.touch-joystick.active .touch-stick {
+  transition: none;
+}
+
+.touch-joystick-label {
+  position: absolute;
+  bottom: 10px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(36, 48, 68, 0.58);
+  pointer-events: none;
+}
 
 .touch-deliver {
   min-width: 132px;
@@ -634,8 +657,10 @@ kbd {
   .hud {
     left: 8px;
     right: 8px;
-    bottom: 112px;
+    top: 72px;
+    bottom: auto;
     width: auto;
+    max-height: 34vh;
   }
 
   .hud-card {
@@ -659,6 +684,19 @@ kbd {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
     margin-top: 10px;
+  }
+
+  #deliverBtn {
+    display: none;
+  }
+
+  #targetHint {
+    display: none;
+  }
+
+  #companionLine {
+    font-size: clamp(15px, 3.8vw, 18px);
+    line-height: 1.35;
   }
 
   .touch-controls:not(.hidden) {

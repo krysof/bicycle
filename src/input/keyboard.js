@@ -18,12 +18,83 @@ export function bindKeyboard(state, onDeliver) {
 
 export function bindTouchControls(state, onDeliver) {
   const root = document.getElementById("touchControls");
+  const joystick = document.getElementById("touchJoystick");
+  const stick = document.getElementById("touchStick");
   const deliver = document.getElementById("touchDeliverBtn");
   if (!root) return;
+
+  const touchKeys = ["arrowup", "arrowdown", "arrowleft", "arrowright"];
 
   const endKey = (key) => {
     state.keys.delete(key);
   };
+
+  const clearTouchKeys = () => {
+    touchKeys.forEach((key) => state.keys.delete(key));
+  };
+
+  const setTouchKeys = (dx, dy) => {
+    clearTouchKeys();
+    const threshold = 0.24;
+    if (dy < -threshold) state.keys.add("arrowup");
+    if (dy > threshold) state.keys.add("arrowdown");
+    if (dx < -threshold) state.keys.add("arrowleft");
+    if (dx > threshold) state.keys.add("arrowright");
+  };
+
+  if (joystick && stick) {
+    let activePointerId = null;
+    const max = 56;
+
+    const updateJoystick = (event) => {
+      const rect = joystick.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = event.clientX - cx;
+      let dy = event.clientY - cy;
+      const len = Math.hypot(dx, dy);
+      if (len > max) {
+        dx = (dx / len) * max;
+        dy = (dy / len) * max;
+      }
+      stick.style.transform = `translate(${dx}px, ${dy}px)`;
+      setTouchKeys(dx / max, dy / max);
+    };
+
+    const start = (event) => {
+      event.preventDefault();
+      activePointerId = event.pointerId;
+      joystick.setPointerCapture?.(event.pointerId);
+      joystick.classList.add("active");
+      updateJoystick(event);
+    };
+
+    const move = (event) => {
+      if (activePointerId !== event.pointerId) return;
+      event.preventDefault();
+      updateJoystick(event);
+    };
+
+    const end = (event) => {
+      if (activePointerId !== event.pointerId) return;
+      event.preventDefault();
+      activePointerId = null;
+      clearTouchKeys();
+      joystick.classList.remove("active");
+      stick.style.transform = "translate(0, 0)";
+    };
+
+    joystick.addEventListener("pointerdown", start);
+    joystick.addEventListener("pointermove", move);
+    joystick.addEventListener("pointerup", end);
+    joystick.addEventListener("pointercancel", end);
+    joystick.addEventListener("lostpointercapture", () => {
+      activePointerId = null;
+      clearTouchKeys();
+      joystick.classList.remove("active");
+      stick.style.transform = "translate(0, 0)";
+    });
+  }
 
   root.querySelectorAll("[data-touch-key]").forEach((button) => {
     const key = button.dataset.touchKey;

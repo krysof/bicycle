@@ -188,9 +188,16 @@ export class App {
 
   showHome() {
     const previousScreen = this.state.screen;
-    if (!this.state.worldLayout || previousScreen === "summary") this.prepareRandomWorld();
+    if (!this.state.worldLayout || previousScreen === "title" || previousScreen === "summary") this.prepareRandomWorld();
     this.rerollNames();
     this.prepareRoutesForModeSelection();
+    const preview = this.state.preparedRuns.bike || this.state.preparedRuns.walk;
+    if (preview) {
+      this.state.config = { ...preview.config };
+      this.state.player = { ...preview.player };
+      this.state.route = [...preview.route];
+      this.state.delivered = [];
+    }
     this.state.screen = "home";
     this.state.isPlaying = false;
     this.state.isPaused = false;
