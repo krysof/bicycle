@@ -55,7 +55,9 @@ export class App {
     this.state.playerName = currentName;
     this.setupLanguageSelector();
     this.renderer.rebuildWorld();
-    if (this.state.screen === "home") {
+    if (this.state.screen === "title") {
+      this.screens.title();
+    } else if (this.state.screen === "home") {
       this.screens.home(loadRecord(), currentName);
     } else if (this.state.screen === "summary") {
       this.screens.summary(this.state, this.state.summaryEarly);
@@ -72,20 +74,23 @@ export class App {
 
   start() {
     this.bindEvents();
-    this.showHome();
+    this.showTitle();
     requestAnimationFrame((time) => this.loop(time));
   }
 
   bindEvents() {
     window.addEventListener("resize", () => this.renderer.resize());
     window.addEventListener("bicycle-language-change", () => this.handleLanguageChanged());
-    window.addEventListener("pointerdown", () => this.audio.start(), { once: true });
-    window.addEventListener("keydown", () => this.audio.start(), { once: true });
     bindKeyboard(this.state, () => this.deliver());
 
-    this.screens.root.addEventListener("click", (event) => {
+    this.screens.root.addEventListener("click", async (event) => {
       const button = event.target.closest("button");
       if (!button) return;
+      if (button.dataset.action === "title-start") {
+        await this.audio.start();
+        this.showHome();
+        return;
+      }
       if (button.dataset.mode) this.startWithMode(button.dataset.mode);
       if (button.dataset.quick) this.startWithMode(button.dataset.quick === "active" ? "bike" : "walk");
       if (button.dataset.action === "home") this.showHome();
@@ -94,6 +99,19 @@ export class App {
     this.hud.deliverBtn.addEventListener("click", () => this.deliver());
     this.hud.pauseBtn.addEventListener("click", () => this.togglePause());
     this.hud.endBtn.addEventListener("click", () => this.showSummary(true));
+  }
+
+  showTitle() {
+    this.state.screen = "title";
+    this.state.isPlaying = false;
+    this.state.isPaused = false;
+    this.state.keys.clear();
+    this.state.delivery = null;
+    this.state.comic = null;
+    this.state.houseReaction = null;
+    this.hud.hide();
+    this.updateComic();
+    this.screens.title();
   }
 
   showHome() {

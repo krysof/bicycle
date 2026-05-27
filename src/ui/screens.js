@@ -8,6 +8,20 @@ export class Screens {
     this.root.innerHTML = "";
   }
 
+  title() {
+    this.root.innerHTML = `
+      <section class="screen narrow title-screen">
+        <div class="stamp">${t("stamp")}</div>
+        <p class="eyebrow">${t("titleKicker")}</p>
+        <h1>${t("homeTitle")}</h1>
+        <p class="lead">${t("titleSoundNote")}</p>
+        <button class="title-start primary" data-action="title-start">
+          <span class="mode-icon">🚲</span>
+          <strong>${t("titleStart")}</strong>
+        </button>
+      </section>`;
+  }
+
   home(record, playerName = "") {
     const last = record.lastSummary;
     const yesterday = last

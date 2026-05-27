@@ -1,4 +1,4 @@
-const MASTER_GAIN = 0.42;
+const MASTER_GAIN = 0.62;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -61,6 +61,7 @@ export class AudioEngine {
     this.pedalTimer = 0;
     this.lastDeliveredCount = 0;
     this.wasFlying = false;
+    this.isEnabled = false;
   }
 
   ensure() {
@@ -73,15 +74,15 @@ export class AudioEngine {
     this.master.connect(this.ctx.destination);
 
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.32;
+    this.musicGain.gain.value = 0.46;
     this.musicGain.connect(this.master);
 
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.value = 0.24;
+    this.ambientGain.gain.value = 0.34;
     this.ambientGain.connect(this.master);
 
     this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = 0.62;
+    this.sfxGain.gain.value = 0.82;
     this.sfxGain.connect(this.master);
 
     this.noiseBuffer = makeNoiseBuffer(this.ctx, 2);
@@ -91,11 +92,25 @@ export class AudioEngine {
   async start() {
     const ctx = this.ensure();
     if (!ctx) return;
+    const wasStarted = this.started;
+    // Sources are created directly from the user's click path so browser
+    // autoplay policies treat this as an intentional sound start.
+    if (!this.started) {
+      this.started = true;
+      this.isEnabled = true;
+      this.startMusic();
+      this.startNatureBed();
+    }
     if (ctx.state === "suspended") await ctx.resume();
-    if (this.started) return;
-    this.started = true;
-    this.startMusic();
-    this.startNatureBed();
+    if (!wasStarted) this.playEnableChime();
+  }
+
+  playEnableChime() {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.tone(523.25, now, 0.16, 0.06, "sine");
+    this.tone(659.25, now + 0.12, 0.18, 0.055, "sine");
   }
 
   startMusic() {

@@ -181,6 +181,22 @@ label {
   min-height: 160px;
 }
 
+.title-screen {
+  text-align: center;
+}
+
+.title-start {
+  width: min(430px, 100%);
+  min-height: 150px;
+  margin-top: 28px;
+  border-radius: 30px;
+}
+
+.title-start strong {
+  display: block;
+  font-size: clamp(32px, 4vw, 48px);
+}
+
 .start-card strong,
 .mode-card strong {
   display: block;
