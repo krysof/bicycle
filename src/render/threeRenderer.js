@@ -1197,11 +1197,20 @@ export class ThreeRenderer {
     const dx = state.player.headingX || 0.65; const dz = state.player.headingY || 0.76;
     this.player.rotation.y = Math.atan2(-dz, dx);
     const bikeMode = state.config?.moveMode === "bike"; this.bike.visible = bikeMode;
-    const forward = state.keys.has("arrowup") || state.keys.has("w");
-    const backward = state.keys.has("arrowdown") || state.keys.has("s");
-    const turnInput = (state.keys.has("arrowright") || state.keys.has("d") ? 1 : 0) - (state.keys.has("arrowleft") || state.keys.has("a") ? 1 : 0);
+    const touchThrottle = state.touchThrottle || 0;
+    const touchSteer = state.touchSteer || 0;
+    const forward = state.keys.has("arrowup") || state.keys.has("w") || touchThrottle > 0.05;
+    const backward = state.keys.has("arrowdown") || state.keys.has("s") || touchThrottle < -0.05;
+    const keyTurn = (state.keys.has("arrowright") || state.keys.has("d") ? 1 : 0) - (state.keys.has("arrowleft") || state.keys.has("a") ? 1 : 0);
+    const turnInput = THREE.MathUtils.clamp(keyTurn + touchSteer, -1, 1);
     const pedaling = bikeMode && (forward || backward);
-    const throttle = forward ? 1 : backward ? -0.42 : 0;
+    const throttle = state.keys.has("arrowup") || state.keys.has("w")
+      ? 1
+      : state.keys.has("arrowdown") || state.keys.has("s")
+        ? -0.42
+        : touchThrottle > 0
+          ? touchThrottle
+          : touchThrottle * 0.42;
     const animDt = Math.min(0.05, Math.max(0, (state.floatTime || 0) - this.lastBikeAnimTime));
     this.lastBikeAnimTime = state.floatTime || 0;
     if (pedaling) this.bikeRoll += throttle * animDt * ((state.config?.speed || 430) * WORLD_SCALE / 0.36);
@@ -1228,7 +1237,7 @@ export class ThreeRenderer {
       }
       if (parts.crank) parts.crank.rotation.z = -pedalCycle * 1.65;
       // 操作层面的左 / 右已经正确，这里只修正车把和前轮的视觉转向方向。
-      const steer = THREE.MathUtils.lerp(parts.steerAngle || 0, -turnInput * 0.46, 0.2);
+      const steer = THREE.MathUtils.lerp(parts.steerAngle || 0, -turnInput * 0.62, 0.28);
       parts.steerAngle = steer;
       if (parts.frontWheel) parts.frontWheel.rotation.y = steer;
       if (parts.frontRim) parts.frontRim.rotation.y = steer;
