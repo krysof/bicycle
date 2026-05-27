@@ -1,4 +1,5 @@
 import { neighbors } from "./data/neighbors.js";
+import { createWorldLayout, createWorldObstacles } from "./data/world.js";
 import { answersFromMode, buildConfig, pickRoute, pickStartPoint } from "./game/difficulty.js";
 import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard, bindTouchControls } from "./input/keyboard.js";
@@ -183,6 +184,10 @@ export class App {
     this.savePlayerName(this.getPlayerName());
     this.state.answers = answersFromMode(mode);
     this.state.config = buildConfig(this.state.answers);
+    this.state.worldSeed = Date.now() ^ Math.floor(Math.random() * 0x7fffffff);
+    this.state.worldLayout = createWorldLayout(this.state.worldSeed);
+    this.state.worldObstacles = createWorldObstacles(this.state.worldLayout);
+    this.renderer.setWorldLayout(this.state.worldLayout);
     this.state.player = pickStartPoint();
     this.state.route = pickRoute(neighbors, this.state.config, this.state.player);
     this.state.delivered = [];

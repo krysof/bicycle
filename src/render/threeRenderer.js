@@ -1,5 +1,6 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
+import { createWorldLayout } from "../data/world.js";
 import { canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { locale, nt, t } from "../i18n.js";
@@ -254,6 +255,7 @@ export class ThreeRenderer {
     this.lastBikeAnimTime = 0;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
+    this.worldLayout = createWorldLayout(1);
 
     this.createWorld();
     this.resize();
@@ -302,6 +304,11 @@ export class ThreeRenderer {
     this.bike = null;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
+  }
+
+  setWorldLayout(layout) {
+    this.worldLayout = layout || createWorldLayout(Date.now());
+    this.rebuildWorld();
   }
 
   rebuildWorld() {
@@ -406,13 +413,17 @@ export class ThreeRenderer {
     const border = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 2, 0.16, MAP_D + 2), mat(COLORS.grass2));
     border.position.y = -0.3; this.scene.add(border);
 
+    (this.worldLayout?.landmarks?.grassPatches || []).forEach((patch) => {
+      this.addPlane(patch.x, 0.018, patch.z, patch.w, patch.d, patch.color, patch.rot);
+    });
+
     // 远处山影
-    for (let i = 0; i < 9; i += 1) {
-      const hill = new THREE.Mesh(new THREE.ConeGeometry(10 + (i % 3) * 4, 10 + (i % 4) * 4, 5), mat(i % 2 ? 0x8fbf8a : 0x93c79a));
-      hill.position.set(-100 + i * 25, 4.5, -88);
-      hill.rotation.y = i * 0.31;
+    (this.worldLayout?.landmarks?.hills || []).forEach((cfg) => {
+      const hill = new THREE.Mesh(new THREE.ConeGeometry(cfg.r, cfg.h, 5), mat(cfg.color));
+      hill.position.set(cfg.x, cfg.h * 0.45, cfg.z);
+      hill.rotation.y = cfg.rot;
       this.scene.add(hill);
-    }
+    });
     const mountainFence = new THREE.Mesh(new THREE.BoxGeometry(MAP_W - 8, 0.55, 0.8), mat(0x7da16f));
     mountainFence.position.set(0, 0.28, -82.5);
     mountainFence.castShadow = true;
@@ -456,44 +467,15 @@ export class ThreeRenderer {
   }
 
   addProceduralTown() {
-    const roofColors = [0xc85f4d, 0xd59a34, 0x4f91d5, 0x5aaa77, 0xb86695, 0x9c7556];
-    const wallColors = [0xffe3c2, 0xe8f3ff, 0xe7f4d6, 0xffe8ef, 0xfff0c8, 0xe7f6f4];
-    let idx = 0;
-    // 日式住宅区排列：住宅沿道路边成排，离人行道有退让，不再像棋盘随机散点。
-    for (const roadZ of [-72, -48, -24, 0, 24, 48, 72]) {
-      for (let x = -104; x <= 104; x += 22) {
-        if (Math.abs(x + 102) < 9 || Math.abs(x) < 7) continue;
-        const side = idx % 2 ? -1 : 1;
-        const z = roadZ + side * 12.4;
-        if (z < -82 || z > 82) continue;
-        const lotX = x + ((idx % 3) - 1) * 1.2;
-        if (isReservedSceneSpot(lotX, z)) { idx += 1; continue; }
-        this.addResidentialLot(lotX, z, colorFromIndex(idx, roofColors), colorFromIndex(idx + 2, wallColors), 1.15 + (idx % 2) * 0.08, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
-        idx += 1;
-      }
-    }
+    // 每局从共享 layout 生成不同住宅、商店、树木；碰撞体也使用同一份 layout，避免空气墙。
+    (this.worldLayout?.lots || []).forEach((lot) => {
+      const group = this.addResidentialLot(lot.x, lot.z, lot.roof, lot.wall, lot.scale, lot.variant);
+      group.rotation.y = lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0);
+    });
 
-    for (const roadX of [-96, -64, -32, 32, 64, 96]) {
-      for (let z = -76; z <= 76; z += 24) {
-        if (Math.abs(z) < 8) continue;
-        const side = idx % 2 ? -1 : 1;
-        const x = roadX + side * 12.2;
-        if (x < -108 || x > 108) continue;
-        const lotZ = z + ((idx % 3) - 1) * 1.0;
-        if (isReservedSceneSpot(x, lotZ)) { idx += 1; continue; }
-        const lot = this.addResidentialLot(x, lotZ, colorFromIndex(idx, roofColors), colorFromIndex(idx + 1, wallColors), 1.05 + (idx % 3) * 0.06, BUILDING_VARIANTS[idx % BUILDING_VARIANTS.length]);
-        lot.rotation.y += Math.PI / 2;
-        idx += 1;
-      }
-    }
-
-    // 行道树与院落树木，避开主车道。
-    for (let i = 0; i < 80; i += 1) {
-      const x = -108 + ((i * 37) % 216);
-      const z = -80 + ((i * 53) % 160);
-      if (Math.abs(x % 32) < 6 || Math.abs(z % 24) < 7 || isReservedSceneSpot(x, z, 8.5, 7.5)) continue;
-      this.addTree(x, z, i % 5 === 0, 0.75 + (i % 4) * 0.06);
-    }
+    (this.worldLayout?.trees || []).forEach((tree) => {
+      this.addTree(tree.x, tree.z, tree.sakura, tree.scale);
+    });
   }
 
   addResidentialLot(x, z, roof, wall, scale = 1, variant = "house-red") {
@@ -720,10 +702,19 @@ export class ThreeRenderer {
   }
 
   addLandmarks() {
-    // 河流、桥、公园、商店街、神社、田地，分布在大地图不同区域
-    this.addPlane(-102, 0.035, 0, 4.2, MAP_D - 8, COLORS.water, 0.03);
+    // 河流、桥、公园、商店街、神社、田地每局位置会轻微变化。
+    const landmarks = this.worldLayout?.landmarks || {};
+    const riverX = landmarks.riverX ?? -102;
+    const [parkX, parkZ] = landmarks.park || [-78, 58];
+    const [shopX, shopZ] = landmarks.shop || [-70, -68];
+    const [busX, busZ] = landmarks.bus || [44, -70];
+    const [shrineX, shrineZ] = landmarks.shrine || [88, 58];
+    const fields = landmarks.fields || [[86, -64], [100, -62]];
+    const [signX, signZ] = landmarks.sign || [-18, 72];
+
+    this.addPlane(riverX, 0.035, 0, 4.2, MAP_D - 8, COLORS.water, 0.03);
     // 河岸护栏让“不能下河”在视觉上也成立，桥的位置保留开口。
-    for (const bankX of [-104.6, -99.4]) {
+    for (const bankX of [riverX - 2.6, riverX + 2.6]) {
       for (const [z, len] of [[-72, 28], [-24, 26], [24, 26], [72, 28]]) {
         const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, len), mat(COLORS.wood));
         rail.position.set(bankX, 0.27, z);
@@ -731,12 +722,12 @@ export class ThreeRenderer {
         this.scene.add(rail);
       }
     }
-    for (const z of [-48, 0, 48]) { const b = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.2, 2.2), mat(0xb8875b)); b.position.set(-102, 0.18, z); b.castShadow = true; this.scene.add(b); }
-    this.addPlane(-78, 0.05, 58, 18, 12, 0x71bb70, -0.03); this.addSign(-78, 50, sceneLabel("park")); this.addBench(-82, 58); this.addBench(-74, 61); this.addTree(-86, 52, true, 1.3); this.addTree(-70, 55, false, 1.2);
-    this.addShop(-70, -68); this.addVending(-78, -63); this.addVending(-64, -63); this.addBusStop(44, -70);
-    this.addTorii(88, 58); this.addStoneLantern(82, 54); this.addStoneLantern(94, 54);
-    this.addField(86, -64); this.addField(100, -62); this.addSign(-18, 72, sceneLabel("neighborhood"));
-    for (const [x, z] of [[-46,-24],[-16,-24],[16,-24],[48,-24],[-46,24],[-16,24],[16,24],[48,24],[-96,12],[96,-12]]) this.addUtilityPole(x, z);
+    for (const z of [-48, 0, 48]) { const b = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.2, 2.2), mat(0xb8875b)); b.position.set(riverX, 0.18, z); b.castShadow = true; this.scene.add(b); }
+    this.addPlane(parkX, 0.05, parkZ, 18, 12, 0x71bb70, -0.03); this.addSign(parkX, parkZ - 8, sceneLabel("park")); this.addBench(parkX - 4, parkZ); this.addBench(parkX + 4, parkZ + 3); this.addTree(parkX - 8, parkZ - 6, true, 1.3); this.addTree(parkX + 8, parkZ - 3, false, 1.2);
+    this.addShop(shopX, shopZ); this.addVending(shopX - 8, shopZ + 5); this.addVending(shopX + 6, shopZ + 5); this.addBusStop(busX, busZ);
+    this.addTorii(shrineX, shrineZ); this.addStoneLantern(shrineX - 6, shrineZ - 4); this.addStoneLantern(shrineX + 6, shrineZ - 4);
+    fields.forEach(([x, z]) => this.addField(x, z)); this.addSign(signX, signZ, sceneLabel("neighborhood"));
+    (landmarks.poles || []).forEach(({ x, z }) => this.addUtilityPole(x, z));
   }
 
   addAmbientLife() {

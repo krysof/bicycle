@@ -109,10 +109,10 @@ function moveWithCollision(state, nextX, nextY) {
   const radius = PLAYER_RADIUS[mode] || PLAYER_RADIUS.walk;
   const current = { x: state.player.x, y: state.player.y };
   const tryX = clampPoint({ x: nextX, y: current.y }, radius);
-  if (!collides(tryX.x, tryX.y, radius)) current.x = tryX.x;
+  if (!collides(state, tryX.x, tryX.y, radius)) current.x = tryX.x;
 
   const tryY = clampPoint({ x: current.x, y: nextY }, radius);
-  if (!collides(tryY.x, tryY.y, radius)) current.y = tryY.y;
+  if (!collides(state, tryY.x, tryY.y, radius)) current.y = tryY.y;
 
   state.player.x = current.x;
   state.player.y = current.y;
@@ -125,8 +125,9 @@ function clampPoint(point, radius) {
   };
 }
 
-function collides(x, y, radius) {
-  return WORLD_OBSTACLES.some((obstacle) => {
+function collides(state, x, y, radius) {
+  const obstacles = state.worldObstacles || WORLD_OBSTACLES;
+  return obstacles.some((obstacle) => {
     if (obstacle.type === "circle") {
       return Math.hypot(x - obstacle.x, y - obstacle.y) < radius + obstacle.r;
     }
