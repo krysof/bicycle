@@ -6,9 +6,12 @@ export function requestDelivery(state) {
   const target = currentTarget(state);
   if (!target) return { completed: true, delivered: false };
 
-  const targetX = target.deliveryX ?? target.x;
-  const targetY = target.deliveryY ?? target.y;
-  const distance = Math.hypot(state.player.x - targetX, state.player.y - targetY);
+  // 判定仍以路边可到达点为准；视觉命中点落在房屋中心。
+  const deliveryX = target.deliveryX ?? target.x;
+  const deliveryY = target.deliveryY ?? target.y;
+  const targetX = target.x;
+  const targetY = target.y;
+  const distance = Math.hypot(state.player.x - deliveryX, state.player.y - deliveryY);
   if (state.delivery?.active) return { completed: false, delivered: false, flying: true };
 
   if (distance <= state.config.assistRadius) {

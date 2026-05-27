@@ -3,6 +3,7 @@ import { answersFromMode, buildConfig, pickRoute } from "./game/difficulty.js";
 import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
+import { AudioEngine } from "./audio/audioEngine.js";
 import { createInitialState, currentTarget } from "./state/gameState.js";
 import { loadRecord, saveRecord, todayKey } from "./state/storage.js";
 import { Hud } from "./ui/hud.js";
@@ -14,6 +15,7 @@ export class App {
     applyDocumentLanguage();
     this.state = createInitialState();
     this.renderer = new ThreeRenderer(document.getElementById("gameCanvas"));
+    this.audio = new AudioEngine();
     this.screens = new Screens(document.getElementById("ui"));
     this.hud = new Hud();
     this.setupLanguageSelector();
@@ -77,6 +79,8 @@ export class App {
   bindEvents() {
     window.addEventListener("resize", () => this.renderer.resize());
     window.addEventListener("bicycle-language-change", () => this.handleLanguageChanged());
+    window.addEventListener("pointerdown", () => this.audio.start(), { once: true });
+    window.addEventListener("keydown", () => this.audio.start(), { once: true });
     bindKeyboard(this.state, () => this.deliver());
 
     this.screens.root.addEventListener("click", (event) => {
@@ -108,6 +112,7 @@ export class App {
   }
 
   startWithMode(mode) {
+    this.audio.start();
     this.savePlayerName(this.getPlayerName());
     this.state.answers = answersFromMode(mode);
     this.state.config = buildConfig(this.state.answers);
@@ -135,6 +140,7 @@ export class App {
 
   deliver() {
     if (!this.state.isPlaying || this.state.isPaused) return;
+    this.audio.start();
     requestDelivery(this.state);
     this.hud.update(this.state);
   }
@@ -233,6 +239,7 @@ export class App {
     if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 650);
     this.updateNavigationHint();
     const renderInfo = this.renderer.render(this.state);
+    this.audio.update(this.state, dt);
     this.updateSafetyHint(renderInfo);
     this.updateComic();
     requestAnimationFrame((time) => this.loop(time));

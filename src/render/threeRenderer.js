@@ -193,6 +193,7 @@ export class ThreeRenderer {
     this.bikeRoll = 0;
     this.lastBikeAnimTime = 0;
     this.lastTargetScale = 1;
+    this.lastTargetId = null;
 
     this.createWorld();
     this.resize();
@@ -239,6 +240,7 @@ export class ThreeRenderer {
     this.walkParts = {};
     this.bike = null;
     this.lastTargetScale = 1;
+    this.lastTargetId = null;
   }
 
   rebuildWorld() {
@@ -1119,7 +1121,15 @@ export class ThreeRenderer {
 
   updateTarget(state) {
     const target = currentTarget(state); const visible = Boolean(target && state.isPlaying); this.targetRing.visible = visible; this.targetBeam.visible = visible; if (!visible) return;
-    const x = wx(target.deliveryX ?? target.x); const z = wz(target.deliveryY ?? target.y); const radius = (state.config?.assistRadius || 180) * WORLD_SCALE;
+    // 视觉光圈严格以目标房屋组的中心为准；实际投递判定仍在可到达的路边点。
+    const house = this.houseMap.get(target.id);
+    const x = house?.position.x ?? wx(target.x);
+    const z = house?.position.z ?? wz(target.y);
+    const radius = 4.15;
+    if (this.lastTargetId !== target.id) {
+      this.lastTargetId = target.id;
+      this.lastTargetScale = 1;
+    }
     this.targetRing.position.set(x, 0.12, z); this.targetRing.scale.setScalar(radius); this.targetBeam.position.set(x, 4.0, z);
   }
 
