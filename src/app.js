@@ -9,7 +9,7 @@ import { createInitialState, currentTarget } from "./state/gameState.js";
 import { loadRecord, saveRecord, todayKey } from "./state/storage.js";
 import { Hud } from "./ui/hud.js";
 import { Screens } from "./ui/screens.js";
-import { applyDocumentLanguage, changeLanguage, getLocalizedList, languageOptions, locale, setCompanionName, t } from "./i18n.js";
+import { applyDocumentLanguage, changeLanguage, getLocalizedList, languageOptions, locale, nt, setCompanionName, t } from "./i18n.js";
 
 export class App {
   constructor() {
@@ -37,6 +37,10 @@ export class App {
 
   randomIndex(length) {
     return Math.floor(Math.random() * Math.max(1, length || 1));
+  }
+
+  randomThoughtDelay() {
+    return 16 + Math.random() * 12;
   }
 
   rerollNames() {
@@ -226,6 +230,8 @@ export class App {
     this.state.delivery = null;
     this.state.comic = null;
     this.state.houseReaction = null;
+    this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
+    this.state.lastThoughtDeliveryIndex = -1;
     this.startGame();
   }
 
@@ -237,6 +243,8 @@ export class App {
     this.state.message = this.state.playerName ? t("startMessageNamed", this.state.playerName, mode) : t("startMessage", mode);
     this.state.comic = { text: this.state.message, tone: "guide", time: 3.0 };
     this.state.lastNavHintAt = this.state.floatTime;
+    this.state.nextThoughtAt = this.state.floatTime + 8 + Math.random() * 6;
+    this.state.lastThoughtDeliveryIndex = -1;
     this.screens.clear();
     this.hud.show();
     this.showTouchControls();
@@ -313,6 +321,22 @@ export class App {
     this.hud.update(this.state);
   }
 
+  updateThoughtHint() {
+    if (!this.state.isPlaying || this.state.isPaused || this.state.delivery?.active || this.state.comic) return;
+    if (this.state.floatTime < (this.state.nextThoughtAt ?? 12)) return;
+    const target = currentTarget(this.state);
+    if (!target) return;
+    const index = this.state.delivered.length;
+    if (this.state.lastThoughtDeliveryIndex === index && Math.random() < 0.62) {
+      this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
+      return;
+    }
+    const text = t("thoughtNext", nt(target, "name"));
+    this.state.comic = { text, tone: "thought", time: 2.9 };
+    this.state.lastThoughtDeliveryIndex = index;
+    this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
+  }
+
   showSummary(early) {
     this.state.screen = "summary";
     this.state.summaryEarly = early;
@@ -353,6 +377,7 @@ export class App {
     updatePlayer(this.state, dt);
     const deliveryResult = updateDelivery(this.state, dt);
     if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 650);
+    this.updateThoughtHint();
     this.updateNavigationHint();
     const renderInfo = this.renderer.render(this.state);
     this.audio.update(this.state, dt);

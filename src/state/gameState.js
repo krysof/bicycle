@@ -22,6 +22,8 @@ export function createInitialState() {
     comic: null,
     houseReaction: null,
     lastNavHintAt: -99,
+    nextThoughtAt: 12,
+    lastThoughtDeliveryIndex: -1,
     summaryEarly: false,
     lastSafetyHintAt: -99,
   };

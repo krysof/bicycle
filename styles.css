@@ -521,6 +521,14 @@ button:disabled {
   box-shadow: 7px 7px 0 rgba(31, 43, 56, 0.18);
 }
 
+.comic-bubble.thought {
+  top: 96px;
+  background: #fffaf0;
+  color: #5f4a2f;
+  border-style: dashed;
+  transform: translateX(-50%) rotate(-1.5deg);
+}
+
 .touch-controls {
   position: fixed;
   inset: auto 12px 12px 12px;
