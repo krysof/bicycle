@@ -329,6 +329,7 @@ export function nt(neighbor, field) {
 
 export function applyDocumentLanguage() {
   document.documentElement.lang = i18n.lang;
+  document.documentElement.dataset.locale = locale;
 }
 
 export function changeLanguage(nextLocale) {

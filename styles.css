@@ -181,6 +181,34 @@ label {
   min-height: 160px;
 }
 
+html[data-locale="ja"] body,
+html[data-locale="ja"] button,
+html[data-locale="ja"] input,
+html[data-locale="ja"] select {
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+}
+
+html[data-locale="zhHans"] body,
+html[data-locale="zhHans"] button,
+html[data-locale="zhHans"] input,
+html[data-locale="zhHans"] select {
+  font-family: "Microsoft YaHei", "Noto Sans CJK SC", "SimHei", system-ui, sans-serif;
+}
+
+html[data-locale="zhHant"] body,
+html[data-locale="zhHant"] button,
+html[data-locale="zhHant"] input,
+html[data-locale="zhHant"] select {
+  font-family: "Microsoft JhengHei", "Noto Sans CJK TC", "PingFang TC", system-ui, sans-serif;
+}
+
+html[data-locale="en"] body,
+html[data-locale="en"] button,
+html[data-locale="en"] input,
+html[data-locale="en"] select {
+  font-family: "Atkinson Hyperlegible", "Verdana", "Segoe UI", system-ui, sans-serif;
+}
+
 .title-screen {
   text-align: center;
 }

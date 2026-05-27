@@ -12,13 +12,13 @@ function makeNoiseBuffer(ctx, seconds = 1) {
   return buffer;
 }
 
-function makeMusicBuffer(ctx, seconds = 72) {
+function makeMusicBuffer(ctx, seconds = 60) {
   const sampleRate = ctx.sampleRate;
   const length = Math.floor(sampleRate * seconds);
   const buffer = ctx.createBuffer(2, length, sampleRate);
   const left = buffer.getChannelData(0);
   const right = buffer.getChannelData(1);
-  // 明るい町内散歩の雰囲気：C major pentatonic + gentle ukulele/mallet feel.
+  // 1 分钟无缝循环：96 拍 / 分，正好 96 拍，避免循环空档。
   const melody = [523.25, 587.33, 659.25, 783.99, 880.0, 783.99, 659.25, 587.33, 659.25, 783.99, 987.77, 880.0];
   const chords = [
     [261.63, 329.63, 392.0],
@@ -26,7 +26,7 @@ function makeMusicBuffer(ctx, seconds = 72) {
     [329.63, 392.0, 493.88],
     [196.0, 261.63, 329.63],
   ];
-  const beatSeconds = 60 / 92;
+  const beatSeconds = 60 / 96;
 
   function pluck(freq, time, decay = 3.8) {
     const local = time % beatSeconds;
@@ -59,12 +59,20 @@ function makeMusicBuffer(ctx, seconds = 72) {
       * Math.exp(-beatPhase * 18) * (beat % 2 === 0 ? 0.012 : 0.006);
     const slowAir = Math.sin(2 * Math.PI * 392 * time + Math.sin(time * 0.22) * 0.8) * 0.008;
 
-    const fadeIn = clamp(time / 2.0, 0, 1);
-    const fadeOut = clamp((seconds - time) / 3.0, 0, 1);
-    const value = (chordTone + mallet + answer + bassPulse + lightRhythm + slowAir) * fadeIn * fadeOut;
+    const value = chordTone + mallet + answer + bassPulse + lightRhythm + slowAir;
     const pan = Math.sin(time * 0.18) * 0.12;
     left[i] = value * (0.92 - pan);
     right[i] = value * (0.92 + pan);
+  }
+
+  // 末尾和开头做极短交叉匹配，循环点听不到“空档”或明显点击声。
+  const crossfade = Math.floor(sampleRate * 0.035);
+  for (let i = 0; i < crossfade; i += 1) {
+    const a = i / crossfade;
+    const b = 1 - a;
+    const tail = length - crossfade + i;
+    left[tail] = left[tail] * b + left[i] * a;
+    right[tail] = right[tail] * b + right[i] * a;
   }
   return buffer;
 }
@@ -172,7 +180,7 @@ export class AudioEngine {
     const ctx = this.ensure();
     if (!ctx || this.musicSource) return;
     const source = ctx.createBufferSource();
-    source.buffer = makeMusicBuffer(ctx, 72);
+    source.buffer = makeMusicBuffer(ctx, 60);
     source.loop = true;
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";

@@ -90,13 +90,19 @@ function transparentMat(color, opacity) {
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
+function labelFontFamily() {
+  if (locale === "ja") return "Hiragino Kaku Gothic ProN, Yu Gothic, Meiryo, sans-serif";
+  if (locale === "zhHant") return "Microsoft JhengHei, Noto Sans CJK TC, PingFang TC, sans-serif";
+  if (locale === "en") return "Atkinson Hyperlegible, Verdana, Segoe UI, sans-serif";
+  return "Microsoft YaHei, Noto Sans CJK SC, SimHei, sans-serif";
+}
 function makeCanvasLabel(text, color = "#2f5f49") {
   const canvas = document.createElement("canvas");
   canvas.width = 512; canvas.height = 160;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "rgba(255,251,236,.94)"; ctx.strokeStyle = "rgba(94,70,39,.18)"; ctx.lineWidth = 10;
   roundRect(ctx, 18, 34, 476, 92, 30); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = color; ctx.font = "700 48px Yu Gothic, Microsoft YaHei, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, 256, 80);
+  ctx.fillStyle = color; ctx.font = `700 48px ${labelFontFamily()}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, 256, 80);
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
   sprite.scale.set(3.8, 1.18, 1);
@@ -1145,6 +1151,7 @@ export class ThreeRenderer {
     const bikeMode = state.config?.moveMode === "bike"; this.bike.visible = bikeMode;
     const forward = state.keys.has("arrowup") || state.keys.has("w");
     const backward = state.keys.has("arrowdown") || state.keys.has("s");
+    const turnInput = (state.keys.has("arrowright") || state.keys.has("d") ? 1 : 0) - (state.keys.has("arrowleft") || state.keys.has("a") ? 1 : 0);
     const pedaling = bikeMode && (forward || backward);
     const throttle = forward ? 1 : backward ? -0.42 : 0;
     const animDt = Math.min(0.05, Math.max(0, (state.floatTime || 0) - this.lastBikeAnimTime));
@@ -1172,6 +1179,12 @@ export class ThreeRenderer {
         parts.pedal.position.y = 0.48 + Math.sin(pedalCycle * 1.65) * 0.085;
       }
       if (parts.crank) parts.crank.rotation.z = -pedalCycle * 1.65;
+      const steer = THREE.MathUtils.lerp(parts.steerAngle || 0, turnInput * 0.46, 0.2);
+      parts.steerAngle = steer;
+      if (parts.frontWheel) parts.frontWheel.rotation.y = steer;
+      if (parts.frontRim) parts.frontRim.rotation.y = steer;
+      if (parts.handleBar) parts.handleBar.rotation.y = steer * 1.15;
+      if (parts.basket) parts.basket.rotation.y = steer * 0.65;
 
       const legSwing = pedaling ? Math.sin(pedalCycle * 1.65) : 0;
       const armSettle = pedaling ? Math.sin(pedalCycle * 0.82) * 0.025 : 0;
@@ -1191,7 +1204,7 @@ export class ThreeRenderer {
       this.walkParts.rightArm.position.set(0.25, 1.02, 0.18);
       this.walkParts.leftArm.rotation.set(0.92 + armSettle, 0, 0.55);
       this.walkParts.rightArm.rotation.set(0.92 - armSettle, 0, -0.55);
-      this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 : 0;
+      this.bike.rotation.z = pedaling ? Math.sin(pedalCycle * 0.5) * 0.018 - steer * 0.05 : -steer * 0.035;
     } else {
       this.body.position.y = 0.92;
       this.body.rotation.z = 0;
