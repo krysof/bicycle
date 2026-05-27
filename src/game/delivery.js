@@ -9,9 +9,13 @@ export function deliveryDistance(state, target = currentTarget(state)) {
   return Math.hypot(state.player.x - deliveryX, state.player.y - deliveryY);
 }
 
+export function deliveryTriggerRadius(state) {
+  return (state.config?.assistRadius || 220) * 2;
+}
+
 export function canDeliverNow(state, target = currentTarget(state)) {
   if (!target || !state.isPlaying || state.isPaused || state.delivery?.active) return false;
-  return deliveryDistance(state, target) <= (state.config?.assistRadius || 220);
+  return deliveryDistance(state, target) <= deliveryTriggerRadius(state);
 }
 
 export function requestDelivery(state) {

@@ -179,10 +179,6 @@ function buildRoadPath(px, pz, tx, tz) {
   return points.filter((p, i, arr) => i === 0 || Math.hypot(p.x - arr[i - 1].x, p.z - arr[i - 1].z) > 0.08);
 }
 
-function buildDirectPath(px, pz, tx, tz) {
-  return [{ x: px, z: pz }, { x: tx, z: tz }];
-}
-
 function samplePath(points, distance) {
   if (points.length < 2) return null;
   let remain = distance;
@@ -202,6 +198,13 @@ function samplePath(points, distance) {
   const a = points[points.length - 2];
   const b = points[points.length - 1];
   return { x: b.x, z: b.z, angle: -Math.atan2(b.z - a.z, b.x - a.x), remainingSegment: 0 };
+}
+
+function orthogonalAngleToward(fromX, fromZ, toX, toZ) {
+  const dx = toX - fromX;
+  const dz = toZ - fromZ;
+  if (Math.abs(dx) >= Math.abs(dz)) return dx >= 0 ? 0 : Math.PI;
+  return dz >= 0 ? -Math.PI / 2 : Math.PI / 2;
 }
 
 export class ThreeRenderer {
@@ -1050,7 +1053,7 @@ export class ThreeRenderer {
     const ringZ = this.targetRing?.position.z ?? wz(target.y);
     const distToRing = Math.hypot(ringX - px, ringZ - pz);
     const nearTarget = distToRing < 13.5 || canDeliverNow(state);
-    const path = nearTarget ? buildDirectPath(px, pz, ringX, ringZ) : buildRoadPath(px, pz, deliveryX, deliveryZ);
+    const path = buildRoadPath(px, pz, deliveryX, deliveryZ);
     const total = path.reduce((sum, p, i) => {
       if (i === 0) return 0;
       return sum + Math.hypot(p.x - path[i - 1].x, p.z - path[i - 1].z);
@@ -1058,7 +1061,14 @@ export class ThreeRenderer {
 
     // 箭头沿道路中心线排布，再最后进入路边投递点；不再直线穿过房屋。
     this.navigationArrows.forEach((arrow, i) => {
-      const sample = samplePath(path, Math.min(total, nearTarget ? 2.4 + i * 2.9 : 4.2 + i * 5.2));
+      let sample = samplePath(path, Math.min(total, 4.2 + i * 5.2));
+      if (nearTarget) {
+        const dist = 2.0 + i * 2.65;
+        const angle = orthogonalAngleToward(px, pz, ringX, ringZ);
+        const dx = Math.cos(-angle);
+        const dz = Math.sin(-angle);
+        sample = { x: px + dx * Math.min(dist, distToRing), z: pz + dz * Math.min(dist, distToRing), angle };
+      }
       if (!sample) { arrow.visible = false; return; }
       arrow.visible = true;
       arrow.position.x = sample.x;

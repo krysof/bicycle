@@ -19,7 +19,7 @@ export function buildConfig(answers) {
   const routeName = moveMode === "bike" ? "单车远行路线" : "步行安心路线";
   // 投递判定缩小到“刚好包住路边目标点”的范围：光圈只比房屋 / 院落略大，
   // 玩家需要沿路骑一小段再投递，而不是在相邻路口就完成。
-  const assistRadius = moveMode === "bike" ? 440 : 380;
+  const assistRadius = moveMode === "bike" ? 220 : 190;
   const speed = moveMode === "bike" ? 430 : 145;
   const memoryCount = 0;
   return { count, moveMode, routeName, routeNameKey, assistRadius, speed, memoryCount };

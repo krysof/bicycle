@@ -267,8 +267,8 @@ export class App {
       : Math.abs(angle) < 0.38
         ? "navStraight"
         : angle > 0
-          ? "navLeft"
-          : "navRight";
+          ? "navRight"
+          : "navLeft";
 
     this.state.comic = { text: t(key), tone: "guide", time: 2.6 };
     this.state.message = t(key);
