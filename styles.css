@@ -509,7 +509,7 @@ button:disabled {
   position: fixed;
   top: 82px;
   left: 50%;
-  transform: translateX(-50%) rotate(-2deg);
+  transform: translateX(-50%);
   z-index: 8;
   min-width: 220px;
   max-width: min(720px, calc(100vw - 32px));
@@ -715,7 +715,7 @@ button:disabled {
   background: #fffaf0;
   color: #5f4a2f;
   border-style: dashed;
-  transform: translateX(-50%) rotate(-1.5deg);
+  transform: translateX(-50%);
 }
 
 .touch-controls {
@@ -821,11 +821,11 @@ button:disabled {
 
 @keyframes comicPop {
   from {
-    transform: translateX(-50%) scale(0.72) rotate(-7deg);
+    transform: translateX(-50%) scale(0.86);
     opacity: 0;
   }
   to {
-    transform: translateX(-50%) scale(1) rotate(-2deg);
+    transform: translateX(-50%) scale(1);
     opacity: 1;
   }
 }
@@ -956,10 +956,12 @@ kbd {
 
   .comic-bubble,
   .comic-bubble.guide {
-    top: 66px;
-    font-size: clamp(20px, 5vw, 28px);
-    max-width: calc(100vw - 20px);
-    padding: 12px 18px;
+    top: 62px;
+    font-size: clamp(16px, 4.1vw, 21px);
+    max-width: calc(100vw - 28px);
+    padding: 9px 14px;
+    border-width: 4px;
+    border-radius: 22px;
     background: rgba(255, 253, 242, 0.58);
     border-color: rgba(31, 43, 56, 0.52);
     box-shadow: 5px 5px 0 rgba(31, 43, 56, 0.12);
@@ -967,56 +969,81 @@ kbd {
   }
 
   .comic-bubble.with-avatar {
-    gap: 10px;
-    padding: 10px 14px 12px 10px;
+    gap: 8px;
+    min-width: min(300px, calc(100vw - 28px));
+    padding: 8px 12px 9px 8px;
   }
 
   .comic-avatar {
-    flex-basis: 58px;
-    width: 58px;
-    height: 58px;
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
     border-width: 3px;
   }
 
   .comic-avatar::before {
-    inset: 10px 9px 6px;
+    inset: 8px 7px 5px;
   }
 
   .comic-avatar .avatar-hair {
-    left: 9px;
-    right: 9px;
-    top: 7px;
-    height: 18px;
+    left: 7px;
+    right: 7px;
+    top: 6px;
+    height: 15px;
   }
 
   .comic-avatar .avatar-eye {
-    top: 29px;
-    width: 6px;
-    height: 6px;
+    top: 24px;
+    width: 5px;
+    height: 5px;
   }
 
   .comic-avatar .avatar-eye.left {
-    left: 22px;
+    left: 18px;
   }
 
   .comic-avatar .avatar-eye.right {
-    right: 22px;
+    right: 18px;
   }
 
   .comic-avatar .avatar-mouth {
-    left: 25px;
-    top: 39px;
-    width: 10px;
-    height: 6px;
+    left: 20px;
+    top: 32px;
+    width: 9px;
+    height: 5px;
+  }
+
+  .comic-avatar.avatar-ume::after {
+    right: 10px;
+    top: 10px;
+    width: 9px;
+    height: 9px;
+    box-shadow: -6px 4px 0 #ffd4df;
+  }
+
+  .comic-avatar.avatar-sora::after {
+    left: 13px;
+    right: 13px;
+    top: 8px;
+    height: 8px;
   }
 
   .comic-speaker {
-    font-size: clamp(12px, 3vw, 15px);
+    font-size: clamp(11px, 2.9vw, 13px);
+  }
+
+  .comic-text {
+    line-height: 1.12;
   }
 
   .comic-bubble::after {
     border-color: rgba(31, 43, 56, 0.52);
-    left: 72px;
+    left: 58px;
+    bottom: -19px;
+    width: 24px;
+    height: 24px;
+    border-right-width: 4px;
+    border-bottom-width: 4px;
   }
 
   .comic-bubble.success {
