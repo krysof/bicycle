@@ -3,8 +3,9 @@ import { currentTarget } from "../state/gameState.js";
 import { nt, t } from "../i18n.js";
 
 // 要和 ThreeRenderer.updateTarget() 里的黄框视觉半径保持一致：
-// 黄框半径约 4.15 个场景单位；隐形可投递范围 = 黄框半径的 5 倍。
-const VISIBLE_TARGET_RING_RADIUS_SCENE = 4.15;
+// 黄框半径约 8.3 个场景单位；隐形可投递范围 = 黄框半径的 5 倍。
+// 2026-05-28 调整：可见光圈直径扩大 1 倍，隐形投递圈同比扩大。
+const VISIBLE_TARGET_RING_RADIUS_SCENE = 8.3;
 const INVISIBLE_DELIVERY_RADIUS_MULTIPLIER = 5;
 
 export function deliveryDistance(state, target = currentTarget(state)) {

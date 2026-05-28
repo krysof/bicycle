@@ -1806,7 +1806,7 @@ export class ThreeRenderer {
     const house = this.houseMap.get(target.id);
     const x = house?.position.x ?? wx(target.x);
     const z = house?.position.z ?? wz(target.y);
-    const radius = 4.15;
+    const radius = 8.3;
     if (this.lastTargetId !== target.id) {
       this.lastTargetId = target.id;
       this.lastTargetScale = 1;
