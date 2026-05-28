@@ -21,6 +21,7 @@ export function bindTouchControls(state, onDeliver) {
   const joystick = document.getElementById("touchJoystick");
   const stick = document.getElementById("touchStick");
   const forward = document.getElementById("touchForwardBtn");
+  const back = document.getElementById("touchBackBtn");
   const deliver = document.getElementById("touchDeliverBtn");
   if (!root) return;
 
@@ -109,6 +110,32 @@ export function bindTouchControls(state, onDeliver) {
       forwardPointerId = null;
       state.touchThrottle = 0;
       forward.classList.remove("active");
+    });
+  }
+
+  if (back) {
+    let backPointerId = null;
+    const start = (event) => {
+      event.preventDefault();
+      backPointerId = event.pointerId;
+      back.setPointerCapture?.(event.pointerId);
+      state.touchThrottle = -1;
+      back.classList.add("active");
+    };
+    const end = (event) => {
+      if (backPointerId !== null && event.pointerId !== backPointerId) return;
+      event.preventDefault();
+      backPointerId = null;
+      state.touchThrottle = 0;
+      back.classList.remove("active");
+    };
+    back.addEventListener("pointerdown", start);
+    back.addEventListener("pointerup", end);
+    back.addEventListener("pointercancel", end);
+    back.addEventListener("lostpointercapture", () => {
+      backPointerId = null;
+      state.touchThrottle = 0;
+      back.classList.remove("active");
     });
   }
 

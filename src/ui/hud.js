@@ -13,6 +13,7 @@ export class Hud {
     this.endBtn = document.getElementById("endBtn");
     this.touchDeliverBtn = document.getElementById("touchDeliverBtn");
     this.touchForwardBtn = document.getElementById("touchForwardBtn");
+    this.touchBackBtn = document.getElementById("touchBackBtn");
     this.touchSteerLabel = document.getElementById("touchSteerLabel");
   }
 
@@ -23,6 +24,7 @@ export class Hud {
     this.endBtn.textContent = t("endButton");
     if (this.touchDeliverBtn) this.touchDeliverBtn.textContent = t("deliverButton");
     if (this.touchForwardBtn) this.touchForwardBtn.textContent = t("touchForward");
+    if (this.touchBackBtn) this.touchBackBtn.textContent = t("touchBack");
     if (this.touchSteerLabel) this.touchSteerLabel.textContent = t("touchSteer");
   }
 

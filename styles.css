@@ -731,6 +731,7 @@ button:disabled {
 }
 
 .touch-joystick,
+.touch-back,
 .touch-forward,
 .touch-deliver {
   user-select: none;
@@ -794,6 +795,14 @@ button:disabled {
   pointer-events: auto;
 }
 
+.touch-drive-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 132px;
+}
+
+.touch-back,
 .touch-forward,
 .touch-deliver {
   min-width: 132px;
@@ -806,12 +815,25 @@ button:disabled {
   pointer-events: auto;
 }
 
+.touch-back,
 .touch-forward {
-  min-height: 96px;
+  min-width: 0;
+  min-height: 82px;
+  width: 100%;
+  border-radius: 24px;
+  font-size: clamp(17px, 4.2vw, 24px);
+}
+
+.touch-forward {
   background: linear-gradient(180deg, #f4bd52, #d77b2f);
 }
 
-.touch-forward.active {
+.touch-back {
+  background: linear-gradient(180deg, #8fb3d9, #4f759e);
+}
+
+.touch-forward.active,
+.touch-back.active {
   transform: translateY(3px) scale(0.98);
   box-shadow: inset 0 8px 18px rgba(94, 46, 18, 0.18), 0 4px 10px rgba(31, 43, 56, 0.16);
 }
@@ -967,6 +989,7 @@ kbd {
     box-shadow: 0 8px 18px rgba(31, 43, 56, 0.12);
   }
 
+  .touch-back,
   .touch-forward,
   .touch-deliver {
     opacity: 0.78;

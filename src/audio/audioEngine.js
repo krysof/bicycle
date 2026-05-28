@@ -113,15 +113,15 @@ export class AudioEngine {
     this.master.connect(this.ctx.destination);
 
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = this.musicEnabled ? 0.46 : 0.0001;
+    this.musicGain.gain.value = this.musicEnabled ? 0.42 : 0.0001;
     this.musicGain.connect(this.master);
 
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.value = this.musicEnabled ? 0.34 : 0.0001;
+    this.ambientGain.gain.value = this.musicEnabled ? 0.50 : 0.0001;
     this.ambientGain.connect(this.master);
 
     this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = this.sfxEnabled ? 0.82 : 0.0001;
+    this.sfxGain.gain.value = this.sfxEnabled ? 1.05 : 0.0001;
     this.sfxGain.connect(this.master);
 
     this.noiseBuffer = makeNoiseBuffer(this.ctx, 2);
@@ -150,8 +150,8 @@ export class AudioEngine {
     const ctx = this.ensure();
     if (!ctx) return;
     const now = ctx.currentTime;
-    this.musicGain?.gain.setTargetAtTime(this.musicEnabled ? 0.46 : 0.0001, now, 0.08);
-    this.ambientGain?.gain.setTargetAtTime(this.musicEnabled ? 0.34 : 0.0001, now, 0.08);
+    this.musicGain?.gain.setTargetAtTime(this.musicEnabled ? 0.42 : 0.0001, now, 0.08);
+    this.ambientGain?.gain.setTargetAtTime(this.musicEnabled ? 0.50 : 0.0001, now, 0.08);
   }
 
   setSfxEnabled(enabled) {
@@ -159,7 +159,7 @@ export class AudioEngine {
     localStorage.setItem("bicycle-sfx", this.sfxEnabled ? "on" : "off");
     const ctx = this.ensure();
     if (!ctx) return;
-    this.sfxGain?.gain.setTargetAtTime(this.sfxEnabled ? 0.82 : 0.0001, ctx.currentTime, 0.04);
+    this.sfxGain?.gain.setTargetAtTime(this.sfxEnabled ? 1.05 : 0.0001, ctx.currentTime, 0.04);
     if (this.sfxEnabled) window.setTimeout(() => this.playEnableChime(), 80);
   }
 
@@ -207,7 +207,7 @@ export class AudioEngine {
     filter.frequency.value = 640;
     filter.Q.value = 0.55;
     const gain = ctx.createGain();
-    gain.gain.value = 0.035;
+    gain.gain.value = 0.052;
     source.connect(filter);
     filter.connect(gain);
     gain.connect(this.ambientGain);
@@ -282,27 +282,28 @@ export class AudioEngine {
     const ctx = this.ensure();
     if (!ctx) return;
     const now = ctx.currentTime;
-    const volume = clamp(0.025 + speed * 0.035, 0.025, 0.065);
-    this.noiseTap(now, 0.055, volume, 520, "bandpass");
-    this.tone(95, now, 0.07, volume * 0.42, "sine");
+    const volume = clamp(0.045 + speed * 0.055, 0.045, 0.105);
+    this.noiseTap(now, 0.07, volume, 580, "bandpass");
+    this.tone(95, now, 0.09, volume * 0.58, "sine");
+    this.tone(185, now + 0.018, 0.06, volume * 0.22, "triangle");
   }
 
   playFootstep(speed = 1, distant = false) {
     const ctx = this.ensure();
     if (!ctx) return;
     const now = ctx.currentTime;
-    const volume = distant ? clamp(0.006 + speed * 0.004, 0.005, 0.012) : clamp(0.025 + speed * 0.018, 0.022, 0.046);
-    this.noiseTap(now, distant ? 0.045 : 0.065, volume, distant ? 360 : 430, "lowpass");
-    if (!distant) this.tone(115, now, 0.045, volume * 0.35, "sine");
+    const volume = distant ? clamp(0.012 + speed * 0.010, 0.011, 0.026) : clamp(0.045 + speed * 0.035, 0.04, 0.082);
+    this.noiseTap(now, distant ? 0.055 : 0.075, volume, distant ? 390 : 470, "lowpass");
+    if (!distant) this.tone(115, now, 0.055, volume * 0.44, "sine");
   }
 
   playAmbientBikePass() {
     const ctx = this.ensure();
     if (!ctx) return;
     const now = ctx.currentTime;
-    this.noiseTap(now, 0.12, 0.012, 620, "bandpass", this.ambientGain);
-    this.tone(105 + Math.random() * 28, now, 0.13, 0.006, "sine", this.ambientGain);
-    this.tone(170 + Math.random() * 35, now + 0.08, 0.09, 0.004, "triangle", this.ambientGain);
+    this.noiseTap(now, 0.15, 0.026, 680, "bandpass", this.ambientGain);
+    this.tone(105 + Math.random() * 28, now, 0.15, 0.014, "sine", this.ambientGain);
+    this.tone(170 + Math.random() * 35, now + 0.08, 0.11, 0.009, "triangle", this.ambientGain);
   }
 
   playAnimalSound() {
@@ -311,14 +312,14 @@ export class AudioEngine {
     const now = ctx.currentTime;
     const pick = Math.random();
     if (pick < 0.34) {
-      this.tone(640, now, 0.12, 0.010, "triangle", this.ambientGain);
-      this.tone(820, now + 0.10, 0.10, 0.008, "triangle", this.ambientGain);
+      this.tone(640, now, 0.13, 0.022, "triangle", this.ambientGain);
+      this.tone(820, now + 0.10, 0.11, 0.018, "triangle", this.ambientGain);
     } else if (pick < 0.68) {
-      this.tone(260, now, 0.10, 0.012, "sine", this.ambientGain);
-      this.tone(210, now + 0.13, 0.12, 0.009, "sine", this.ambientGain);
+      this.tone(260, now, 0.12, 0.024, "sine", this.ambientGain);
+      this.tone(210, now + 0.13, 0.13, 0.018, "sine", this.ambientGain);
     } else {
-      this.noiseTap(now, 0.16, 0.010, 700, "bandpass", this.ambientGain);
-      this.tone(480 + Math.random() * 180, now + 0.03, 0.08, 0.006, "sine", this.ambientGain);
+      this.noiseTap(now, 0.18, 0.021, 760, "bandpass", this.ambientGain);
+      this.tone(480 + Math.random() * 180, now + 0.03, 0.09, 0.014, "sine", this.ambientGain);
     }
   }
 
@@ -327,8 +328,8 @@ export class AudioEngine {
     if (!ctx) return;
     const now = ctx.currentTime;
     const base = 1850 + Math.random() * 900;
-    this.tone(base, now, 0.08, 0.0038, "triangle", this.ambientGain);
-    this.tone(base * 1.52, now + 0.04, 0.06, 0.0028, "sine", this.ambientGain);
+    this.tone(base, now, 0.09, 0.009, "triangle", this.ambientGain);
+    this.tone(base * 1.52, now + 0.04, 0.07, 0.006, "sine", this.ambientGain);
   }
 
   playBird() {
@@ -356,7 +357,7 @@ export class AudioEngine {
     const biking = moving && bike;
     const walking = moving && walk;
     if (biking) {
-      const interval = movingForward ? 0.46 : 0.7;
+      const interval = movingForward ? 0.34 : 0.52;
       this.pedalTimer -= dt;
       if (this.pedalTimer <= 0) {
         this.playPedal(movingForward ? 1 : 0.45);
@@ -366,7 +367,7 @@ export class AudioEngine {
       this.pedalTimer = 0;
     }
     if (walking) {
-      const interval = movingForward ? 0.52 : 0.68;
+      const interval = movingForward ? 0.44 : 0.58;
       this.walkTimer -= dt;
       if (this.walkTimer <= 0) {
         this.playFootstep(movingForward ? 1 : 0.62, false);

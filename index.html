@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>今天也要送到 - 3D 陪伴送报原型</title>
-    <link rel="stylesheet" href="./styles.css?v=20260528-hud-compact" />
+    <link rel="stylesheet" href="./styles.css?v=20260528-audio-back" />
   </head>
   <body>
     <canvas id="gameCanvas" aria-label="3D 社区送报游戏画面"></canvas>
@@ -27,7 +27,10 @@
         <span id="touchSteerLabel" class="touch-joystick-label">左右</span>
       </div>
       <div class="touch-action-stack">
-        <button id="touchForwardBtn" class="touch-forward" type="button">前进</button>
+        <div class="touch-drive-row">
+          <button id="touchBackBtn" class="touch-back" type="button">后退</button>
+          <button id="touchForwardBtn" class="touch-forward" type="button">前进</button>
+        </div>
         <button id="touchDeliverBtn" class="touch-deliver" type="button">投递</button>
       </div>
     </div>
