@@ -78,6 +78,36 @@ export class App {
     setCompanionName(names[this.companionNameIndex % names.length]);
   }
 
+  companionName() {
+    const list = getLocalizedList("companionNames");
+    const names = Array.isArray(list) ? list : ["小铃"];
+    return names[this.companionNameIndex % names.length] || names[0] || "小铃";
+  }
+
+  companionAvatarClass() {
+    return ["suzu", "haru", "ume", "sora"][this.companionNameIndex % 4] || "suzu";
+  }
+
+  escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  escapeRegExp(value) {
+    return String(value ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  comicLineText(value, speakerName) {
+    let text = String(value ?? "").trim();
+    const names = [speakerName, "阿铃", "阿鈴", "Arin", "すず"].filter(Boolean).map((name) => this.escapeRegExp(name));
+    if (names.length) text = text.replace(new RegExp(`^(${names.join("|")})\\s*[:：]\\s*`), "");
+    return text;
+  }
+
   getPlayerName() {
     const input = document.getElementById("playerNameInput");
     const value = (input?.value || this.state.playerName || this.randomDefaultName()).trim();
@@ -309,9 +339,27 @@ export class App {
     const el = document.getElementById("comicBubble");
     if (!el) return;
     if (this.state.comic) {
-      el.textContent = this.state.comic.text;
-      el.className = `comic-bubble ${this.state.comic.tone || ""}`;
+      const name = this.companionName();
+      const avatar = this.companionAvatarClass();
+      const plainText = this.comicLineText(this.state.comic.text, name);
+      const text = this.escapeHtml(plainText);
+      el.innerHTML = `
+        <div class="comic-avatar avatar-${avatar}" aria-hidden="true">
+          <span class="avatar-face"></span>
+          <span class="avatar-hair"></span>
+          <span class="avatar-eye left"></span>
+          <span class="avatar-eye right"></span>
+          <span class="avatar-mouth"></span>
+        </div>
+        <div class="comic-dialog">
+          <span class="comic-speaker">${this.escapeHtml(name)}</span>
+          <span class="comic-text">${text}</span>
+        </div>`;
+      el.className = `comic-bubble with-avatar ${this.state.comic.tone || ""}`;
+      el.setAttribute("aria-label", `${name}: ${plainText}`);
     } else {
+      el.innerHTML = "";
+      el.removeAttribute("aria-label");
       el.className = "comic-bubble hidden";
     }
   }

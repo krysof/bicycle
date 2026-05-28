@@ -527,10 +527,157 @@ button:disabled {
   animation: comicPop 0.28s ease-out;
 }
 
+.comic-bubble.with-avatar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: min(520px, calc(100vw - 32px));
+  padding: 12px 24px 14px 14px;
+  text-align: left;
+  letter-spacing: 0.01em;
+}
+
+.comic-avatar {
+  position: relative;
+  flex: 0 0 78px;
+  width: 78px;
+  height: 78px;
+  border: 4px solid #1f2b38;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fff4d4, #f0c08d);
+  box-shadow: 4px 5px 0 rgba(31, 43, 56, 0.16);
+  overflow: hidden;
+}
+
+.comic-avatar::before {
+  content: "";
+  position: absolute;
+  inset: 14px 13px 8px;
+  border-radius: 50% 50% 46% 46%;
+  background: #f2c7a2;
+  z-index: 1;
+}
+
+.comic-avatar .avatar-hair {
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  top: 9px;
+  height: 25px;
+  border-radius: 52% 52% 40% 40%;
+  background: #5b4436;
+  z-index: 2;
+}
+
+.comic-avatar .avatar-eye {
+  position: absolute;
+  top: 39px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1f2b38;
+  z-index: 3;
+}
+
+.comic-avatar .avatar-eye.left {
+  left: 30px;
+}
+
+.comic-avatar .avatar-eye.right {
+  right: 30px;
+}
+
+.comic-avatar .avatar-mouth {
+  position: absolute;
+  left: 34px;
+  top: 52px;
+  width: 13px;
+  height: 7px;
+  border-bottom: 3px solid #a94d4d;
+  border-radius: 0 0 12px 12px;
+  z-index: 3;
+}
+
+.comic-avatar.avatar-suzu {
+  background: linear-gradient(145deg, #fff4d4, #f0c08d);
+}
+
+.comic-avatar.avatar-suzu .avatar-hair {
+  background: #5b4436;
+}
+
+.comic-avatar.avatar-haru {
+  background: linear-gradient(145deg, #e8f7ff, #f2c7a2);
+}
+
+.comic-avatar.avatar-haru .avatar-hair {
+  background: #746452;
+  border-radius: 45% 45% 55% 55%;
+}
+
+.comic-avatar.avatar-ume {
+  background: linear-gradient(145deg, #ffe5ee, #f2c7a2);
+}
+
+.comic-avatar.avatar-ume .avatar-hair {
+  background: #4a3a32;
+}
+
+.comic-avatar.avatar-ume::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 15px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #f28aa8;
+  box-shadow: -8px 5px 0 #ffd4df;
+  z-index: 4;
+}
+
+.comic-avatar.avatar-sora {
+  background: linear-gradient(145deg, #e8f1ff, #f1c299);
+}
+
+.comic-avatar.avatar-sora .avatar-hair {
+  background: #2f3f56;
+}
+
+.comic-avatar.avatar-sora::after {
+  content: "";
+  position: absolute;
+  left: 19px;
+  right: 19px;
+  top: 10px;
+  height: 10px;
+  border-radius: 12px;
+  background: #6fa8dc;
+  z-index: 5;
+}
+
+.comic-dialog {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.comic-speaker {
+  font-size: clamp(13px, 1.25vw, 17px);
+  font-weight: 900;
+  color: #6c5842;
+  letter-spacing: 0.04em;
+}
+
+.comic-text {
+  display: block;
+  line-height: 1.16;
+}
+
 .comic-bubble::after {
   content: "";
   position: absolute;
-  left: 54%;
+  left: 96px;
   bottom: -26px;
   width: 34px;
   height: 34px;
@@ -819,8 +966,57 @@ kbd {
     backdrop-filter: blur(6px);
   }
 
+  .comic-bubble.with-avatar {
+    gap: 10px;
+    padding: 10px 14px 12px 10px;
+  }
+
+  .comic-avatar {
+    flex-basis: 58px;
+    width: 58px;
+    height: 58px;
+    border-width: 3px;
+  }
+
+  .comic-avatar::before {
+    inset: 10px 9px 6px;
+  }
+
+  .comic-avatar .avatar-hair {
+    left: 9px;
+    right: 9px;
+    top: 7px;
+    height: 18px;
+  }
+
+  .comic-avatar .avatar-eye {
+    top: 29px;
+    width: 6px;
+    height: 6px;
+  }
+
+  .comic-avatar .avatar-eye.left {
+    left: 22px;
+  }
+
+  .comic-avatar .avatar-eye.right {
+    right: 22px;
+  }
+
+  .comic-avatar .avatar-mouth {
+    left: 25px;
+    top: 39px;
+    width: 10px;
+    height: 6px;
+  }
+
+  .comic-speaker {
+    font-size: clamp(12px, 3vw, 15px);
+  }
+
   .comic-bubble::after {
     border-color: rgba(31, 43, 56, 0.52);
+    left: 72px;
   }
 
   .comic-bubble.success {
