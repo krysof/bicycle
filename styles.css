@@ -397,7 +397,7 @@ button:disabled {
   left: 18px;
   right: auto;
   bottom: 18px;
-  width: min(470px, calc(100vw - 36px));
+  width: min(390px, calc(100vw - 36px));
   display: flex;
   justify-content: flex-start;
   pointer-events: none;
@@ -405,12 +405,12 @@ button:disabled {
 
 .hud-card {
   width: 100%;
-  border-radius: 24px;
-  background: rgba(255, 251, 238, 0.90);
-  box-shadow: var(--shadow);
-  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 251, 238, 0.84);
+  box-shadow: 0 10px 28px rgba(68, 47, 22, 0.16);
+  padding: 12px 14px;
   pointer-events: auto;
-  border: 3px solid rgba(47, 125, 92, 0.18);
+  border: 2px solid rgba(47, 125, 92, 0.16);
   backdrop-filter: blur(10px);
 }
 
@@ -420,11 +420,12 @@ button:disabled {
 }
 
 #targetName {
-  font-size: clamp(24px, 2.3vw, 32px);
+  font-size: clamp(20px, 1.9vw, 26px);
+  line-height: 1.12;
 }
 
 #targetHint {
-  font-size: clamp(16px, 1.45vw, 19px);
+  font-size: clamp(14px, 1.2vw, 17px);
   color: var(--muted);
 }
 
@@ -892,24 +893,35 @@ kbd {
 
   .hud {
     left: 8px;
-    right: 8px;
-    top: 72px;
+    right: auto;
+    top: 68px;
     bottom: auto;
-    width: auto;
-    max-height: 34vh;
+    width: min(268px, calc(100vw - 124px));
+    max-height: none;
   }
 
   .hud-card {
-    padding: 10px 12px;
-    border-radius: 18px;
-    background: rgba(255, 251, 238, 0.54);
+    padding: 7px 9px;
+    border-radius: 15px;
+    background: rgba(255, 251, 238, 0.48);
     border-color: rgba(47, 125, 92, 0.12);
-    box-shadow: 0 8px 22px rgba(68, 47, 22, 0.10);
+    box-shadow: 0 6px 16px rgba(68, 47, 22, 0.08);
     backdrop-filter: blur(6px);
   }
 
+  #hudEyebrow {
+    font-size: 11px;
+    line-height: 1;
+    margin: 0 0 2px;
+  }
+
   #targetName {
-    font-size: clamp(19px, 5vw, 24px);
+    font-size: clamp(15px, 3.9vw, 18px);
+    line-height: 1.12;
+    margin: 1px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   #targetHint {
@@ -922,8 +934,15 @@ kbd {
 
   .hud-actions {
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .hud-actions button {
+    min-height: 34px;
+    padding: 6px 8px;
+    border-radius: 12px;
+    font-size: 13px;
   }
 
   #deliverBtn {
