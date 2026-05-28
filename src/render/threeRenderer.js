@@ -257,6 +257,7 @@ export class ThreeRenderer {
     this.lastBikeAnimTime = 0;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
+    this.eraDetailCount = 0;
     this.worldLayout = createWorldLayout(1);
 
     this.createWorld();
@@ -308,6 +309,16 @@ export class ThreeRenderer {
     this.currentPlayerStyle = null;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
+    this.eraDetailCount = 0;
+  }
+
+  markEraDetail(...items) {
+    items.forEach((item) => {
+      if (!item) return;
+      item.userData.eraDetail = true;
+      this.eraDetailCount += 1;
+    });
+    return items;
   }
 
   setWorldLayout(layout) {
@@ -559,12 +570,12 @@ export class ThreeRenderer {
 
   addBuildingVariant(group, variant, roofColor, wallColor, scale) {
     const commercial = {
-      convenience: [sceneLabel("convenience"), 0x4aa3df, 0xffffff, 1.05, 1.15],
-      supermarket: [sceneLabel("supermarket"), 0xf39c34, 0xfff2d1, 1.55, 1.25],
+      convenience: [sceneLabel("convenience"), 0x3d79a8, 0xfffbef, 1.05, 1.15],
+      supermarket: [sceneLabel("supermarket"), 0xc9823d, 0xf4e4c8, 1.55, 1.25],
       hospital: [sceneLabel("hospital"), 0xf8f8ff, 0xe6f4ff, 1.45, 1.55],
       clinic: [sceneLabel("clinic"), 0x5aaa77, 0xe8f8e8, 1.2, 1.25],
       pharmacy: [sceneLabel("pharmacy"), 0x3dbb70, 0xf0fff2, 1.05, 1.15],
-      "post-office": [sceneLabel("postOffice"), 0xd94a4a, 0xfff0e8, 1.15, 1.2],
+      "post-office": [sceneLabel("postOffice"), 0xb84a42, 0xfff0e8, 1.15, 1.2],
       apartment: [sceneLabel("apartment"), 0x7890a8, 0xe8edf2, 1.25, 1.9],
       office: [sceneLabel("office"), 0x7f8fa6, 0xe9eef5, 1.15, 2.25],
       bank: [sceneLabel("bank"), 0x6678a8, 0xf0f3ff, 1.25, 1.35],
@@ -572,9 +583,9 @@ export class ThreeRenderer {
       community: [sceneLabel("community"), 0x9c7556, 0xffefcf, 1.35, 1.15],
       school: [sceneLabel("school"), 0xc78d4d, 0xfff0d4, 1.6, 1.45],
       library: [sceneLabel("library"), 0x8a6fb0, 0xf1eaff, 1.35, 1.3],
-      cafe: [sceneLabel("cafe"), 0x8b5e3c, 0xffead7, 1.0, 1.1],
-      restaurant: [sceneLabel("restaurant"), 0xd66b53, 0xffefe4, 1.2, 1.1],
-      bakery: [sceneLabel("bakery"), 0xd59a34, 0xfff0c8, 1.05, 1.1],
+      cafe: [sceneLabel("cafe"), 0x7b5438, 0xffead7, 1.0, 1.1],
+      restaurant: [sceneLabel("restaurant"), 0xb75f4c, 0xffefe4, 1.2, 1.1],
+      bakery: [sceneLabel("bakery"), 0xb98136, 0xfff0c8, 1.05, 1.1],
       barber: [sceneLabel("barber"), 0x4f91d5, 0xf5fbff, 0.95, 1.05],
       flower: [sceneLabel("flower"), 0xb86695, 0xffe6ef, 1.05, 1.05],
       bookstore: [sceneLabel("bookstore"), 0x5c7aa0, 0xe8f1ff, 1.05, 1.12],
@@ -591,7 +602,7 @@ export class ThreeRenderer {
 
     const oldStyle = variant === "old-wood";
     const modern = variant === "modern-home";
-    const chosenRoof = variant === "house-blue" ? 0x4f91d5 : variant === "house-green" ? 0x5aaa77 : variant === "house-brown" ? 0x9c7556 : roofColor;
+    const chosenRoof = variant === "house-blue" ? 0x4d6684 : variant === "house-green" ? 0x61785a : variant === "house-brown" ? 0x7b5a3d : roofColor;
     this.addHouseParts(group, chosenRoof, oldStyle ? 0xd8c3a5 : modern ? 0xf4f7f9 : wallColor, oldStyle ? 0x6b4d33 : 0x76583f, scale * (modern ? 1.08 : 1), variant);
     if (modern) {
       const balcony = new THREE.Mesh(new THREE.BoxGeometry(1.2 * scale, 0.12 * scale, 0.32 * scale), mat(0xd9dde2));
@@ -795,6 +806,88 @@ export class ThreeRenderer {
         group.add(vine);
       }
     }
+
+    this.addShowaHeiseiHomeDetails(group, scale, variant, roofColor, trimColor);
+  }
+
+  addShowaHeiseiHomeDetails(group, scale, variant = "house", roofColor = 0x8f5f4a, trimColor = 0x76583f) {
+    const metalMat = mat(0x7f898b);
+    const darkMetal = mat(0x445056);
+    const woodMat = mat(variant === "old-wood" ? 0x5d432e : 0x7a6044);
+    const shutterMat = mat(variant === "old-wood" ? 0x8c795f : 0xa9a08d);
+    const clothColors = [0xe7d6b7, 0x6b88a8, 0xc75f55, 0xf2e8d2];
+
+    // 昭和末期住宅常见的瓦片排线：密一点、颜色更沉稳，避免现代玩具感。
+    for (let i = -4; i <= 4; i += 1) {
+      const tileFront = new THREE.Mesh(new THREE.BoxGeometry(2.35 * scale, 0.024 * scale, 0.032 * scale), mat(i % 2 ? 0x4e4039 : 0x685044));
+      tileFront.position.set(0, (1.64 - Math.abs(i) * 0.027) * scale, (0.38 + i * 0.105) * scale);
+      tileFront.rotation.y = Math.PI / 4;
+      const tileBack = tileFront.clone();
+      tileBack.position.z *= -1;
+      group.add(tileFront, tileBack);
+      this.markEraDetail(tileFront, tileBack);
+    }
+
+    const sideGutterL = new THREE.Mesh(new THREE.BoxGeometry(0.055 * scale, 0.05 * scale, 2.15 * scale), metalMat);
+    sideGutterL.position.set(-1.31 * scale, 1.245 * scale, 0);
+    const sideGutterR = sideGutterL.clone();
+    sideGutterR.position.x = 1.31 * scale;
+    const rearGutter = new THREE.Mesh(new THREE.BoxGeometry(2.42 * scale, 0.045 * scale, 0.055 * scale), metalMat);
+    rearGutter.position.set(0, 1.24 * scale, -1.11 * scale);
+    const downPipeR = new THREE.Mesh(new THREE.CylinderGeometry(0.021 * scale, 0.021 * scale, 0.98 * scale, 8), darkMetal);
+    downPipeR.position.set(1.18 * scale, 0.76 * scale, 1.12 * scale);
+    group.add(sideGutterL, sideGutterR, rearGutter, downPipeR);
+    this.markEraDetail(sideGutterL, sideGutterR, rearGutter, downPipeR);
+
+    // アルミサッシ + 雨戸。60+ 日本玩家会更容易联想到旧住宅区。
+    for (const [x, y, w, h] of [[-0.55, 0.78, 0.18, 0.33], [0.18, 1.03, 0.14, 0.27]]) {
+      const left = new THREE.Mesh(new THREE.BoxGeometry(w * scale, h * scale, 0.032 * scale), shutterMat);
+      left.position.set((x - 0.34) * scale, y * scale, 1.015 * scale);
+      const right = left.clone();
+      right.position.x = (x + 0.34) * scale;
+      const sill = new THREE.Mesh(new THREE.BoxGeometry((w * 2.2) * scale, 0.035 * scale, 0.04 * scale), metalMat);
+      sill.position.set(x * scale, (y - h * 0.62) * scale, 1.03 * scale);
+      group.add(left, right, sill);
+      this.markEraDetail(left, right, sill);
+    }
+
+    const woodBand = new THREE.Mesh(new THREE.BoxGeometry(2.38 * scale, 0.13 * scale, 0.034 * scale), woodMat);
+    woodBand.position.set(0, 0.52 * scale, 1.025 * scale);
+    const baseBand = new THREE.Mesh(new THREE.BoxGeometry(2.44 * scale, 0.08 * scale, 0.035 * scale), mat(0x6f6558));
+    baseBand.position.set(0, 0.28 * scale, 1.03 * scale);
+    group.add(woodBand, baseBand);
+    this.markEraDetail(woodBand, baseBand);
+
+    const serviceBox = new THREE.Mesh(new THREE.BoxGeometry(0.16 * scale, 0.24 * scale, 0.045 * scale), mat(0xd4d7d2));
+    serviceBox.position.set(-0.78 * scale, 0.46 * scale, 1.04 * scale);
+    const wireToRoof = new THREE.Mesh(new THREE.BoxGeometry(0.025 * scale, 0.54 * scale, 0.025 * scale), darkMetal);
+    wireToRoof.position.set(-0.78 * scale, 0.82 * scale, 1.05 * scale);
+    const oldDoorStep = new THREE.Mesh(new THREE.BoxGeometry(0.56 * scale, 0.06 * scale, 0.18 * scale), mat(0x8b7a62));
+    oldDoorStep.position.set(0.58 * scale, 0.235 * scale, 1.50 * scale);
+    group.add(serviceBox, wireToRoof, oldDoorStep);
+    this.markEraDetail(serviceBox, wireToRoof, oldDoorStep);
+
+    if (variant === "modern-home" || variant === "decor") {
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(1.08 * scale, 0.035 * scale, 0.035 * scale), metalMat);
+      pole.position.set(-0.05 * scale, 1.48 * scale, 1.28 * scale);
+      group.add(pole);
+      this.markEraDetail(pole);
+      for (let i = 0; i < 3; i += 1) {
+        const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.28 * scale, 0.028 * scale), mat(clothColors[(i + (variant === "decor" ? 1 : 0)) % clothColors.length]));
+        cloth.position.set((-0.38 + i * 0.24) * scale, 1.31 * scale, 1.31 * scale);
+        cloth.rotation.z = (i - 1) * 0.04;
+        group.add(cloth);
+        this.markEraDetail(cloth);
+      }
+    }
+
+    // 门牌与旧式邮筒增强“有人住”的感觉。
+    const houseNumber = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.09 * scale, 0.024 * scale), mat(0xf6edd1));
+    houseNumber.position.set(1.06 * scale, 0.62 * scale, 1.045 * scale);
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.18 * scale, 0.022 * scale, 0.014 * scale), mat(0x7b4d3d));
+    slot.position.set(1.55 * scale, 0.43 * scale, 1.18 * scale);
+    group.add(houseNumber, slot);
+    this.markEraDetail(houseNumber, slot);
   }
 
   addCommercialDetails(group, scale, w, d, h, variant) {
@@ -865,6 +958,60 @@ export class ThreeRenderer {
         line.position.set(i * 0.52 * scale, 0.08 * scale, d / 2 + 0.22 * scale);
         group.add(line);
       }
+    }
+
+    this.addShowaHeiseiCommercialDetails(group, scale, w, d, h, variant);
+  }
+
+  addShowaHeiseiCommercialDetails(group, scale, w, d, h, variant) {
+    if (variant === "parking") return;
+    const shutterMat = mat(0xb8b0a2);
+    const shutterDark = mat(0x7a756c);
+    const woodMat = mat(0x735338);
+    const clothColor = variant === "fish-shop" ? 0x315f86 : variant === "bathhouse" ? 0x2d7aa0 : variant === "bakery" ? 0xb86655 : 0x3d79b7;
+
+    // 商店街常见的卷帘门 / 横向铁皮纹。
+    const shutter = new THREE.Mesh(new THREE.BoxGeometry(w * 0.34, h * 0.34, 0.035 * scale), shutterMat);
+    shutter.position.set(-w * 0.31, h * 0.22, d / 2 + 0.075 * scale);
+    group.add(shutter);
+    this.markEraDetail(shutter);
+    for (let i = 0; i < 6; i += 1) {
+      const slat = new THREE.Mesh(new THREE.BoxGeometry(w * 0.33, 0.018 * scale, 0.038 * scale), shutterDark);
+      slat.position.set(-w * 0.31, (h * 0.09 + i * h * 0.045), d / 2 + 0.095 * scale);
+      group.add(slat);
+      this.markEraDetail(slat);
+    }
+
+    // 暖簾 / 小布帘，比现代招牌更有昭和～平成初期的生活感。
+    for (let i = -1; i <= 1; i += 1) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(w * 0.15, 0.30 * scale, 0.032 * scale), mat(clothColor));
+      panel.position.set((i * w * 0.14) + w * 0.12, h * 0.37, d / 2 + 0.19 * scale);
+      panel.rotation.z = i * 0.035;
+      group.add(panel);
+      this.markEraDetail(panel);
+    }
+
+    const oldSign = new THREE.Mesh(new THREE.BoxGeometry(0.23 * scale, 0.92 * scale, 0.055 * scale), woodMat);
+    oldSign.position.set(w / 2 + 0.10 * scale, h * 0.50, d / 2 + 0.11 * scale);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.10 * scale, 12, 8), mat(0xffe6b0));
+    lamp.position.set(w * 0.38, h * 0.58, d / 2 + 0.16 * scale);
+    group.add(oldSign, lamp);
+    this.markEraDetail(oldSign, lamp);
+
+    const crateColor = ["fish-shop", "supermarket", "flower"].includes(variant) ? 0x6b8b5c : 0x9a6b42;
+    for (let i = 0; i < 3; i += 1) {
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.28 * scale, 0.16 * scale, 0.22 * scale), mat(crateColor));
+      crate.position.set((w * 0.29 + i * 0.24 * scale), 0.13 * scale, d / 2 + 0.25 * scale);
+      crate.castShadow = true;
+      group.add(crate);
+      this.markEraDetail(crate);
+    }
+
+    if (["apartment", "office", "bank", "school", "hospital"].includes(variant)) {
+      const entranceCanopy = new THREE.Mesh(new THREE.BoxGeometry(w * 0.42, 0.10 * scale, 0.34 * scale), mat(0x77828a));
+      entranceCanopy.position.set(0, h * 0.34, d / 2 + 0.20 * scale);
+      group.add(entranceCanopy);
+      this.markEraDetail(entranceCanopy);
     }
   }
 
@@ -1938,7 +2085,36 @@ export class ThreeRenderer {
     this.scene.add(g);
   }
   addStoneLantern(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); const stone=mat(COLORS.stone); const base=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.18,0.36),stone); base.position.y=0.09; const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.65,8),stone); pole.position.y=0.48; const top=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.25,0.4),stone); top.position.y=0.86; g.add(base,pole,top); this.scene.add(g); }
-  addUtilityPole(x,z){ const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,2.8,12),mat(COLORS.wood)); pole.position.set(x,1.4,z); pole.castShadow=true; this.scene.add(pole); const arm=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.07,0.07),mat(COLORS.wood)); arm.position.set(x,2.55,z); this.scene.add(arm); }
+  addUtilityPole(x,z){
+    const wood = mat(COLORS.wood);
+    const wireMat = mat(0x2f3338);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,2.8,12),wood);
+    pole.position.set(x,1.4,z);
+    pole.castShadow=true;
+    this.scene.add(pole);
+    const arm=new THREE.Mesh(new THREE.BoxGeometry(1.36,0.07,0.07),wood);
+    arm.position.set(x,2.55,z);
+    const arm2=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.06,1.08),wood);
+    arm2.position.set(x,2.37,z);
+    const transformer=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.17,0.30,12),mat(0x7d8588));
+    transformer.position.set(x+0.36,2.28,z);
+    transformer.rotation.z=Math.PI/2;
+    this.scene.add(arm,arm2,transformer);
+    this.markEraDetail(pole, arm, arm2, transformer);
+
+    for (const [dy, dz, len] of [[0.18, -0.23, 4.4], [0.06, 0, 4.0], [-0.06, 0.23, 4.4]]) {
+      const wire = new THREE.Mesh(new THREE.BoxGeometry(len,0.018,0.018),wireMat);
+      wire.position.set(x,2.55+dy,z+dz);
+      this.scene.add(wire);
+      this.markEraDetail(wire);
+    }
+    for (const [dx, dy, len] of [[-0.34, 0.02, 1.7], [0.34, -0.04, 1.55]]) {
+      const sideWire = new THREE.Mesh(new THREE.BoxGeometry(0.018,0.018,len),wireMat);
+      sideWire.position.set(x+dx,2.36+dy,z);
+      this.scene.add(sideWire);
+      this.markEraDetail(sideWire);
+    }
+  }
   addSign(x,z,text){ const sign=this.makeSign(text,0.95,0.58); sign.position.set(x,0,z); this.scene.add(sign); }
   makeSign(text,w,h){ const g=new THREE.Group(); const board=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.08),mat(0x5d7b57)); board.position.y=0.95; g.add(board); const post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.82,8),mat(COLORS.wood)); post.position.y=0.42; g.add(post); const label=makeCanvasLabel(text,"#fff7db"); label.position.set(0,0.98,0.08); label.scale.set(w*1.2,h*0.5,1); g.add(label); return g; }
 }
