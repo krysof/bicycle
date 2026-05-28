@@ -474,7 +474,7 @@ export class App {
     this.updateThoughtHint();
     this.updateNavigationHint();
     const renderInfo = this.renderer.render(this.state);
-    this.audio.update(this.state, dt);
+    this.audio.update(this.state, dt, renderInfo);
     this.updateSafetyHint(renderInfo);
     this.updateComic();
     requestAnimationFrame((time) => this.loop(time));

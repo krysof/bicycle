@@ -91,6 +91,11 @@ export class AudioEngine {
     this.birdTimer = 0;
     this.petalTimer = 0;
     this.pedalTimer = 0;
+    this.walkTimer = 0;
+    this.passerStepTimer = 1.2;
+    this.passerBikeTimer = 1.8;
+    this.animalTimer = 2.4;
+    this.insectTimer = 1.6;
     this.lastDeliveredCount = 0;
     this.wasFlying = false;
     this.isEnabled = false;
@@ -226,7 +231,7 @@ export class AudioEngine {
     osc.stop(start + duration + 0.03);
   }
 
-  noiseTap(start, duration, gainValue, filterFreq = 900, filterType = "bandpass") {
+  noiseTap(start, duration, gainValue, filterFreq = 900, filterType = "bandpass", destination = this.sfxGain) {
     const ctx = this.ensure();
     if (!ctx) return;
     const source = ctx.createBufferSource();
@@ -241,7 +246,7 @@ export class AudioEngine {
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     source.connect(filter);
     filter.connect(gain);
-    gain.connect(this.sfxGain);
+    gain.connect(destination);
     source.start(start);
     source.stop(start + duration + 0.03);
   }
@@ -282,6 +287,50 @@ export class AudioEngine {
     this.tone(95, now, 0.07, volume * 0.42, "sine");
   }
 
+  playFootstep(speed = 1, distant = false) {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const volume = distant ? clamp(0.006 + speed * 0.004, 0.005, 0.012) : clamp(0.025 + speed * 0.018, 0.022, 0.046);
+    this.noiseTap(now, distant ? 0.045 : 0.065, volume, distant ? 360 : 430, "lowpass");
+    if (!distant) this.tone(115, now, 0.045, volume * 0.35, "sine");
+  }
+
+  playAmbientBikePass() {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.noiseTap(now, 0.12, 0.012, 620, "bandpass", this.ambientGain);
+    this.tone(105 + Math.random() * 28, now, 0.13, 0.006, "sine", this.ambientGain);
+    this.tone(170 + Math.random() * 35, now + 0.08, 0.09, 0.004, "triangle", this.ambientGain);
+  }
+
+  playAnimalSound() {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const pick = Math.random();
+    if (pick < 0.34) {
+      this.tone(640, now, 0.12, 0.010, "triangle", this.ambientGain);
+      this.tone(820, now + 0.10, 0.10, 0.008, "triangle", this.ambientGain);
+    } else if (pick < 0.68) {
+      this.tone(260, now, 0.10, 0.012, "sine", this.ambientGain);
+      this.tone(210, now + 0.13, 0.12, 0.009, "sine", this.ambientGain);
+    } else {
+      this.noiseTap(now, 0.16, 0.010, 700, "bandpass", this.ambientGain);
+      this.tone(480 + Math.random() * 180, now + 0.03, 0.08, 0.006, "sine", this.ambientGain);
+    }
+  }
+
+  playInsectWing() {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const base = 1850 + Math.random() * 900;
+    this.tone(base, now, 0.08, 0.0038, "triangle", this.ambientGain);
+    this.tone(base * 1.52, now + 0.04, 0.06, 0.0028, "sine", this.ambientGain);
+  }
+
   playBird() {
     const ctx = this.ensure();
     if (!ctx) return;
@@ -297,13 +346,16 @@ export class AudioEngine {
     this.noiseTap(ctx.currentTime, 0.32, 0.018, 2100, "highpass");
   }
 
-  update(state, dt) {
+  update(state, dt, ambientInfo = null) {
     if (!this.started || !this.ctx) return;
     const movingForward = state.keys?.has("arrowup") || state.keys?.has("w") || (state.touchThrottle || 0) > 0.05;
-    const movingBack = state.keys?.has("arrowdown") || state.keys?.has("s");
+    const movingBack = state.keys?.has("arrowdown") || state.keys?.has("s") || (state.touchThrottle || 0) < -0.05;
     const bike = state.config?.moveMode === "bike";
-    const moving = state.isPlaying && !state.isPaused && bike && (movingForward || movingBack);
-    if (moving) {
+    const walk = state.config?.moveMode === "walk";
+    const moving = state.isPlaying && !state.isPaused && (movingForward || movingBack);
+    const biking = moving && bike;
+    const walking = moving && walk;
+    if (biking) {
       const interval = movingForward ? 0.46 : 0.7;
       this.pedalTimer -= dt;
       if (this.pedalTimer <= 0) {
@@ -312,6 +364,16 @@ export class AudioEngine {
       }
     } else {
       this.pedalTimer = 0;
+    }
+    if (walking) {
+      const interval = movingForward ? 0.52 : 0.68;
+      this.walkTimer -= dt;
+      if (this.walkTimer <= 0) {
+        this.playFootstep(movingForward ? 1 : 0.62, false);
+        this.walkTimer = interval;
+      }
+    } else {
+      this.walkTimer = 0;
     }
 
     const flying = Boolean(state.delivery?.active);
@@ -333,6 +395,40 @@ export class AudioEngine {
     if (this.petalTimer <= 0) {
       this.playPetalRustle();
       this.petalTimer = 5 + Math.random() * 7;
+    }
+
+    const playing = state.isPlaying && !state.isPaused;
+    if (!playing) return;
+
+    const pedestrianCount = ambientInfo?.pedestrianCount ?? 0;
+    const cyclistCount = ambientInfo?.cyclistCount ?? 0;
+    const animalCount = ambientInfo?.animalCount ?? 0;
+    const insectCount = ambientInfo?.insectCount ?? 0;
+    const near = ambientInfo?.nearPasserby;
+
+    this.passerStepTimer -= dt;
+    if (pedestrianCount > 0 && this.passerStepTimer <= 0) {
+      const nearBoost = near === "pedestrian" ? 0.75 : 1;
+      this.playFootstep(0.55, true);
+      this.passerStepTimer = (1.2 + Math.random() * 1.1) * nearBoost / clamp(pedestrianCount / 18, 0.75, 1.35);
+    }
+
+    this.passerBikeTimer -= dt;
+    if (cyclistCount > 0 && this.passerBikeTimer <= 0) {
+      this.playAmbientBikePass();
+      this.passerBikeTimer = (2.0 + Math.random() * 2.2) / clamp(cyclistCount / 6, 0.75, 1.45);
+    }
+
+    this.animalTimer -= dt;
+    if (animalCount > 0 && this.animalTimer <= 0) {
+      this.playAnimalSound();
+      this.animalTimer = (3.0 + Math.random() * 4.5) / clamp(animalCount / 8, 0.8, 1.35);
+    }
+
+    this.insectTimer -= dt;
+    if (insectCount > 0 && this.insectTimer <= 0) {
+      this.playInsectWing();
+      this.insectTimer = (1.8 + Math.random() * 2.4) / clamp(insectCount / 14, 0.85, 1.35);
     }
   }
 }

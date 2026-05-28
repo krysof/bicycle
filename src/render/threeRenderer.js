@@ -1241,7 +1241,15 @@ export class ThreeRenderer {
       if (d < best && d < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = d; near = item.kind; }
     });
 
-    this.lastAmbientInfo = near ? { nearPasserby: near, distance: best } : null;
+    this.lastAmbientInfo = {
+      nearPasserby: near,
+      distance: near ? best : Infinity,
+      passerCount: this.passers.length,
+      pedestrianCount: this.passers.filter((item) => item.kind === "pedestrian").length,
+      cyclistCount: this.passers.filter((item) => item.kind === "cyclist").length,
+      animalCount: this.animals.length,
+      insectCount: this.insects.length,
+    };
   }
 
   addPlayer() {
