@@ -657,6 +657,125 @@ button:disabled {
   z-index: 5;
 }
 
+.comic-avatar.avatar-neighbor {
+  background: linear-gradient(145deg, #fff7d7, #d9c09a);
+}
+
+.comic-avatar.avatar-neighbor::before {
+  background: #f0c08d;
+}
+
+.comic-avatar.avatar-neighbor .avatar-hair {
+  background: #5b4638;
+}
+
+.comic-avatar.neighbor-female {
+  background: linear-gradient(145deg, #fff1f6, #e8c0a8);
+}
+
+.comic-avatar.neighbor-female .avatar-hair {
+  left: 10px;
+  right: 10px;
+  top: 8px;
+  height: 34px;
+  border-radius: 48% 48% 58% 58%;
+}
+
+.comic-avatar.neighbor-female::after {
+  content: "";
+  position: absolute;
+  right: 15px;
+  top: 15px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e85f79;
+  box-shadow: -7px 4px 0 #ffd4df;
+  z-index: 5;
+}
+
+.comic-avatar.neighbor-male .avatar-hair {
+  height: 22px;
+  border-radius: 50% 50% 36% 36%;
+}
+
+.comic-avatar.neighbor-male .avatar-eye::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -5px;
+  width: 17px;
+  height: 9px;
+  border: 2px solid rgba(31, 43, 56, 0.55);
+  border-radius: 9px;
+}
+
+.comic-avatar.neighbor-couple {
+  background: linear-gradient(145deg, #fff4dc, #d7e9ff);
+}
+
+.comic-avatar.neighbor-couple::before {
+  inset: 16px 35px 9px 7px;
+}
+
+.comic-avatar.neighbor-couple .avatar-hair:not(.second) {
+  left: 7px;
+  right: 35px;
+  top: 10px;
+}
+
+.comic-avatar.neighbor-couple .avatar-eye.left:not(.second) {
+  left: 19px;
+}
+
+.comic-avatar.neighbor-couple .avatar-eye.right:not(.second) {
+  right: 45px;
+}
+
+.comic-avatar.neighbor-couple .avatar-mouth:not(.second) {
+  left: 22px;
+}
+
+.comic-avatar .avatar-face.second {
+  position: absolute;
+  inset: 14px 7px 8px 35px;
+  border-radius: 50% 50% 46% 46%;
+  background: #f2c7a2;
+  z-index: 1;
+}
+
+.comic-avatar .avatar-hair.second {
+  left: 35px;
+  right: 7px;
+  top: 8px;
+  height: 30px;
+  border-radius: 48% 48% 58% 58%;
+  background: #4a3a32;
+}
+
+.comic-avatar .avatar-eye.second.left {
+  left: 46px;
+}
+
+.comic-avatar .avatar-eye.second.right {
+  right: 18px;
+}
+
+.comic-avatar .avatar-mouth.second {
+  left: 50px;
+}
+
+.comic-avatar.neighbor-tanaka { background: linear-gradient(145deg, #ffe2c4, #c85f4d); }
+.comic-avatar.neighbor-suzuki { background: linear-gradient(145deg, #ffe6ef, #b86695); }
+.comic-avatar.neighbor-yamamoto { background: linear-gradient(145deg, #deeeff, #4f91d5); }
+.comic-avatar.neighbor-kobayashi { background: linear-gradient(145deg, #ddf4df, #5aaa77); }
+.comic-avatar.neighbor-sato { background: linear-gradient(145deg, #fff0c8, #d59a34); }
+.comic-avatar.neighbor-mori { background: linear-gradient(145deg, #e9e8ff, #7b87c8); }
+.comic-avatar.neighbor-ito { background: linear-gradient(145deg, #e7f4d6, #6fa66a); }
+.comic-avatar.neighbor-watanabe { background: linear-gradient(145deg, #ffefd8, #b77a42); }
+.comic-avatar.neighbor-nakamura { background: linear-gradient(145deg, #ffe8e5, #da7c86); }
+.comic-avatar.neighbor-kato { background: linear-gradient(145deg, #e0f6fb, #5c9ab5); }
+
 .comic-dialog {
   display: grid;
   gap: 2px;
@@ -1070,6 +1189,66 @@ kbd {
     right: 13px;
     top: 8px;
     height: 8px;
+  }
+
+  .comic-avatar.neighbor-female .avatar-hair {
+    left: 6px;
+    right: 6px;
+    top: 5px;
+    height: 21px;
+  }
+
+  .comic-avatar.neighbor-female::after {
+    right: 9px;
+    top: 9px;
+    width: 8px;
+    height: 8px;
+    box-shadow: -5px 3px 0 #ffd4df;
+  }
+
+  .comic-avatar.neighbor-couple::before {
+    inset: 9px 21px 5px 4px;
+  }
+
+  .comic-avatar.neighbor-couple .avatar-hair:not(.second) {
+    left: 4px;
+    right: 21px;
+    top: 6px;
+  }
+
+  .comic-avatar.neighbor-couple .avatar-eye.left:not(.second) {
+    left: 11px;
+  }
+
+  .comic-avatar.neighbor-couple .avatar-eye.right:not(.second) {
+    right: 27px;
+  }
+
+  .comic-avatar.neighbor-couple .avatar-mouth:not(.second) {
+    left: 13px;
+  }
+
+  .comic-avatar .avatar-face.second {
+    inset: 8px 4px 5px 21px;
+  }
+
+  .comic-avatar .avatar-hair.second {
+    left: 21px;
+    right: 4px;
+    top: 5px;
+    height: 19px;
+  }
+
+  .comic-avatar .avatar-eye.second.left {
+    left: 28px;
+  }
+
+  .comic-avatar .avatar-eye.second.right {
+    right: 11px;
+  }
+
+  .comic-avatar .avatar-mouth.second {
+    left: 30px;
   }
 
   .comic-speaker {

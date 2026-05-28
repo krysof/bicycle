@@ -1,6 +1,7 @@
 export const neighbors = [
   {
     id: "tanaka",
+    recipient: { gender: "male", avatar: "tanaka" },
     name: "田中先生",
     x: -3600,
     y: -2820,
@@ -22,6 +23,7 @@ export const neighbors = [
   },
   {
     id: "suzuki",
+    recipient: { gender: "female", avatar: "suzuki" },
     name: "铃木女士",
     x: -2450,
     y: -2820,
@@ -43,6 +45,7 @@ export const neighbors = [
   },
   {
     id: "yamamoto",
+    recipient: { gender: "couple", avatar: "yamamoto" },
     name: "山本夫妇",
     x: -1050,
     y: -2820,
@@ -64,6 +67,7 @@ export const neighbors = [
   },
   {
     id: "kobayashi",
+    recipient: { gender: "male", avatar: "kobayashi" },
     name: "小林医生",
     x: -360,
     y: -1740,
@@ -85,6 +89,7 @@ export const neighbors = [
   },
   {
     id: "sato",
+    recipient: { gender: "male", avatar: "sato" },
     name: "佐藤先生",
     x: 960,
     y: -1740,
@@ -106,6 +111,7 @@ export const neighbors = [
   },
   {
     id: "mori",
+    recipient: { gender: "female", avatar: "mori" },
     name: "森女士",
     x: 2150,
     y: -660,
@@ -127,6 +133,7 @@ export const neighbors = [
   },
   {
     id: "ito",
+    recipient: { gender: "male", avatar: "ito" },
     name: "伊藤先生",
     x: 3450,
     y: 420,
@@ -148,6 +155,7 @@ export const neighbors = [
   },
   {
     id: "watanabe",
+    recipient: { gender: "couple", avatar: "watanabe" },
     name: "渡边夫妇",
     x: 1250,
     y: 1500,
@@ -169,6 +177,7 @@ export const neighbors = [
   },
   {
     id: "nakamura",
+    recipient: { gender: "female", avatar: "nakamura" },
     name: "中村女士",
     x: -1280,
     y: 1500,
@@ -190,6 +199,7 @@ export const neighbors = [
   },
   {
     id: "kato",
+    recipient: { gender: "male", avatar: "kato" },
     name: "加藤先生",
     x: -3300,
     y: 420,

@@ -44,6 +44,12 @@ export function requestDelivery(state) {
       targetId: target.id,
       targetName: nt(target, "name"),
       thanks: nt(target, "thanks"),
+      recipient: {
+        id: target.id,
+        name: nt(target, "name"),
+        gender: target.recipient?.gender || "male",
+        avatar: target.recipient?.avatar || target.id,
+      },
       start: { x: state.player.x + (dx / len) * 45, y: state.player.y + (dy / len) * 45 },
       end: { x: targetX, y: targetY },
     };
@@ -72,10 +78,19 @@ export function updateDelivery(state, dt) {
 
   const deliveredId = state.delivery.targetId;
   const thanks = state.delivery.thanks;
+  const recipient = state.delivery.recipient || { id: deliveredId, name: state.delivery.targetName };
   state.delivered.push(deliveredId);
-  state.houseReaction = { id: deliveredId, time: 1.3 };
-  state.comic = { text: t("comicSuccess"), tone: "success", time: 1.4 };
-  state.message = t("delivered", thanks);
+  state.houseReaction = { id: deliveredId, time: 1.6 };
+  state.comic = {
+    text: thanks,
+    tone: "success neighbor-thanks",
+    time: 2.8,
+    speaker: "neighbor",
+    speakerName: recipient.name,
+    neighborId: recipient.id,
+    recipient,
+  };
+  state.message = thanks;
   state.delivery = null;
   return { completed: !currentTarget(state), delivered: true };
 }

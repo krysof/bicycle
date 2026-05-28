@@ -88,6 +88,30 @@ export class App {
     return ["suzu", "haru", "ume", "sora"][this.companionNameIndex % 4] || "suzu";
   }
 
+  neighborAvatarClass(comic) {
+    const recipient = comic?.recipient || {};
+    const gender = recipient.gender || "male";
+    const avatar = recipient.avatar || comic?.neighborId || "neighbor";
+    return `avatar-neighbor neighbor-${gender} neighbor-${avatar}`;
+  }
+
+  comicSpeakerInfo(comic) {
+    if (comic?.speaker === "neighbor") {
+      const name = comic.speakerName || comic.recipient?.name || "";
+      return {
+        name,
+        avatarClass: this.neighborAvatarClass(comic),
+        kind: "neighbor",
+      };
+    }
+    const name = this.companionName();
+    return {
+      name,
+      avatarClass: `avatar-${this.companionAvatarClass()}`,
+      kind: "companion",
+    };
+  }
+
   escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -339,17 +363,25 @@ export class App {
     const el = document.getElementById("comicBubble");
     if (!el) return;
     if (this.state.comic) {
-      const name = this.companionName();
-      const avatar = this.companionAvatarClass();
+      const speaker = this.comicSpeakerInfo(this.state.comic);
+      const name = speaker.name;
+      const avatar = speaker.avatarClass;
       const plainText = this.comicLineText(this.state.comic.text, name);
       const text = this.escapeHtml(plainText);
       el.innerHTML = `
-        <div class="comic-avatar avatar-${avatar}" aria-hidden="true">
+        <div class="comic-avatar ${avatar}" aria-hidden="true">
           <span class="avatar-face"></span>
           <span class="avatar-hair"></span>
           <span class="avatar-eye left"></span>
           <span class="avatar-eye right"></span>
           <span class="avatar-mouth"></span>
+          ${speaker.kind === "neighbor" && this.state.comic.recipient?.gender === "couple" ? `
+            <span class="avatar-face second"></span>
+            <span class="avatar-hair second"></span>
+            <span class="avatar-eye second left"></span>
+            <span class="avatar-eye second right"></span>
+            <span class="avatar-mouth second"></span>
+          ` : ""}
         </div>
         <div class="comic-dialog">
           <span class="comic-speaker">${this.escapeHtml(name)}</span>
