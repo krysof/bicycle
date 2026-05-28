@@ -894,31 +894,30 @@ kbd {
   .hud {
     left: 8px;
     right: auto;
-    top: 68px;
+    top: 132px;
     bottom: auto;
-    width: min(268px, calc(100vw - 124px));
+    width: min(214px, calc(100vw - 170px));
     max-height: none;
   }
 
   .hud-card {
-    padding: 7px 9px;
-    border-radius: 15px;
-    background: rgba(255, 251, 238, 0.48);
+    padding: 4px 6px;
+    border-radius: 13px;
+    background: rgba(255, 251, 238, 0.38);
     border-color: rgba(47, 125, 92, 0.12);
-    box-shadow: 0 6px 16px rgba(68, 47, 22, 0.08);
+    border-width: 1px;
+    box-shadow: 0 5px 13px rgba(68, 47, 22, 0.07);
     backdrop-filter: blur(6px);
   }
 
   #hudEyebrow {
-    font-size: 11px;
-    line-height: 1;
-    margin: 0 0 2px;
+    display: none;
   }
 
   #targetName {
-    font-size: clamp(15px, 3.9vw, 18px);
-    line-height: 1.12;
-    margin: 1px 0 0;
+    font-size: clamp(13px, 3.35vw, 15px);
+    line-height: 1.08;
+    margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -934,15 +933,15 @@ kbd {
 
   .hud-actions {
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-top: 6px;
+    gap: 4px;
+    margin-top: 3px;
   }
 
   .hud-actions button {
-    min-height: 34px;
-    padding: 6px 8px;
-    border-radius: 12px;
-    font-size: 13px;
+    min-height: 24px;
+    padding: 2px 5px;
+    border-radius: 9px;
+    font-size: 11px;
   }
 
   #deliverBtn {
