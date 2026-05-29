@@ -15,6 +15,10 @@ export class Hud {
     this.touchForwardBtn = document.getElementById("touchForwardBtn");
     this.touchBackBtn = document.getElementById("touchBackBtn");
     this.touchSteerLabel = document.getElementById("touchSteerLabel");
+    this.easyModeBtn = document.getElementById("easyModeBtn");
+    this.locateBtn = document.getElementById("locateBtn");
+    this.autoForwardBtn = document.getElementById("autoForwardBtn");
+    this.contrastBtn = document.getElementById("contrastBtn");
   }
 
   show() {
@@ -26,6 +30,10 @@ export class Hud {
     if (this.touchForwardBtn) this.touchForwardBtn.textContent = t("touchForward");
     if (this.touchBackBtn) this.touchBackBtn.textContent = t("touchBack");
     if (this.touchSteerLabel) this.touchSteerLabel.textContent = t("touchSteer");
+    if (this.easyModeBtn) this.easyModeBtn.textContent = t("easyMode");
+    if (this.locateBtn) this.locateBtn.textContent = t("locateTarget");
+    if (this.autoForwardBtn) this.autoForwardBtn.textContent = t("autoForward");
+    if (this.contrastBtn) this.contrastBtn.textContent = t("highContrast");
   }
 
   hide() {
@@ -45,5 +53,8 @@ export class Hud {
     }
     this.companionLine.textContent = state.message;
     this.pauseBtn.textContent = state.isPaused ? t("resume") : t("pause");
+    this.easyModeBtn?.classList.toggle("selected", Boolean(state.easyMode));
+    this.autoForwardBtn?.classList.toggle("selected", Boolean(state.autoForward));
+    this.contrastBtn?.classList.toggle("selected", Boolean(state.highContrast));
   }
 }

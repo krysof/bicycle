@@ -170,6 +170,10 @@ export function createWorldLayout(seed = Date.now()) {
     lots,
     trees: generateTrees(rand, lots),
     landmarks: generateLandmarks(rand),
+    atmosphere: {
+      timeOfDay: pick(rand, ["morning", "morning", "dusk"]),
+      weather: pick(rand, ["clear", "clear", "breeze", "afterRain"]),
+    },
   };
 }
 

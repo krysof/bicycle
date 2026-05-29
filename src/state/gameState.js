@@ -16,6 +16,12 @@ export function createInitialState() {
     keys: new Set(),
     touchThrottle: 0,
     touchSteer: 0,
+    autoForward: false,
+    easyMode: false,
+    highContrast: false,
+    familyMessage: "",
+    gratitudeCards: [],
+    memoryPrompt: null,
     isPlaying: false,
     isPaused: false,
     message: "阿铃：今天见到你真高兴。",
@@ -29,6 +35,7 @@ export function createInitialState() {
     lastThoughtDeliveryIndex: -1,
     summaryEarly: false,
     lastSafetyHintAt: -99,
+    lastRestHintAt: -99,
   };
 }
 

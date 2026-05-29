@@ -350,9 +350,12 @@ export class ThreeRenderer {
   }
 
   addLights() {
-    this.scene.add(new THREE.HemisphereLight(0xfffff5, 0x8fc486, 2.4));
-    const sun = new THREE.DirectionalLight(0xffefc0, 2.7);
-    sun.position.set(-35, 55, 30);
+    const atmosphere = this.worldLayout?.atmosphere || {};
+    const dusk = atmosphere.timeOfDay === "dusk";
+    this.scene.fog.color.setHex(dusk ? 0xf1d7c7 : 0xdff2ff);
+    this.scene.add(new THREE.HemisphereLight(dusk ? 0xffe6d2 : 0xfffff5, 0x8fc486, dusk ? 2.05 : 2.4));
+    const sun = new THREE.DirectionalLight(dusk ? 0xffb37a : 0xffefc0, dusk ? 2.35 : 2.7);
+    sun.position.set(dusk ? -58 : -35, dusk ? 34 : 55, dusk ? 44 : 30);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.left = -120; sun.shadow.camera.right = 120; sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
@@ -360,10 +363,19 @@ export class ThreeRenderer {
   }
 
   addSkyDetails() {
+    const atmosphere = this.worldLayout?.atmosphere || {};
+    const dusk = atmosphere.timeOfDay === "dusk";
     const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSunTexture(), transparent: true, depthWrite: false, fog: false }));
-    sun.position.set(-72, 48, -96);
-    sun.scale.set(19, 19, 1);
+    sun.position.set(dusk ? -92 : -72, dusk ? 30 : 48, -96);
+    sun.scale.set(dusk ? 24 : 19, dusk ? 24 : 19, 1);
     this.scene.add(sun);
+
+    if (dusk) {
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(260, 52), mat(0xffb28a, 0.22));
+      glow.position.set(0, 14, -119);
+      glow.rotation.x = -0.08;
+      this.scene.add(glow);
+    }
 
 
     const cloudSpriteMat = new THREE.SpriteMaterial({ map: makeCloudTexture(), transparent: true, opacity: 0.92, depthWrite: false, fog: false });
@@ -450,6 +462,7 @@ export class ThreeRenderer {
     for (const z of ROAD_Z) this.addStreet("h", z);
     for (const x of ROAD_X) this.addStreet("v", x);
     // 移除窄小斜路，只保留整齐、宽阔的道路网。
+    this.addStreetFurniture();
   }
 
   addStreet(direction, pos) {
@@ -525,8 +538,138 @@ export class ThreeRenderer {
     this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 2.65, TARGET_VARIANTS[n.id] || "house-red");
     const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
+    this.addDeliveryReactionObjects(group, n);
     this.registerOccluder(group);
     this.scene.add(group); this.houseMap.set(n.id, group);
+  }
+
+  addStreetFurniture() {
+    for (const x of ROAD_X) {
+      for (const z of ROAD_Z) {
+        if ((x + z) % 64 === 0) this.addCrosswalk(x, z, "h");
+        if ((x - z) % 64 === 0) this.addCrosswalk(x, z, "v");
+      }
+    }
+    [[-64, -56], [-32, 32], [32, -32], [64, 56], [96, 8], [-96, 8]].forEach(([x, z], i) => {
+      this.addRoadMirror(x + (i % 2 ? -6.2 : 6.2), z + 5.8);
+      this.addStopMark(x, z + (i % 2 ? -4.8 : 4.8));
+    });
+    [[-82, 12], [-44, -36], [18, 60], [74, -12]].forEach(([x, z]) => this.addNoticeBoard(x, z));
+    [[-58, 30], [48, -58], [88, 30]].forEach(([x, z]) => this.addGarbageStation(x, z));
+    [[-18, -62], [88, 66]].forEach(([x, z]) => this.addPhoneBooth(x, z));
+    if (this.worldLayout?.atmosphere?.weather === "afterRain") {
+      [[-42, -24], [12, 0], [58, 48], [-86, 72], [80, -48], [-12, 24]].forEach(([x, z], i) => this.addPuddle(x, z, i));
+    }
+  }
+
+  addPuddle(x, z, i = 0) {
+    const puddle = new THREE.Mesh(new THREE.CircleGeometry(0.75 + (i % 3) * 0.24, 18), mat(0x9fd3e8, 0.34));
+    puddle.position.set(x, 0.091, z);
+    puddle.rotation.x = -Math.PI / 2;
+    puddle.scale.z = 0.42 + (i % 2) * 0.16;
+    this.scene.add(puddle);
+  }
+
+  addCrosswalk(x, z, direction = "h") {
+    for (let i = -3; i <= 3; i += 1) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(direction === "h" ? 0.55 : 5.2, 0.018, direction === "h" ? 5.2 : 0.55), mat(0xf4f1e6));
+      stripe.position.set(x + (direction === "h" ? i * 0.82 : 0), 0.085, z + (direction === "h" ? 0 : i * 0.82));
+      stripe.receiveShadow = true;
+      this.scene.add(stripe);
+    }
+  }
+
+  addRoadMirror(x, z) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 1.8, 8), mat(0x7d8588));
+    pole.position.set(x, 0.9, z);
+    const mirror = new THREE.Mesh(new THREE.SphereGeometry(0.28, 18, 12), mat(0xff8f3a, 0.9));
+    mirror.scale.set(1, 0.84, 0.18);
+    mirror.position.set(x, 1.82, z);
+    this.scene.add(pole, mirror);
+  }
+
+  addStopMark(x, z) {
+    const mark = makeCanvasLabel("止", "#ffffff");
+    mark.position.set(x, 0.092, z);
+    mark.rotation.x = -Math.PI / 2;
+    mark.scale.set(1.0, 0.62, 1);
+    this.scene.add(mark);
+  }
+
+  addNoticeBoard(x, z) {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.82, 0.08), mat(0x7b5a3d));
+    board.position.y = 0.88;
+    const paperA = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.02), mat(0xfff7d7));
+    paperA.position.set(-0.32, 0.9, 0.055);
+    const paperB = paperA.clone(); paperB.position.x = 0.26; paperB.material = mat(0xe8f1ff);
+    const legs = [-0.48, 0.48].map((px) => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.78, 0.08), mat(COLORS.wood)); leg.position.set(px, 0.38, 0); return leg; });
+    g.add(board, paperA, paperB, ...legs);
+    this.scene.add(g);
+  }
+
+  addGarbageStation(x, z) {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.16, 0.72), mat(0x879082));
+    base.position.set(x, 0.12, z);
+    const net = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.04, 0.68), mat(0x2f9b6d, 0.42));
+    net.position.set(x, 0.26, z);
+    const bins = [-0.35, 0.2].map((dx, i) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.28), mat(i ? 0x4f91d5 : 0xd59a34)); b.position.set(x + dx, 0.25, z); return b; });
+    this.scene.add(base, net, ...bins);
+  }
+
+  addPhoneBooth(x, z) {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.78, 1.65, 0.78), mat(0x91d7c6, 0.45));
+    body.position.y = 0.9;
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.14, 0.92), mat(0x4f7d6d));
+    roof.position.y = 1.77;
+    const phone = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.34, 0.08), mat(0x2f3338));
+    phone.position.set(0, 0.9, 0.41);
+    g.add(body, roof, phone);
+    this.scene.add(g);
+  }
+
+  addDeliveryReactionObjects(group, n) {
+    const recipient = n.recipient || { gender: "male" };
+    const color = Number.parseInt(n.roof.slice(1), 16);
+    const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(0.66, 1.18, 0.035), mat(0x6b4d33));
+    doorPanel.position.set(1.55, 0.92, 2.70);
+    doorPanel.visible = false;
+    const windowGlow = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.58, 0.04), mat(0xfff09a, 0.62));
+    windowGlow.position.set(-1.45, 2.10, 2.72);
+    windowGlow.visible = false;
+
+    const resident = new THREE.Group();
+    resident.position.set(0.15, 0, 3.42);
+    resident.visible = false;
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.58, 5, 12), mat(color));
+    body.position.y = 0.76;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 10), mat(0xf0c08d));
+    head.position.y = 1.25;
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 8), mat(recipient.gender === "female" ? 0x4a3a32 : 0x5b4638));
+    hair.scale.set(1.05, recipient.gender === "female" ? 0.75 : 0.42, 1);
+    hair.position.y = 1.34;
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.36, 4, 8), mat(0xf0c08d));
+    arm.position.set(0.23, 1.0, 0.04);
+    arm.rotation.z = -0.85;
+    resident.add(body, head, hair, arm);
+
+    const cat = new THREE.Group();
+    cat.position.set(-1.25, 0.12, 3.36);
+    cat.visible = false;
+    const catBody = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 8), mat(0xd59a55));
+    catBody.scale.set(1.25, 0.7, 0.8);
+    const catHead = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), mat(0xd59a55));
+    catHead.position.set(0.22, 0.08, 0);
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.38, 8), mat(0xd59a55));
+    tail.position.set(-0.24, 0.16, 0);
+    tail.rotation.z = 0.8;
+    cat.add(catBody, catHead, tail);
+
+    group.add(doorPanel, windowGlow, resident, cat);
+    group.userData.reactionParts = { doorPanel, windowGlow, resident, cat };
   }
 
   addDecorHouse(x, z, roof, wall, scale = 1) {
@@ -1391,12 +1534,26 @@ export class ThreeRenderer {
     this.lastAmbientInfo = {
       nearPasserby: near,
       distance: near ? best : Infinity,
+      area: this.currentArea(px, pz),
       passerCount: this.passers.length,
       pedestrianCount: this.passers.filter((item) => item.kind === "pedestrian").length,
       cyclistCount: this.passers.filter((item) => item.kind === "cyclist").length,
       animalCount: this.animals.length,
       insectCount: this.insects.length,
     };
+  }
+
+  currentArea(px, pz) {
+    const landmarks = this.worldLayout?.landmarks || {};
+    const riverX = landmarks.riverX ?? -102;
+    if (Math.abs(px - riverX) < 11) return "river";
+    const [parkX, parkZ] = landmarks.park || [-78, 58];
+    if (Math.hypot(px - parkX, pz - parkZ) < 18) return "park";
+    const [shopX, shopZ] = landmarks.shop || [-70, -68];
+    if (Math.hypot(px - shopX, pz - shopZ) < 18) return "shop";
+    const [shrineX, shrineZ] = landmarks.shrine || [88, 58];
+    if (Math.hypot(px - shrineX, pz - shrineZ) < 18) return "shrine";
+    return "street";
   }
 
   addPlayer() {
@@ -1779,13 +1936,38 @@ export class ThreeRenderer {
 
   updateHouseReaction(state) {
     if (this.reactionSprite) this.reactionSprite.visible = false;
-    this.houseMap.forEach((group) => group.scale.lerp(new THREE.Vector3(1, 1, 1), 0.18));
+    this.houseMap.forEach((group) => {
+      group.scale.lerp(new THREE.Vector3(1, 1, 1), 0.18);
+      const parts = group.userData.reactionParts || {};
+      Object.values(parts).forEach((part) => { if (part) part.visible = false; });
+    });
     const reaction = state.houseReaction;
     if (!reaction) return;
     const group = this.houseMap.get(reaction.id);
     if (!group) return;
     const pulse = 1 + Math.sin((state.floatTime || 0) * 18) * 0.045;
     group.scale.setScalar(pulse);
+    const parts = group.userData.reactionParts || {};
+    const bob = Math.sin((state.floatTime || 0) * 10) * 0.08;
+    if (reaction.type === "window" && parts.windowGlow) {
+      parts.windowGlow.visible = true;
+      parts.windowGlow.material.opacity = 0.52 + Math.sin((state.floatTime || 0) * 8) * 0.14;
+    }
+    if ((reaction.type === "door" || reaction.type === "resident") && parts.doorPanel) {
+      parts.doorPanel.visible = true;
+      parts.doorPanel.rotation.y = -0.7;
+    }
+    if ((reaction.type === "door" || reaction.type === "resident") && parts.resident) {
+      parts.resident.visible = true;
+      parts.resident.position.y = Math.max(0, bob);
+      const arm = parts.resident.children?.[3];
+      if (arm) arm.rotation.z = -0.8 + Math.sin((state.floatTime || 0) * 12) * 0.36;
+    }
+    if (reaction.type === "cat" && parts.cat) {
+      parts.cat.visible = true;
+      parts.cat.position.y = 0.12 + Math.abs(Math.sin((state.floatTime || 0) * 7)) * 0.08;
+      parts.cat.rotation.y = Math.sin((state.floatTime || 0) * 5) * 0.18;
+    }
     if (this.reactionSprite) {
       this.reactionSprite.visible = true;
       this.reactionSprite.position.set(group.position.x, 6.8 + Math.sin((state.floatTime || 0) * 8) * 0.25, group.position.z);

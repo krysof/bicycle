@@ -96,6 +96,8 @@ export class AudioEngine {
     this.passerBikeTimer = 1.8;
     this.animalTimer = 2.4;
     this.insectTimer = 1.6;
+    this.areaTimer = 3.0;
+    this.lastArea = "street";
     this.lastDeliveredCount = 0;
     this.wasFlying = false;
     this.isEnabled = false;
@@ -347,6 +349,26 @@ export class AudioEngine {
     this.noiseTap(ctx.currentTime, 0.32, 0.018, 2100, "highpass");
   }
 
+  playAreaSound(area = "street") {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    if (area === "river") {
+      this.noiseTap(now, 0.55, 0.020, 520, "bandpass", this.ambientGain);
+      this.noiseTap(now + 0.18, 0.42, 0.012, 340, "lowpass", this.ambientGain);
+    } else if (area === "park") {
+      this.playBird();
+      this.tone(920 + Math.random() * 160, now + 0.16, 0.12, 0.008, "sine", this.ambientGain);
+    } else if (area === "shop") {
+      this.tone(880, now, 0.08, 0.014, "triangle", this.ambientGain);
+      this.tone(1320, now + 0.09, 0.08, 0.010, "triangle", this.ambientGain);
+      this.noiseTap(now + 0.18, 0.18, 0.010, 900, "bandpass", this.ambientGain);
+    } else if (area === "shrine") {
+      this.tone(1046.5, now, 0.35, 0.010, "sine", this.ambientGain);
+      this.tone(1568, now + 0.28, 0.42, 0.008, "sine", this.ambientGain);
+    }
+  }
+
   update(state, dt, ambientInfo = null) {
     if (!this.started || !this.ctx) return;
     const movingForward = state.keys?.has("arrowup") || state.keys?.has("w") || (state.touchThrottle || 0) > 0.05;
@@ -406,6 +428,7 @@ export class AudioEngine {
     const animalCount = ambientInfo?.animalCount ?? 0;
     const insectCount = ambientInfo?.insectCount ?? 0;
     const near = ambientInfo?.nearPasserby;
+    const area = ambientInfo?.area || "street";
 
     this.passerStepTimer -= dt;
     if (pedestrianCount > 0 && this.passerStepTimer <= 0) {
@@ -430,6 +453,13 @@ export class AudioEngine {
     if (insectCount > 0 && this.insectTimer <= 0) {
       this.playInsectWing();
       this.insectTimer = (1.8 + Math.random() * 2.4) / clamp(insectCount / 14, 0.85, 1.35);
+    }
+
+    this.areaTimer -= dt;
+    if (area !== "street" && this.areaTimer <= 0) {
+      this.playAreaSound(area);
+      this.areaTimer = area === this.lastArea ? 6 + Math.random() * 7 : 2.2 + Math.random() * 2.5;
+      this.lastArea = area;
     }
   }
 }

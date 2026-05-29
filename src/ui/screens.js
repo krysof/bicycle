@@ -1,4 +1,14 @@
 import { t } from "../i18n.js";
+
+function esc(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export class Screens {
   constructor(root) {
     this.root = root;
@@ -27,6 +37,7 @@ export class Screens {
     const yesterday = last
       ? t("greetingLast", last.count)
       : t("greetingFirst");
+    const familyMessage = record.familyMessage || "";
 
     this.root.innerHTML = `
       <section class="screen narrow home-screen simple-home">
@@ -36,8 +47,13 @@ export class Screens {
         <p class="lead">${playerName ? t("companionHelloNamed", playerName, yesterday) : t("companionHello", yesterday)}</p>
         <label class="name-field">
           <span>${t("playerNameLabel")}</span>
-          <input id="playerNameInput" type="text" maxlength="24" value="${playerName}" autocomplete="name" />
+          <input id="playerNameInput" type="text" maxlength="24" value="${esc(playerName)}" autocomplete="name" />
           <em>${t("playerNameHelp")}</em>
+        </label>
+        <label class="name-field family-field">
+          <span>${t("familyMessageLabel")}</span>
+          <input id="familyMessageInput" type="text" maxlength="80" value="${esc(familyMessage)}" placeholder="${esc(t("familyMessagePlaceholder"))}" />
+          <em>${t("familyMessageHelp")}</em>
         </label>
         <div class="status-panel" aria-label="${t("statusQuestion")}">
           <p class="status-title">${t("statusQuestion")}</p>
@@ -67,6 +83,7 @@ export class Screens {
 
   summary(state, early) {
     const count = state.delivered.length;
+    const cards = state.gratitudeCards || [];
     this.root.innerHTML = `
       <section class="screen narrow">
         <p class="eyebrow">${t("todaySummary")}</p>
@@ -77,8 +94,17 @@ export class Screens {
           <div class="card"><strong>${state.config?.routeNameKey ? t(state.config.routeNameKey) : (state.config?.routeName || "Route")}</strong><p>${t("route")}</p></div>
           <div class="card"><strong>${state.config?.moveMode === "bike" ? t("modeBike") : t("modeWalk")}</strong><p>${t("mode")}</p></div>
         </div>
+        <section class="thank-card-list" aria-label="${t("thankCardTitle")}">
+          <h2>${t("thankCardTitle")}</h2>
+          ${cards.length ? cards.map((card) => `
+            <article class="thank-card">
+              <strong>${esc(t("thankCardFrom", card.name))}</strong>
+              <p>${esc(card.text)}</p>
+            </article>`).join("") : `<p class="tiny-note">${esc(t("shareText", count))}</p>`}
+        </section>
         <div class="button-row">
           <button class="primary" data-action="home">${t("home")}</button>
+          <button data-action="share-card">${t("shareCard")}</button>
           <button data-mode="walk">${t("walkAgain")}</button>
           <button data-mode="bike">${t("bikeAgain")}</button>
         </div>

@@ -80,7 +80,9 @@ export function updateDelivery(state, dt) {
   const thanks = state.delivery.thanks;
   const recipient = state.delivery.recipient || { id: deliveredId, name: state.delivery.targetName };
   state.delivered.push(deliveredId);
-  state.houseReaction = { id: deliveredId, time: 1.6 };
+  const reactionTypes = ["door", "window", "resident", "cat"];
+  const reactionType = reactionTypes[(state.delivered.length + deliveredId.length) % reactionTypes.length];
+  state.houseReaction = { id: deliveredId, time: 1.9, type: reactionType, recipient };
   state.comic = {
     text: thanks,
     tone: "success neighbor-thanks",
@@ -107,6 +109,7 @@ export function updatePlayer(state, dt) {
   if (state.touchThrottle) throttle += state.touchThrottle > 0 ? state.touchThrottle : state.touchThrottle * reverseFactor;
   if (state.keys.has("arrowup") || state.keys.has("w")) throttle = Math.max(throttle, 1);
   if (state.keys.has("arrowdown") || state.keys.has("s")) throttle = Math.min(throttle, -reverseFactor);
+  if (state.autoForward && throttle >= 0 && !state.delivery?.active) throttle = Math.max(throttle, state.easyMode ? 0.42 : 0.62);
 
   let turn = state.touchSteer || 0;
   // 第三人称“生化危机式”控制：左键向画面左侧转，右键向画面右侧转。

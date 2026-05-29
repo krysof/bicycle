@@ -224,6 +224,10 @@ export class App {
         this.setTodayStatus(button.dataset.status);
         return;
       }
+      if (button.dataset.action === "share-card") {
+        this.copyShareCard();
+        return;
+      }
       if (button.dataset.mode) this.startWithMode(button.dataset.mode);
       if (button.dataset.quick) this.startWithMode(button.dataset.quick === "active" ? "bike" : "walk");
       if (button.dataset.action === "home") this.showHome();
@@ -232,6 +236,10 @@ export class App {
     this.hud.deliverBtn.addEventListener("click", () => this.deliver());
     this.hud.pauseBtn.addEventListener("click", () => this.togglePause());
     this.hud.endBtn.addEventListener("click", () => this.showSummary(true));
+    this.hud.easyModeBtn?.addEventListener("click", () => this.toggleEasyMode());
+    this.hud.locateBtn?.addEventListener("click", () => this.locateTarget());
+    this.hud.autoForwardBtn?.addEventListener("click", () => this.toggleAutoForward());
+    this.hud.contrastBtn?.addEventListener("click", () => this.toggleHighContrast());
   }
 
   prepareRandomWorld() {
@@ -256,6 +264,7 @@ export class App {
   setTodayStatus(status) {
     if (!["tired", "normal", "good"].includes(status)) return;
     this.savePlayerName(this.getPlayerName());
+    this.saveFamilyMessage();
     this.state.todayStatus = status;
     this.prepareRoutesForModeSelection();
     const preview = this.state.preparedRuns.bike || this.state.preparedRuns.walk;
@@ -266,6 +275,19 @@ export class App {
       this.state.delivered = [];
     }
     this.screens.home(loadRecord(), this.state.playerName, this.state.todayStatus);
+  }
+
+  getFamilyMessage() {
+    return (document.getElementById("familyMessageInput")?.value || this.state.familyMessage || "").trim();
+  }
+
+  saveFamilyMessage() {
+    const message = this.getFamilyMessage();
+    this.state.familyMessage = message;
+    const record = loadRecord();
+    record.familyMessage = message;
+    saveRecord(record);
+    return message;
   }
 
   showTitle() {
@@ -313,6 +335,7 @@ export class App {
   startWithMode(mode) {
     this.audio.start();
     this.savePlayerName(this.getPlayerName());
+    this.saveFamilyMessage();
     if (!this.state.preparedRuns?.[mode]) this.prepareRoutesForModeSelection();
     const prepared = this.state.preparedRuns[mode];
     this.state.answers = { ...prepared.answers };
@@ -321,9 +344,12 @@ export class App {
     this.state.player = { ...prepared.player };
     this.state.route = [...prepared.route];
     this.state.delivered = [];
+    this.state.gratitudeCards = [];
     this.state.delivery = null;
     this.state.comic = null;
     this.state.houseReaction = null;
+    this.state.memoryPrompt = null;
+    this.state.autoForward = false;
     this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
     this.state.lastThoughtDeliveryIndex = -1;
     this.startGame();
@@ -339,6 +365,8 @@ export class App {
     this.state.lastNavHintAt = this.state.floatTime;
     this.state.nextThoughtAt = this.state.floatTime + 8 + Math.random() * 6;
     this.state.lastThoughtDeliveryIndex = -1;
+    this.state.familyMessageDue = this.state.familyMessage ? this.state.floatTime + 4.2 : null;
+    this.state.landscapeHintDue = window.matchMedia?.("(max-width: 760px) and (orientation: portrait)")?.matches ? this.state.floatTime + 2.4 : null;
     this.screens.clear();
     this.hud.show();
     this.showTouchControls();
@@ -349,6 +377,7 @@ export class App {
     if (!this.state.isPlaying || this.state.isPaused) return;
     this.audio.start();
     requestDelivery(this.state);
+    if (navigator.vibrate) navigator.vibrate(18);
     this.hud.update(this.state);
   }
 
@@ -396,6 +425,78 @@ export class App {
     }
   }
 
+  toggleEasyMode() {
+    this.state.easyMode = !this.state.easyMode;
+    if (this.state.config) {
+      const baseSpeed = this.state.config.baseSpeed || this.state.config.speed;
+      this.state.config.baseSpeed = baseSpeed;
+      this.state.config.defaultAssistRadius ||= this.state.config.assistRadius;
+      this.state.config.speed = this.state.easyMode ? baseSpeed * 0.72 : baseSpeed;
+      this.state.config.assistRadius = this.state.easyMode ? Math.max(360, this.state.config.assistRadius || 260) : (this.state.config.defaultAssistRadius || this.state.config.assistRadius);
+    }
+    const key = this.state.easyMode ? "easyModeOn" : "easyModeOff";
+    this.state.message = t(key);
+    this.state.comic = { text: t(key), tone: "guide", time: 2.6 };
+    this.hud.update(this.state);
+  }
+
+  locateTarget() {
+    const target = currentTarget(this.state);
+    if (!target) return;
+    const tx = target.deliveryX ?? target.x;
+    const ty = target.deliveryY ?? target.y;
+    const angle = Math.atan2(ty - this.state.player.y, tx - this.state.player.x);
+    this.state.player.headingAngle = angle;
+    this.state.player.headingX = Math.cos(angle);
+    this.state.player.headingY = Math.sin(angle);
+    this.state.lastNavHintAt = this.state.floatTime - 99;
+    this.state.message = t("locateHint", nt(target, "name"));
+    this.state.comic = { text: this.state.message, tone: "guide", time: 2.4 };
+    this.hud.update(this.state);
+  }
+
+  toggleAutoForward() {
+    this.state.autoForward = !this.state.autoForward;
+    const key = this.state.autoForward ? "autoForwardOn" : "autoForwardOff";
+    this.state.message = t(key);
+    this.state.comic = { text: t(key), tone: "guide", time: 2.3 };
+    this.hud.update(this.state);
+  }
+
+  toggleHighContrast() {
+    this.state.highContrast = !this.state.highContrast;
+    document.body.classList.toggle("high-contrast", this.state.highContrast);
+    const key = this.state.highContrast ? "contrastOn" : "contrastOff";
+    this.state.message = t(key);
+    this.state.comic = { text: t(key), tone: "guide", time: 2.3 };
+    this.hud.update(this.state);
+  }
+
+  addGratitudeCard() {
+    const id = this.state.delivered.at(-1);
+    const neighbor = neighbors.find((item) => item.id === id);
+    if (!neighbor) return;
+    const text = nt(neighbor, "thanks").replace(new RegExp(`^${this.escapeRegExp(nt(neighbor, "name"))}\\s*[:：]\\s*`), "");
+    this.state.gratitudeCards.push({ id, name: nt(neighbor, "name"), text });
+    this.state.memoryPrompt = {
+      due: this.state.floatTime + 3.5,
+      name: nt(neighbor, "name"),
+      paper: nt(neighbor, "paper"),
+    };
+  }
+
+  async copyShareCard() {
+    const text = t("shareText", this.state.delivered.length);
+    try {
+      await navigator.clipboard?.writeText(text);
+    } catch {
+      // Clipboard may be unavailable on some browsers; still provide visible feedback.
+    }
+    this.state.message = t("shareCopied");
+    this.state.comic = { text: t("shareCopied"), tone: "guide", time: 2.5 };
+    this.updateComic();
+  }
+
   updateSafetyHint(renderInfo) {
     const near = renderInfo?.nearPasserby;
     if (!near || !this.state.isPlaying || this.state.isPaused || this.state.comic) return;
@@ -404,6 +505,16 @@ export class App {
     this.state.message = t(key);
     this.state.comic = { text: t(key), tone: "guide", time: 2.8 };
     this.state.lastSafetyHintAt = this.state.floatTime;
+    this.hud.update(this.state);
+  }
+
+  updateRestPointHint(renderInfo) {
+    const area = renderInfo?.area;
+    if (!["park", "shop", "shrine"].includes(area) || !this.state.isPlaying || this.state.isPaused || this.state.comic) return;
+    if ((this.state.floatTime - (this.state.lastRestHintAt ?? -99)) < 18) return;
+    this.state.message = t("restPointHint");
+    this.state.comic = { text: t("restPointHint"), tone: "guide", time: 2.8 };
+    this.state.lastRestHintAt = this.state.floatTime;
     this.hud.update(this.state);
   }
 
@@ -457,6 +568,33 @@ export class App {
     this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
   }
 
+  updateMemoryPrompt() {
+    const prompt = this.state.memoryPrompt;
+    if (!prompt || this.state.comic || this.state.floatTime < prompt.due) return;
+    const text = t("memoryPrompt", prompt.name, prompt.paper);
+    this.state.comic = { text, tone: "thought", time: 3.0 };
+    this.state.message = text;
+    this.state.memoryPrompt = null;
+    this.hud.update(this.state);
+  }
+
+  updateTimedCompanionPrompts() {
+    if (!this.state.isPlaying || this.state.isPaused || this.state.comic) return;
+    if (this.state.landscapeHintDue && this.state.floatTime >= this.state.landscapeHintDue) {
+      this.state.landscapeHintDue = null;
+      this.state.message = t("landscapeHint");
+      this.state.comic = { text: t("landscapeHint"), tone: "guide", time: 3.0 };
+      this.hud.update(this.state);
+      return;
+    }
+    if (this.state.familyMessageDue && this.state.floatTime >= this.state.familyMessageDue) {
+      this.state.familyMessageDue = null;
+      this.state.message = t("familyMessageRead", this.state.familyMessage);
+      this.state.comic = { text: this.state.message, tone: "guide", time: 3.4 };
+      this.hud.update(this.state);
+    }
+  }
+
   showSummary(early) {
     this.state.screen = "summary";
     this.state.summaryEarly = early;
@@ -476,6 +614,8 @@ export class App {
       thanks: count,
       mode: this.state.config?.moveMode || "walk",
     };
+    record.lastThanks = this.state.gratitudeCards || [];
+    record.familyMessage = this.state.familyMessage || record.familyMessage || "";
     saveRecord(record);
     this.screens.summary(this.state, early);
   }
@@ -485,8 +625,10 @@ export class App {
     const deliver = document.getElementById("touchDeliverBtn");
     const forward = document.getElementById("touchForwardBtn");
     const steer = document.getElementById("touchSteerLabel");
+    const back = document.getElementById("touchBackBtn");
     if (deliver) deliver.textContent = t("deliverButton");
     if (forward) forward.textContent = t("touchForward");
+    if (back) back.textContent = t("touchBack");
     if (steer) steer.textContent = t("touchSteer");
   }
 
@@ -502,11 +644,15 @@ export class App {
     this.state.floatTime += dt;
     updatePlayer(this.state, dt);
     const deliveryResult = updateDelivery(this.state, dt);
-    if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 650);
+    if (deliveryResult.delivered) this.addGratitudeCard();
+    if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 2600);
+    this.updateTimedCompanionPrompts();
+    this.updateMemoryPrompt();
     this.updateThoughtHint();
     this.updateNavigationHint();
     const renderInfo = this.renderer.render(this.state);
     this.audio.update(this.state, dt, renderInfo);
+    this.updateRestPointHint(renderInfo);
     this.updateSafetyHint(renderInfo);
     this.updateComic();
     requestAnimationFrame((time) => this.loop(time));
