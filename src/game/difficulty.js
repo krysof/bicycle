@@ -1,3 +1,6 @@
+import { ROAD_SEGMENTS, WORLD_SCALE } from "../data/world.js";
+import { BUILDING_LOTS_OSM } from "../data/kitaeguchiMap.js";
+
 const MODE_PROFILES = {
   walk: { energy: "normal", hands: "ok", duration: "5", moveMode: "walk", count: 4 },
   bike: { energy: "good", hands: "ok", duration: "8", moveMode: "bike", count: 6 },
@@ -27,6 +30,24 @@ function shuffle(list) {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+function roadStartPoints() {
+  const blocked = (x, z) => BUILDING_LOTS_OSM.some((lot) => Math.abs(lot.x - x) < (lot.frontage || 6) * 0.85 && Math.abs(lot.z - z) < (lot.depth || 6) * 0.85);
+  return ROAD_SEGMENTS
+    .filter((seg) => Math.hypot((seg.x2 ?? seg.x) - (seg.x1 ?? seg.x), (seg.z2 ?? seg.z) - (seg.z1 ?? seg.z)) > 46)
+    .filter((seg) => seg.main)
+    .map((seg, i) => ({ seg, i }))
+    .filter(({ i }) => i % 3 === 0)
+    .map(({ seg }) => {
+      const t = 0.45;
+      const x = seg.x1 + (seg.x2 - seg.x1) * t;
+      const z = seg.z1 + (seg.z2 - seg.z1) * t;
+      const angle = Math.atan2(seg.z2 - seg.z1, seg.x2 - seg.x1);
+      return { x: x / WORLD_SCALE, y: z / WORLD_SCALE, angle };
+    })
+    .filter((p) => !blocked(p.x * WORLD_SCALE, p.y * WORLD_SCALE))
+    .slice(0, 16);
 }
 
 export function answersFromMode(mode = "walk") {
@@ -67,7 +88,8 @@ export function buildConfig(answers) {
 }
 
 export function pickStartPoint() {
-  const point = START_POINTS[randInt(0, START_POINTS.length - 1)];
+  const points = roadStartPoints();
+  const point = (points.length ? points : START_POINTS)[randInt(0, (points.length ? points : START_POINTS).length - 1)];
   const angle = point.angle + (Math.random() - 0.5) * 0.22;
   return {
     x: point.x,

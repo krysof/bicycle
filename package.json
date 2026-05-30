@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "npx vite --host 0.0.0.0 --port 5173",
-    "dev": "npx vite --host 0.0.0.0 --port 5173",
+    "start": "npx vite@5.4.0 --host 0.0.0.0 --port 5173",
+    "dev": "npx vite@5.4.0 --host 0.0.0.0 --port 5173",
+    "generate:map": "node tools/generate-kitaeguchi-osm.mjs",
     "check": "node --check src/main.js"
   },
   "devDependencies": {

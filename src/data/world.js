@@ -1,57 +1,21 @@
 import { neighbors } from "./neighbors.js";
+import { BUILDING_LOTS_OSM, ROAD_INTERSECTIONS_OSM, ROAD_SEGMENTS_OSM, RAIL_SEGMENTS_OSM, WATER_SEGMENTS_OSM } from "./kitaeguchiMap.js";
 
 export const WORLD_SCALE = 1 / 45;
-export const WORLD_BOUNDS = { minX: -16740, maxX: 16740, minY: -12675, maxY: 12675 };
-export const PLAYER_RADIUS = { walk: 52, bike: 72 };
 export const MAP_W = 744;
 export const MAP_D = 563;
-export const ROAD_X = [-328, -236, -162, -96, -38, 24, 88, 156, 236, 316];
-export const ROAD_Z = [-232, -172, -116, -64, -18, 44, 112, 188, 244];
-export const ROAD_SEGMENTS = [
-  { dir: "h", z: -232, x1: -356, x2: 344, main: true },
-  { dir: "h", z: -116, x1: -356, x2: 322, main: true },
-  { dir: "h", z: 44, x1: -330, x2: 344, main: true },
-  { dir: "h", z: 188, x1: -356, x2: 344, main: true },
-  { dir: "h", z: -172, x1: -324, x2: -82 },
-  { dir: "h", z: -64, x1: -260, x2: 118 },
-  { dir: "h", z: -18, x1: 20, x2: 286 },
-  { dir: "h", z: 112, x1: -318, x2: -28 },
-  { dir: "h", z: 244, x1: 86, x2: 344 },
-  { dir: "v", x: -328, z1: -250, z2: 210, main: true },
-  { dir: "v", x: -96, z1: -250, z2: 226, main: true },
-  { dir: "v", x: 88, z1: -238, z2: 262, main: true },
-  { dir: "v", x: 316, z1: -250, z2: 250, main: true },
-  { dir: "v", x: -236, z1: -232, z2: -58 },
-  { dir: "v", x: -162, z1: -186, z2: 54 },
-  { dir: "v", x: -38, z1: -116, z2: 118 },
-  { dir: "v", x: 24, z1: -70, z2: 196 },
-  { dir: "v", x: 156, z1: -116, z2: 52 },
-  { dir: "v", x: 236, z1: -24, z2: 244 },
-];
+export const WORLD_BOUNDS = { minX: -MAP_W / (2 * WORLD_SCALE), maxX: MAP_W / (2 * WORLD_SCALE), minY: -MAP_D / (2 * WORLD_SCALE), maxY: MAP_D / (2 * WORLD_SCALE) };
+export const PLAYER_RADIUS = { walk: 52, bike: 72 };
 
-const BUILDING_VARIANTS = [
-  "house-red", "house-blue", "house-green", "house-brown", "modern-home", "old-wood",
-  "convenience", "supermarket", "hospital", "clinic", "pharmacy", "post-office",
-  "apartment", "office", "bank", "police", "community", "school",
-  "library", "cafe", "restaurant", "bakery", "barber", "flower",
-  "bookstore", "fish-shop", "bathhouse", "parking",
-];
+// OpenStreetMap から抽出した北江口周辺の実道路。dir:"line" は任意角度の道路。
+export const ROAD_SEGMENTS = ROAD_SEGMENTS_OSM.map((seg) => ({ ...seg, dir: "line" }));
+export const RAIL_SEGMENTS = RAIL_SEGMENTS_OSM;
+export const WATER_SEGMENTS = WATER_SEGMENTS_OSM;
+export const ROAD_INTERSECTIONS = ROAD_INTERSECTIONS_OSM;
 
-const ROOF_COLORS = [0xc85f4d, 0xd59a34, 0x4f91d5, 0x5aaa77, 0xb86695, 0x9c7556, 0x5c9ab5];
-const WALL_COLORS = [0xffe3c2, 0xe8f3ff, 0xe7f4d6, 0xffe8ef, 0xfff0c8, 0xe7f6f4, 0xf4f1e9];
-
-const SERVICE_LOTS = [
-  { id: "service-convenience", x: -272, z: 230, orientation: "h", variant: "convenience", scale: 1.08, roof: 0x3d79a8, wall: 0xfffbef, frontage: 8.4, depth: 6.2 },
-  { id: "service-supermarket", x: -176, z: 230, orientation: "h", variant: "supermarket", scale: 1.05, roof: 0xc9823d, wall: 0xf4e4c8, frontage: 10.2, depth: 7.0 },
-  { id: "service-hospital", x: -80, z: 230, orientation: "h", variant: "hospital", scale: 1.04, roof: 0xf8f8ff, wall: 0xe6f4ff, frontage: 10.0, depth: 7.0 },
-  { id: "service-school", x: 80, z: -230, orientation: "h", variant: "school", scale: 1.02, roof: 0xc78d4d, wall: 0xfff0d4, frontage: 11.0, depth: 7.4 },
-  { id: "service-post-office", x: 176, z: 230, orientation: "h", variant: "post-office", scale: 1.04, roof: 0xb84a42, wall: 0xfff0e8, frontage: 8.0, depth: 6.0 },
-  { id: "service-police", x: 272, z: -230, orientation: "h", variant: "police", scale: 1.02, roof: 0x4f91d5, wall: 0xffffff, frontage: 7.2, depth: 5.8 },
-  { id: "service-pharmacy", x: -304, z: -230, orientation: "h", variant: "pharmacy", scale: 1.03, roof: 0x3dbb70, wall: 0xf0fff2, frontage: 7.8, depth: 5.8 },
-  { id: "service-bathhouse", x: 304, z: 134, orientation: "h", variant: "bathhouse", scale: 1.02, roof: 0x4f91d5, wall: 0xe8f8ff, frontage: 8.2, depth: 6.2 },
-  { id: "service-danchi-north", x: -300, z: -190, orientation: "h", variant: "apartment", scale: 1.02, roof: 0x7890a8, wall: 0xe8edf2, frontage: 10.4, depth: 6.8 },
-  { id: "service-danchi-east", x: 300, z: 184, orientation: "h", variant: "apartment", scale: 1.02, roof: 0x7890a8, wall: 0xe8edf2, frontage: 10.4, depth: 6.8 },
-];
+// 旧コード互換用。道路生成は ROAD_SEGMENTS を使うが、環境物や人流の初期値として使う。
+export const ROAD_X = [...new Set(ROAD_INTERSECTIONS.map((p) => Math.round(p[0] / 12) * 12))].slice(0, 16);
+export const ROAD_Z = [...new Set(ROAD_INTERSECTIONS.map((p) => Math.round(p[1] / 12) * 12))].slice(0, 14);
 
 function rect(id, x, y, w, h, kind = "solid") {
   return { id, type: "rect", x, y, halfW: w / 2, halfH: h / 2, kind };
@@ -86,8 +50,26 @@ function pick(rand, list) {
   return list[int(rand, 0, list.length - 1)];
 }
 
-function nearAny(value, list, margin) {
-  return list.some((item) => Math.abs(value - item) < margin);
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function distancePointToSegment(point, seg) {
+  const x1 = seg.x1 ?? seg.x;
+  const z1 = seg.z1 ?? seg.z;
+  const x2 = seg.x2 ?? (seg.dir === "h" ? seg.x2 : seg.x);
+  const z2 = seg.z2 ?? (seg.dir === "v" ? seg.z2 : seg.z);
+  const vx = x2 - x1;
+  const vz = z2 - z1;
+  const len2 = vx * vx + vz * vz;
+  const t = len2 ? clamp(((point.x - x1) * vx + (point.z - z1) * vz) / len2, 0, 1) : 0;
+  const sx = x1 + vx * t;
+  const sz = z1 + vz * t;
+  return Math.hypot(point.x - sx, point.z - sz);
+}
+
+function nearAnyRoad(x, z, margin) {
+  return ROAD_SEGMENTS.some((seg) => distancePointToSegment({ x, z }, seg) < margin);
 }
 
 function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
@@ -99,107 +81,73 @@ function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
     return (Math.abs(x - hx) < marginX && Math.abs(z - hz) < marginZ) || Math.hypot(x - dx, z - dz) < 8.6;
   });
   if (nearNeighbor) return true;
-  return SERVICE_LOTS.some((lot) => Math.abs(x - lot.x) < (lot.frontage || 8) * 0.7 && Math.abs(z - lot.z) < (lot.depth || 6) * 0.8);
+  return false;
 }
 
-function makeLot(rand, id, x, z, orientation = "h") {
-  // 大阪旧住宅区参考：小间口、深进深、木造二层 / 长屋感，整体沿道路整齐退让。
-  const scale = 0.88 + rand() * 0.18;
-  const osakaVariants = ["old-wood", "old-wood", "old-wood", "house-brown", "house-red", "house-blue", "modern-home", "house-brown", "house-blue", "fish-shop"];
+function varyLot(rand, lot, index) {
+  const yawJitter = (rand() - 0.5) * 0.025;
   return {
-    id,
-    x,
-    z,
-    orientation,
-    roof: pick(rand, ROOF_COLORS),
-    wall: pick(rand, WALL_COLORS),
-    scale,
-    variant: pick(rand, osakaVariants),
-    yaw: (rand() - 0.5) * 0.025,
-    frontage: 4.2 + rand() * 1.1,
-    depth: 7.2 + rand() * 1.4,
+    ...lot,
+    // 建筑物位置来自真实 OSM；只随机颜色细节和轻微偏转，不改变街区格局。
+    id: `${lot.id}-${index}`,
+    angle: (lot.angle || 0) + yawJitter,
+    scale: lot.scale * (0.96 + rand() * 0.08),
   };
 }
 
 function generateLots(rand) {
-  const lots = [];
-  let idx = 0;
-  const addLot = (x, z, orientation) => {
-    if (x < -360 || x > 360 || z < -270 || z > 270) return;
-    if (isReservedSceneSpot(x, z, 12.2, 9.2)) return;
-    if (lots.some((lot) => Math.abs(lot.x - x) < 9.5 && Math.abs(lot.z - z) < 8.0)) return;
-    lots.push(makeLot(rand, `kitaeguchi-lot-${idx}`, x + (rand() - 0.5) * 1.1, z + (rand() - 0.5) * 0.8, orientation));
-    idx += 1;
-  };
-
-  ROAD_SEGMENTS.forEach((seg) => {
-    if (seg.dir === "h") {
-      const step = seg.main ? 22 : 18;
-      for (let x = seg.x1 + 14; x <= seg.x2 - 14; x += step) {
-        if (rand() < (seg.main ? 0.42 : 0.34)) continue;
-        const side = rand() < 0.5 ? -1 : 1;
-        addLot(x, seg.z + side * (13.8 + rand() * 1.4), "h");
-      }
-    } else {
-      const step = seg.main ? 24 : 20;
-      for (let z = seg.z1 + 14; z <= seg.z2 - 14; z += step) {
-        if (rand() < (seg.main ? 0.50 : 0.42)) continue;
-        const side = rand() < 0.5 ? -1 : 1;
-        addLot(seg.x + side * (13.6 + rand() * 1.3), z, "v");
-      }
-    }
-  });
-  return lots.slice(0, 96).concat(SERVICE_LOTS.map((lot) => ({ ...lot, fixedService: true })));
+  const reserved = BUILDING_LOTS_OSM.filter((lot) => !isReservedSceneSpot(lot.x, lot.z, 9.0, 8.0));
+  // 维持建筑数量，但让普通建筑细节按 LOD 显示；固定设施全部保留。
+  const service = reserved.filter((lot) => lot.fixedService);
+  const homes = reserved.filter((lot) => !lot.fixedService);
+  const rotated = homes.map((lot, i) => ({ lot, score: ((i * 37) % 101) + (rand() * 0.2) })).sort((a, b) => a.score - b.score).map((x) => x.lot);
+  return service.concat(rotated).slice(0, 690).map((lot, i) => varyLot(rand, lot, i));
 }
 
 function generateTrees(rand, lots) {
   const trees = [];
   let attempts = 0;
-  while (trees.length < 70 && attempts < 650) {
+  while (trees.length < 96 && attempts < 1200) {
     attempts += 1;
-    const x = -350 + rand() * 700;
-    const z = -260 + rand() * 520;
-    if (nearAny(x, ROAD_X, 8.6) || nearAny(z, ROAD_Z, 8.6) || isReservedSceneSpot(x, z, 9, 8)) continue;
-    if (lots.some((lot) => Math.abs(lot.x - x) < 5.4 && Math.abs(lot.z - z) < 4.8)) continue;
-    trees.push({ id: `tree-${trees.length}`, x, z, sakura: rand() < 0.28, scale: 0.68 + rand() * 0.36 });
+    const x = -MAP_W / 2 + 20 + rand() * (MAP_W - 40);
+    const z = -MAP_D / 2 + 20 + rand() * (MAP_D - 40);
+    if (nearAnyRoad(x, z, 7.4) || isReservedSceneSpot(x, z, 9, 8)) continue;
+    if (lots.some((lot) => Math.abs(lot.x - x) < (lot.frontage || 6) * 0.72 && Math.abs(lot.z - z) < (lot.depth || 6) * 0.72)) continue;
+    trees.push({ id: `tree-${trees.length}`, x, z, sakura: rand() < 0.24, scale: 0.62 + rand() * 0.42 });
   }
   return trees;
 }
 
 function generateLandmarks(rand) {
-  const parkCandidates = [[-270, 198], [-174, -164], [270, 198], [238, -164], [-46, 230]];
-  const shopCandidates = [[-270, -198], [270, -198], [-270, 198], [270, 198], [50, -198]];
-  const busCandidates = [[142, -230], [-142, -230], [142, 230], [-142, 230]];
-  const shrineCandidates = [[296, 198], [-296, 198], [296, -198]];
-  const fieldCandidates = [[286, -214], [330, -206], [-286, -214], [286, 118]];
+  const serviceLots = BUILDING_LOTS_OSM.filter((lot) => lot.fixedService);
+  const convenience = serviceLots.find((lot) => lot.variant === "convenience") || serviceLots[0] || { x: -120, z: 40 };
+  const school = serviceLots.find((lot) => lot.variant === "school") || { x: -60, z: -190 };
+  const park = serviceLots.find((lot) => lot.variant === "community") || { x: -230, z: 180 };
+  const bus = ROAD_INTERSECTIONS[0] || [0, 0];
   return {
-    riverX: -344 + (rand() - 0.5) * 2.2,
-    park: pick(rand, parkCandidates),
-    shop: pick(rand, shopCandidates),
-    bus: pick(rand, busCandidates),
-    shrine: pick(rand, shrineCandidates),
-    fields: [pick(rand, fieldCandidates), pick(rand, fieldCandidates).map((v, i) => v + (i === 0 ? 14 : 2))],
-    sign: [-60 + (rand() - 0.5) * 48, 232],
-    poles: Array.from({ length: 10 }, (_, i) => ({
-      x: pick(rand, ROAD_X.filter((x) => x !== 0)) + (rand() < 0.5 ? -6.3 : 6.3),
-      z: -228 + i * 50 + (rand() - 0.5) * 5,
-    })),
-    // 大阪市街地不应满屏是山；只保留极远处低矮绿影，不进入住宅地。
-    hills: Array.from({ length: 2 }, (_, i) => ({
-      x: i === 0 ? -320 : 320,
-      z: -288,
-      h: 5 + rand() * 2,
-      r: 13 + rand() * 3,
-      color: 0x8fbf8a,
-      rot: rand() * Math.PI,
-    })),
-    grassPatches: Array.from({ length: 9 }, (_, i) => ({
-      x: -300 + (i % 3) * 300 + (rand() - 0.5) * 32,
-      z: -180 + Math.floor(i / 3) * 180 + (rand() - 0.5) * 24,
-      w: 12 + rand() * 12,
-      d: 8 + rand() * 10,
+    riverX: null,
+    park: [park.x, park.z],
+    shop: [convenience.x, convenience.z],
+    bus,
+    shrine: [262, -70],
+    school: [school.x, school.z],
+    fields: [[-305, -210], [305, 210]],
+    sign: [convenience.x + 8, convenience.z + 4],
+    poles: ROAD_SEGMENTS.filter((_, i) => i % 37 === 0).slice(0, 28).map((seg, i) => {
+      const t = (i % 3) / 3 + 0.2;
+      return {
+        x: seg.x1 + (seg.x2 - seg.x1) * t + (rand() < 0.5 ? -4.8 : 4.8),
+        z: seg.z1 + (seg.z2 - seg.z1) * t + (rand() < 0.5 ? -4.8 : 4.8),
+      };
+    }),
+    hills: [],
+    grassPatches: Array.from({ length: 18 }, (_, i) => ({
+      x: -330 + (i % 6) * 128 + (rand() - 0.5) * 18,
+      z: -230 + Math.floor(i / 6) * 175 + (rand() - 0.5) * 20,
+      w: 10 + rand() * 10,
+      d: 7 + rand() * 8,
       color: rand() < 0.5 ? 0xa9d88e : 0xd7e9ad,
-      rot: (rand() - 0.5) * 0.18,
+      rot: (rand() - 0.5) * 0.25,
     })),
   };
 }
@@ -213,6 +161,9 @@ export function createWorldLayout(seed = Date.now()) {
     lots,
     trees: generateTrees(rand, lots),
     landmarks: generateLandmarks(rand),
+    roads: ROAD_SEGMENTS,
+    rails: RAIL_SEGMENTS,
+    waters: WATER_SEGMENTS,
     atmosphere: {
       timeOfDay: pick(rand, ["morning", "morning", "dusk"]),
       weather: pick(rand, ["clear", "clear", "breeze", "afterRain"]),
@@ -223,37 +174,19 @@ export function createWorldLayout(seed = Date.now()) {
 export function createWorldObstacles(layout = createWorldLayout(1)) {
   const obstacles = [];
 
-  // 只挡住房屋核心，避免屋檐 / 院落边缘在道路上形成看不见的空气墙。
-  neighbors.forEach((n) => obstacles.push(rect(`target-house-${n.id}`, n.x, n.y, 160, 150, "house")));
+  neighbors.forEach((n) => obstacles.push(rect(`target-house-${n.id}`, n.x, n.y, 150, 135, "house")));
 
   layout.lots.forEach((lot) => {
     const p = sceneToWorld(lot.x, lot.z);
-    const w = (lot.orientation === "v" ? 160 : 185) * lot.scale;
-    const h = (lot.orientation === "v" ? 185 : 160) * lot.scale;
+    const w = Math.max(118, (lot.frontage || 6.4) * 18.5) * (lot.scale || 1);
+    const h = Math.max(118, (lot.depth || 6.4) * 18.5) * (lot.scale || 1);
     obstacles.push(rect(lot.id, p.x, p.y, w, h, "house"));
   });
 
   layout.trees.forEach((tree) => {
     const p = sceneToWorld(tree.x, tree.z);
-    obstacles.push(circle(tree.id, p.x, p.y, 18 + tree.scale * 9, "tree"));
+    obstacles.push(circle(tree.id, p.x, p.y, 16 + tree.scale * 7, "tree"));
   });
-
-  const riverX = layout.landmarks.riverX / WORLD_SCALE;
-  const riverWidth = 4.2 / WORLD_SCALE;
-  obstacles.push(
-    rect("river-north", riverX, -8550, riverWidth, 8100, "water"),
-    rect("river-south", riverX, 8550, riverWidth, 8100, "water"),
-  );
-
-  const [shopX, shopZ] = layout.landmarks.shop;
-  const [busX, busZ] = layout.landmarks.bus;
-  const [shrineX, shrineZ] = layout.landmarks.shrine;
-  obstacles.push(
-    rect("shop", shopX / WORLD_SCALE, shopZ / WORLD_SCALE, 230, 180, "shop"),
-    rect("vending-a", (shopX - 8) / WORLD_SCALE, (shopZ + 5) / WORLD_SCALE, 58, 58, "object"),
-    rect("vending-b", (shopX + 6) / WORLD_SCALE, (shopZ + 5) / WORLD_SCALE, 58, 58, "object"),
-    rect("torii", shrineX / WORLD_SCALE, shrineZ / WORLD_SCALE, 140, 70, "shrine"),
-  );
 
   return obstacles;
 }

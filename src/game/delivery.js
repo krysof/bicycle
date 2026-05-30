@@ -20,6 +20,15 @@ function key(point) {
 }
 
 function nearestPointOnSegment(point, seg) {
+  if (seg.dir === "line") {
+    const vx = seg.x2 - seg.x1;
+    const vz = seg.z2 - seg.z1;
+    const len2 = vx * vx + vz * vz;
+    const t = len2 ? Math.max(0, Math.min(1, ((point.x - seg.x1) * vx + (point.z - seg.z1) * vz) / len2)) : 0;
+    const x = seg.x1 + vx * t;
+    const z = seg.z1 + vz * t;
+    return { point: { x, z }, distance: Math.hypot(point.x - x, point.z - z), seg };
+  }
   if (seg.dir === "h") {
     const x = Math.max(seg.x1, Math.min(seg.x2, point.x));
     return { point: { x, z: seg.z }, distance: Math.hypot(point.x - x, point.z - seg.z), seg };
@@ -60,7 +69,10 @@ function buildRoadGraph(extraPoints = []) {
   };
 
   ROAD_SEGMENTS.forEach((seg) => {
-    if (seg.dir === "h") {
+    if (seg.dir === "line") {
+      collect(seg, { x: seg.x1, z: seg.z1 });
+      collect(seg, { x: seg.x2, z: seg.z2 });
+    } else if (seg.dir === "h") {
       collect(seg, { x: seg.x1, z: seg.z });
       collect(seg, { x: seg.x2, z: seg.z });
     } else {
@@ -69,12 +81,14 @@ function buildRoadGraph(extraPoints = []) {
     }
   });
 
-  for (const h of ROAD_SEGMENTS.filter((seg) => seg.dir === "h")) {
-    for (const v of ROAD_SEGMENTS.filter((seg) => seg.dir === "v")) {
-      if (v.x >= h.x1 && v.x <= h.x2 && h.z >= v.z1 && h.z <= v.z2) {
-        const p = { x: v.x, z: h.z };
-        collect(h, p);
-        collect(v, p);
+  if (ROAD_SEGMENTS.some((seg) => seg.dir !== "line")) {
+    for (const h of ROAD_SEGMENTS.filter((seg) => seg.dir === "h")) {
+      for (const v of ROAD_SEGMENTS.filter((seg) => seg.dir === "v")) {
+        if (v.x >= h.x1 && v.x <= h.x2 && h.z >= v.z1 && h.z <= v.z2) {
+          const p = { x: v.x, z: h.z };
+          collect(h, p);
+          collect(v, p);
+        }
       }
     }
   }
@@ -82,7 +96,18 @@ function buildRoadGraph(extraPoints = []) {
   extraPoints.forEach(({ seg, point }) => collect(seg, point));
 
   pointsBySegment.forEach(({ seg, points }) => {
-    const sorted = [...points].sort((a, b) => seg.dir === "h" ? a.x - b.x : a.z - b.z);
+    const sorted = [...points].sort((a, b) => {
+      if (seg.dir === "line") {
+        const ax = a.x - seg.x1;
+        const az = a.z - seg.z1;
+        const bx = b.x - seg.x1;
+        const bz = b.z - seg.z1;
+        const vx = seg.x2 - seg.x1;
+        const vz = seg.z2 - seg.z1;
+        return (ax * vx + az * vz) - (bx * vx + bz * vz);
+      }
+      return seg.dir === "h" ? a.x - b.x : a.z - b.z;
+    });
     for (let i = 0; i < sorted.length - 1; i += 1) addGraphEdge(nodes, sorted[i], sorted[i + 1]);
   });
   return nodes;
@@ -145,7 +170,10 @@ export function buildAutoNavPath(state, target) {
   const startSnap = nearestSegmentPoint(startScene);
   const targetSnap = nearestSegmentPoint(targetScene);
   const nodes = buildRoadGraph([startSnap, targetSnap]);
-  const scenePath = simplifyScenePath(shortestPath(nodes, key(startSnap.point), key(targetSnap.point)));
+  let scenePath = simplifyScenePath(shortestPath(nodes, key(startSnap.point), key(targetSnap.point)));
+  // OSM 道路存在跨线桥、私道缺口或被过滤的小支路时，两个点可能在不同连通分量。
+  // 这种情况下仍沿最近道路点给出温和导航，避免自动导航停住。
+  if (scenePath.length < 2) scenePath = [startSnap.point, targetSnap.point];
   const points = [];
   scenePath.forEach((point) => appendWaypoint(points, sceneToWorldPoint(point)));
   appendWaypoint(points, sceneToWorldPoint(targetScene));
@@ -324,6 +352,18 @@ export function updatePlayer(state, dt) {
     // 自行车不应像原地旋转的角色；只有按住前进 / 后退移动时才逐渐改变朝向。
     const movementGrip = Math.min(1, Math.abs(throttle));
     turn *= movementGrip;
+  }
+
+  // 兜底：真实 OSM 路网若遇到断路/桥梁连通问题，也不要让“自动导航”原地不动。
+  if (autoNav && !state.autoNavMoving && !state.autoAvoiding && !canDeliverNow(state, target)) {
+    const waypoint = nextAutoWaypoint(state, target) || { x: target.deliveryX ?? target.x, y: target.deliveryY ?? target.y };
+    const desiredAngle = Math.atan2(waypoint.y - state.player.y, waypoint.x - state.player.x);
+    const diff = normalizeAngle(desiredAngle - state.player.headingAngle);
+    const maxTurn = (mode === "bike" ? 1.9 : 3.1) * dt;
+    state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+    throttle = Math.max(throttle, mode === "bike" ? 0.22 : 0.38);
+    state.autoNavMoving = true;
+    state.autoNavWaypoint = waypoint;
   }
   if (!autoNav && turn) state.player.headingAngle += turn * turnRate * dt;
 

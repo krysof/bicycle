@@ -1,11 +1,13 @@
 
+import { DELIVERY_SLOTS } from "./kitaeguchiMap.js";
+
 const ROOF = ["#5b4638", "#6f5338", "#4f5f6f", "#7a5542", "#8a6f48", "#5c6f59", "#7b5a3d", "#4d6684"];
 const WALL = ["#e9dcc8", "#f2e5cf", "#d8c3a5", "#eee7d8", "#e4d5bd", "#f1eadc", "#ddcfba", "#e8dfcf"];
 const TRIM = ["#5f422c", "#6b4d33", "#4d4036", "#76583f"];
 const VARIANTS = ["old-wood", "house-brown", "house-red", "modern-home", "house-blue", "flower", "bookstore", "bakery"];
 const LANDMARKS = ["basketball", "flowers", "fence", "clinic", "bench", "bus", "fish", "bag", "garden", "sign"];
 
-const SCENE_POSITIONS = [
+const FALLBACK_SCENE_POSITIONS = [
   [-304, -232, -1],
   [-236, -232, 1],
   [-164, -232, -1],
@@ -39,6 +41,7 @@ const SCENE_POSITIONS = [
   [180, -64, 1],
   [252, -64, -1]
 ];
+const SCENE_POSITIONS = DELIVERY_SLOTS?.length >= 32 ? DELIVERY_SLOTS : FALLBACK_SCENE_POSITIONS.map(([sx, roadZ, side]) => [sx, roadZ + side * 14.9, sx, roadZ + side * 6.4, 0]);
 
 const PEOPLE = [
   ["tanaka", "male", "田中先生", "田中先生", "田中さん", "Mr. Tanaka", "体育报", "體育報", "スポーツ新聞", "sports paper"],
@@ -108,11 +111,9 @@ function thanks(nameZh, nameHant, nameJa, nameEn, index) {
 
 export const neighbors = PEOPLE.map((person, index) => {
   const [id, gender, zh, hant, ja, en, paperZh, paperHant, paperJa, paperEn] = person;
-  const [sx, roadZ, side] = SCENE_POSITIONS[index];
-  const houseZ = roadZ + side * 14.9;
-  const deliveryZ = roadZ + side * 6.4;
+  const [sx, houseZ, deliveryXScene, deliveryZ, faceAngle = 0] = SCENE_POSITIONS[index];
   const house = sceneToWorld(sx, houseZ);
-  const delivery = sceneToWorld(sx, deliveryZ);
+  const delivery = sceneToWorld(deliveryXScene ?? sx, deliveryZ);
   const clueText = clue(index, paperZh, paperHant, paperJa, paperEn);
   const thanksText = thanks(zh, hant, ja, en, index);
   return {
@@ -132,6 +133,7 @@ export const neighbors = PEOPLE.map((person, index) => {
     thanks: thanksText.zhHans,
     variant: VARIANTS[index % VARIANTS.length],
     osakaLot: true,
+    faceAngle,
     l10n: {
       zhHans: { name: zh, paper: paperZh, clue: clueText.zhHans, thanks: thanksText.zhHans },
       zhHant: { name: hant, paper: paperHant, clue: clueText.zhHant, thanks: thanksText.zhHant },

@@ -1,6 +1,6 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
-import { createWorldLayout, MAP_D, MAP_W, ROAD_SEGMENTS, ROAD_X, ROAD_Z } from "../data/world.js";
+import { createWorldLayout, MAP_D, MAP_W, RAIL_SEGMENTS, ROAD_INTERSECTIONS, ROAD_SEGMENTS, ROAD_X, ROAD_Z, WATER_SEGMENTS } from "../data/world.js";
 import { buildAutoNavPath, canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { locale, nt, t } from "../i18n.js";
@@ -507,13 +507,16 @@ export class ThreeRenderer {
 
   addRoadNetwork() {
     // Paperboy 参考比例：宽黑色车道 + 灰色人行道 + 白色路缘/标线。
+    // 道路中心线来自 OpenStreetMap 北江口周边真实路网，不再使用棋盘网格。
     ROAD_SEGMENTS.forEach((seg) => this.addStreetSegment(seg));
-    // 移除窄小斜路，只保留整齐、宽阔的道路网。
+    this.addRailAndWater();
     this.addStreetFurniture();
   }
 
   addStreetSegment(seg) {
-    if (seg.dir === "h") {
+    if (seg.dir === "line") {
+      this.addStreetLine(seg.x1, seg.z1, seg.x2, seg.z2, Boolean(seg.main), seg.highway);
+    } else if (seg.dir === "h") {
       const len = Math.max(1, seg.x2 - seg.x1);
       const cx = (seg.x1 + seg.x2) / 2;
       this.addStreet("h", seg.z, len, cx, 0, Boolean(seg.main));
@@ -522,6 +525,44 @@ export class ThreeRenderer {
       const cz = (seg.z1 + seg.z2) / 2;
       this.addStreet("v", seg.x, len, 0, cz, Boolean(seg.main));
     }
+  }
+
+  addStreetLine(x1, z1, x2, z2, main = false, highway = "residential") {
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.6) return;
+    const cx = (x1 + x2) / 2;
+    const cz = (z1 + z2) / 2;
+    const angle = Math.atan2(dz, dx);
+    const rot = -angle;
+    const laneWidth = main ? 10.6 : highway === "service" ? 6.2 : 7.7;
+    const nx = -dz / len;
+    const nz = dx / len;
+    const sidewalk = highway === "service" ? 0.9 : 1.42;
+    this.addPlane(cx, 0.032, cz, len, laneWidth, COLORS.asphalt, rot);
+    // 真实 OSM 路段很多；普通住宅路只画路面，主干路才补全人行道/路缘，避免 draw call 过高导致卡顿。
+    if (!main) return;
+    this.addPlane(cx + nx * (laneWidth / 2 + sidewalk), 0.04, cz + nz * (laneWidth / 2 + sidewalk), len, sidewalk, COLORS.sidewalk, rot);
+    this.addPlane(cx - nx * (laneWidth / 2 + sidewalk), 0.04, cz - nz * (laneWidth / 2 + sidewalk), len, sidewalk, COLORS.sidewalk, rot);
+    this.addPlane(cx + nx * (laneWidth / 2 + 0.18), 0.055, cz + nz * (laneWidth / 2 + 0.18), len, 0.16, COLORS.curb, rot);
+    this.addPlane(cx - nx * (laneWidth / 2 + 0.18), 0.055, cz - nz * (laneWidth / 2 + 0.18), len, 0.16, COLORS.curb, rot);
+    if (main || len > 34) {
+      for (let d = 8; d < len - 8; d += 11) {
+        const t = d / len;
+        this.addPlane(x1 + dx * t, 0.068, z1 + dz * t, 2.2, 0.09, COLORS.lane, rot);
+      }
+    }
+  }
+
+  addRailAndWater() {
+    WATER_SEGMENTS.filter((_, i) => i % 8 === 0).forEach((seg) => {
+      this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, seg.kind === "river" ? 7.0 : 3.6, COLORS.water, 0.028);
+    });
+    RAIL_SEGMENTS.filter((_, i) => i % 8 === 0).forEach((seg) => {
+      this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, 3.2, 0x647078, 0.076);
+      this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, 0.6, 0xf6f1d7, 0.094);
+    });
   }
 
   addStreet(direction, pos, customLen = null, centerX = 0, centerZ = 0, main = false) {
@@ -558,7 +599,7 @@ export class ThreeRenderer {
     // 每局从共享 layout 生成不同住宅、商店、树木；碰撞体也使用同一份 layout，避免空气墙。
     (this.worldLayout?.lots || []).forEach((lot) => {
       const group = this.addResidentialLot(lot.x, lot.z, lot.roof, lot.wall, lot.scale, lot.variant, lot);
-      group.rotation.y = lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0);
+      group.rotation.y = Number.isFinite(lot.angle) ? lot.angle : (lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0));
     });
 
     (this.worldLayout?.trees || []).forEach((tree) => {
@@ -570,6 +611,14 @@ export class ThreeRenderer {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     group.rotation.y = ((x + z) % 5) * 0.018;
+
+    if (spec && !spec.fixedService) {
+      this.addSimpleResidentialLot(group, roof, wall, scale, spec);
+      this.markLodGroup(group, 42, false);
+      this.registerOccluder(group);
+      this.scene.add(group);
+      return group;
+    }
 
     const yardW = spec?.frontage || 7.3;
     const yardD = spec?.depth || 5.6;
@@ -593,11 +642,44 @@ export class ThreeRenderer {
     return group;
   }
 
+  addSimpleResidentialLot(group, roof, wall, scale = 1, spec = null) {
+    const yardW = spec?.frontage || 6.0;
+    const yardD = spec?.depth || 6.8;
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.025, yardD), mat(0xd6e9bf));
+    yard.position.set(0, 0.055, 0);
+    yard.receiveShadow = true;
+    group.add(yard);
+
+    const w = Math.max(2.0, yardW * 0.62) * scale;
+    const d = Math.max(2.2, yardD * 0.56) * scale;
+    const h = Math.max(1.4, Math.min(2.35, 1.55 * scale + ((spec?.depth || 6) - 5) * 0.05));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(wall));
+    body.position.y = h / 2 + 0.09;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+
+    const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(w * 1.12, 0.36, d * 1.12), mat(roof));
+    roofMesh.position.y = h + 0.36;
+    roofMesh.castShadow = true;
+    group.add(roofMesh);
+
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.72, 0.035), mat(0x6b4d33));
+    door.position.set(w * 0.25, 0.47, d / 2 + 0.025);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.032), mat(0xdff3ff));
+    win.position.set(-w * 0.22, 0.86, d / 2 + 0.028);
+    group.add(door, win);
+  }
+
   addHouse(n) {
     const group = new THREE.Group();
     group.position.set(wx(n.x), 0, wz(n.y));
-    const frontZ = wz(n.deliveryY ?? n.y) - wz(n.y);
-    if (frontZ < 0) group.rotation.y = Math.PI;
+    if (Number.isFinite(n.faceAngle)) group.rotation.y = n.faceAngle;
+    else {
+      const dx = wx(n.deliveryX ?? n.x) - wx(n.x);
+      const dz = wz(n.deliveryY ?? n.y) - wz(n.y);
+      group.rotation.y = Math.atan2(dx, dz);
+    }
     this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), n.osakaLot ? 2.34 : 2.65, n.variant || TARGET_VARIANTS[n.id] || "house-red");
     const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
@@ -608,19 +690,15 @@ export class ThreeRenderer {
   }
 
   addStreetFurniture() {
-    for (const x of ROAD_X) {
-      for (const z of ROAD_Z) {
-        if ((x + z) % 64 === 0) this.addCrosswalk(x, z, "h");
-        if ((x - z) % 64 === 0) this.addCrosswalk(x, z, "v");
-      }
-    }
-    [[-64, -56], [-32, 32], [32, -32], [64, 56], [96, 8], [-96, 8]].forEach(([x, z], i) => {
+    ROAD_INTERSECTIONS.slice(0, 34).forEach(([x, z], i) => {
+      this.addCrosswalk(x, z, i % 2 ? "h" : "v");
+    });
+    ROAD_INTERSECTIONS.slice(8, 18).forEach(([x, z], i) => {
       this.addRoadMirror(x + (i % 2 ? -6.2 : 6.2), z + 5.8);
       this.addStopMark(x, z + (i % 2 ? -4.8 : 4.8));
     });
-    [[-82, 12], [-44, -36], [18, 60], [74, -12]].forEach(([x, z]) => this.addNoticeBoard(x, z));
-    [[-58, 30], [48, -58], [88, 30]].forEach(([x, z]) => this.addGarbageStation(x, z));
-    [[-18, -62], [88, 66]].forEach(([x, z]) => this.addPhoneBooth(x, z));
+    ROAD_INTERSECTIONS.slice(18, 26).forEach(([x, z], i) => (i % 2 ? this.addNoticeBoard(x, z) : this.addGarbageStation(x, z)));
+    ROAD_INTERSECTIONS.slice(26, 30).forEach(([x, z]) => this.addPhoneBooth(x, z));
     if (this.worldLayout?.atmosphere?.weather === "afterRain") {
       [[-42, -24], [12, 0], [58, 48], [-86, 72], [80, -48], [-12, 24]].forEach(([x, z], i) => this.addPuddle(x, z, i));
     }
@@ -1236,8 +1314,20 @@ export class ThreeRenderer {
     if (landmark === "bus" || landmark === "sign") { const s = this.makeSign(landmark === "bus" ? sceneLabel("bus") : sceneLabel("town"), 0.55, 0.42); s.position.set(-1.02, 0.05, 0.9); group.add(s); }
   }
 
+  addStripBetween(x1, z1, x2, z2, width, color, y = 0.06) {
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const len = Math.hypot(dx, dz);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.05, width), mat(color));
+    mesh.position.set((x1 + x2) / 2, y, (z1 + z2) / 2);
+    mesh.rotation.y = -Math.atan2(dz, dx);
+    mesh.receiveShadow = true;
+    this.scene.add(mesh);
+    return mesh;
+  }
+
   addLandmarks() {
-    // 河流、桥、公园、商店街、神社、田地每局位置会轻微变化。
+    // 北江口参考：南侧神崎川/水路、斜向铁路/主线、中央纵向道路、北侧学校グラウンド。
     const landmarks = this.worldLayout?.landmarks || {};
     const riverX = landmarks.riverX ?? -102;
     const [parkX, parkZ] = landmarks.park || [-78, 58];
@@ -1247,18 +1337,30 @@ export class ThreeRenderer {
     const fields = landmarks.fields || [[86, -64], [100, -62]];
     const [signX, signZ] = landmarks.sign || [-18, 72];
 
-    this.addPlane(riverX, 0.035, 0, 4.2, MAP_D - 8, COLORS.water, 0.03);
-    // 河岸护栏让“不能下河”在视觉上也成立，桥的位置保留开口。
-    for (const bankX of [riverX - 2.6, riverX + 2.6]) {
-      for (const [z, len] of [[-72, 28], [-24, 26], [24, 26], [72, 28]]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, len), mat(COLORS.wood));
-        rail.position.set(bankX, 0.27, z);
-        rail.castShadow = true;
-        this.scene.add(rail);
-      }
-    }
-    for (const z of [-48, 0, 48]) { const b = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.2, 2.2), mat(0xb8875b)); b.position.set(riverX, 0.18, z); b.castShadow = true; this.scene.add(b); }
+    // 南侧宽河川和堤防道路（截图下方的神崎川 / 河川敷感）。
+    this.addPlane(0, 0.032, MAP_D / 2 - 26, MAP_W - 16, 30, COLORS.water, 0);
+    this.addPlane(0, 0.062, MAP_D / 2 - 50, MAP_W - 20, 4.2, 0x9eb58d, 0);
+    this.addPlane(0, 0.067, MAP_D / 2 - 62, MAP_W - 30, 7.2, COLORS.asphalt, 0);
+    for (let x = -330; x <= 330; x += 110) this.addPlane(x, 0.075, MAP_D / 2 - 62, 2.6, 0.09, COLORS.lane, 0);
+
+    // 北江口截图中明显的斜向铁路 / 主线：用灰色轨道和蓝色线穿过市街地。
+    this.addStripBetween(-232, MAP_D / 2 - 8, 228, -MAP_D / 2 + 18, 6.0, 0x647078, 0.075);
+    this.addStripBetween(-232, MAP_D / 2 - 8, 228, -MAP_D / 2 + 18, 1.0, 0x5ec4df, 0.092);
+    this.addStripBetween(-232, MAP_D / 2 - 8, 228, -MAP_D / 2 + 18, 0.18, 0xf6f1d7, 0.105);
+
+    // 桥梁/跨线部位。
+    [[-214, 216], [-56, 94], [88, -22]].forEach(([x, z]) => {
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(16, 0.22, 4.0), mat(0xb8875b));
+      bridge.position.set(x, 0.18, z);
+      bridge.rotation.y = -0.83;
+      bridge.castShadow = true;
+      this.scene.add(bridge);
+    });
     this.addPlane(parkX, 0.05, parkZ, 18, 12, 0x71bb70, -0.03); this.addSign(parkX, parkZ - 8, sceneLabel("park")); this.addBench(parkX - 4, parkZ); this.addBench(parkX + 4, parkZ + 3); this.addTree(parkX - 8, parkZ - 6, true, 1.3); this.addTree(parkX + 8, parkZ - 3, false, 1.2);
+    // 大阪経済大学グラウンドのような大きい緑地 / グラウンドを北側に配置。
+    this.addPlane(-40, 0.052, -196, 62, 42, 0x7bbf74, 0.02);
+    this.addPlane(-40, 0.058, -196, 56, 34, 0x89c989, 0.02);
+    this.addSign(-40, -222, sceneLabel("school"));
     this.addShop(shopX, shopZ); this.addVending(shopX - 8, shopZ + 5); this.addVending(shopX + 6, shopZ + 5); this.addBusStop(busX, busZ);
     this.addTorii(shrineX, shrineZ); this.addStoneLantern(shrineX - 6, shrineZ - 4); this.addStoneLantern(shrineX + 6, shrineZ - 4);
     fields.forEach(([x, z]) => this.addField(x, z)); this.addSign(signX, signZ, sceneLabel("neighborhood"));
@@ -1308,29 +1410,23 @@ export class ThreeRenderer {
       this.insects.push({ group: insect, baseX, baseZ, baseY: insect.position.y, phase: i * 0.59, speed: 0.75 + (i % 4) * 0.12, radius: 1.2 + (i % 4) * 0.35 });
     }
 
-    const passerConfigs = [
-      { kind: "cyclist", dir: "h", lane: -72, start: -112, end: 112, offset: 2.0, speed: 4.6, phase: 0.03, color: 0x4f91d5 },
-      { kind: "pedestrian", dir: "h", lane: -72, start: -108, end: 108, offset: -6.4, speed: 2.0, phase: 0.12, color: 0x7b87c8 },
-      { kind: "pedestrian", dir: "h", lane: -48, start: -108, end: 108, offset: -6.2, speed: 3.0, phase: 0, color: 0x7b87c8 },
-      { kind: "pedestrian", dir: "h", lane: 24, start: 108, end: -108, offset: 6.2, speed: 2.4, phase: 0.32, color: 0xb86695 },
-      { kind: "pedestrian", dir: "v", lane: -32, start: -80, end: 80, offset: -6.0, speed: 2.6, phase: 0.18, color: 0xd59a34 },
-      { kind: "cyclist", dir: "h", lane: 0, start: -112, end: 112, offset: -2.2, speed: 5.4, phase: 0.55, color: 0x4f91d5 },
-      { kind: "cyclist", dir: "v", lane: 64, start: 82, end: -82, offset: 2.0, speed: 4.8, phase: 0.75, color: 0x5aaa77 },
-      { kind: "pedestrian", dir: "h", lane: 72, start: -108, end: 108, offset: -6.3, speed: 2.2, phase: 0.82, color: 0x9c7556 },
-    ];
-    const horizontalLanes = ROAD_Z;
-    const verticalLanes = ROAD_X;
+    const passerConfigs = [];
     const personColors = [0x7b87c8, 0xb86695, 0xd59a34, 0x5aaa77, 0x8a6fb0, 0x9c7556, 0x4f91d5, 0xd66b53];
-    for (let i = 0; i < 22; i += 1) {
-      const horizontal = i % 2 === 0;
-      const lane = horizontal ? horizontalLanes[i % horizontalLanes.length] : verticalLanes[i % verticalLanes.length];
+    const lanes = ROAD_SEGMENTS
+      .map((seg) => ({ ...seg, len: Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) }))
+      .filter((seg) => seg.len > 38)
+      .sort((a, b) => b.len - a.len);
+    for (let i = 0; i < 34; i += 1) {
+      const seg = lanes[(i * 7) % lanes.length];
       const reverse = i % 5 === 0;
       passerConfigs.push({
         kind: "pedestrian",
-        dir: horizontal ? "h" : "v",
-        lane,
-        start: reverse ? (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12) : (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12),
-        end: reverse ? (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12) : (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12),
+        path: true,
+        x1: reverse ? seg.x2 : seg.x1,
+        z1: reverse ? seg.z2 : seg.z1,
+        x2: reverse ? seg.x1 : seg.x2,
+        z2: reverse ? seg.z1 : seg.z2,
+        length: seg.len,
         offset: (i % 4 < 2 ? -6.4 : 6.4) + ((i % 3) - 1) * 0.35,
         speed: 1.45 + (i % 5) * 0.28,
         phase: (i * 0.137) % 1,
@@ -1338,14 +1434,17 @@ export class ThreeRenderer {
         style: i,
       });
     }
-    for (let i = 0; i < 7; i += 1) {
-      const horizontal = i % 2 === 1;
+    for (let i = 0; i < 10; i += 1) {
+      const seg = lanes[(i * 11 + 3) % lanes.length];
+      const reverse = i % 3 === 0;
       passerConfigs.push({
         kind: "cyclist",
-        dir: horizontal ? "h" : "v",
-        lane: horizontal ? horizontalLanes[(i * 2 + 1) % horizontalLanes.length] : verticalLanes[(i * 2 + 1) % verticalLanes.length],
-        start: i % 3 === 0 ? (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12) : (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12),
-        end: i % 3 === 0 ? (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12) : (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12),
+        path: true,
+        x1: reverse ? seg.x2 : seg.x1,
+        z1: reverse ? seg.z2 : seg.z1,
+        x2: reverse ? seg.x1 : seg.x2,
+        z2: reverse ? seg.z1 : seg.z2,
+        length: seg.len,
         offset: i % 2 === 0 ? 2.4 : -2.4,
         speed: 4.0 + (i % 4) * 0.45,
         phase: (0.21 + i * 0.113) % 1,
@@ -1604,16 +1703,30 @@ export class ThreeRenderer {
     });
 
     this.passers.forEach((item, i) => {
-      const length = Math.abs(item.end - item.start);
-      const sign = item.end >= item.start ? 1 : -1;
-      const phase = ((t * item.speed + item.phase * length) % length + length) % length;
-      const along = item.start + sign * phase;
-      if (item.dir === "h") {
-        item.group.position.set(along, 0, item.lane + item.offset);
-        item.group.rotation.y = sign > 0 ? 0 : Math.PI;
+      if (item.path) {
+        const dx = item.x2 - item.x1;
+        const dz = item.z2 - item.z1;
+        const length = item.length || Math.hypot(dx, dz) || 1;
+        const phase = ((t * item.speed + item.phase * length) % length + length) % length;
+        const u = phase / length;
+        const nx = -dz / length;
+        const nz = dx / length;
+        const x = item.x1 + dx * u + nx * item.offset;
+        const z = item.z1 + dz * u + nz * item.offset;
+        item.group.position.set(x, 0, z);
+        item.group.rotation.y = -Math.atan2(dz, dx);
       } else {
-        item.group.position.set(item.lane + item.offset, 0, along);
-        item.group.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+        const length = Math.abs(item.end - item.start);
+        const sign = item.end >= item.start ? 1 : -1;
+        const phase = ((t * item.speed + item.phase * length) % length + length) % length;
+        const along = item.start + sign * phase;
+        if (item.dir === "h") {
+          item.group.position.set(along, 0, item.lane + item.offset);
+          item.group.rotation.y = sign > 0 ? 0 : Math.PI;
+        } else {
+          item.group.position.set(item.lane + item.offset, 0, along);
+          item.group.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+        }
       }
       const parts = item.group.userData.parts || {};
       const stride = Math.max(2.4, item.speed * (item.kind === "cyclist" ? 3.1 : 1.75));
@@ -1699,8 +1812,8 @@ export class ThreeRenderer {
 
   currentArea(px, pz) {
     const landmarks = this.worldLayout?.landmarks || {};
-    const riverX = landmarks.riverX ?? -102;
-    if (Math.abs(px - riverX) < 11) return "river";
+    const riverX = landmarks.riverX;
+    if (Number.isFinite(riverX) && Math.abs(px - riverX) < 11) return "river";
     const [parkX, parkZ] = landmarks.park || [-78, 58];
     if (Math.hypot(px - parkX, pz - parkZ) < 18) return "park";
     const [shopX, shopZ] = landmarks.shop || [-70, -68];
