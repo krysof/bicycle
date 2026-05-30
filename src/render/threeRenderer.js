@@ -329,6 +329,16 @@ function orthogonalAngleToward(fromX, fromZ, toX, toZ) {
   return dz >= 0 ? -Math.PI / 2 : Math.PI / 2;
 }
 
+function distancePointToSceneSegment(point, seg) {
+  const vx = seg.x2 - seg.x1;
+  const vz = seg.z2 - seg.z1;
+  const len2 = vx * vx + vz * vz;
+  const t = len2 ? Math.max(0, Math.min(1, ((point.x - seg.x1) * vx + (point.z - seg.z1) * vz) / len2)) : 0;
+  const x = seg.x1 + vx * t;
+  const z = seg.z1 + vz * t;
+  return Math.hypot(point.x - x, point.z - z);
+}
+
 function snapRightAngle(angle = 0) {
   return Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
 }
@@ -369,6 +379,7 @@ export class ThreeRenderer {
     this.animals = [];
     this.insects = [];
     this.passers = [];
+    this.passerRouteKey = "";
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
     this.lodGroups = [];
@@ -428,6 +439,7 @@ export class ThreeRenderer {
     this.animals = [];
     this.insects = [];
     this.passers = [];
+    this.passerRouteKey = "";
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
     this.lodGroups = [];
@@ -2198,6 +2210,58 @@ export class ThreeRenderer {
     return group;
   }
 
+  routeFocusedLanes(state) {
+    const route = Array.isArray(state?.route) ? state.route : [];
+    const points = [];
+    if (state?.player) points.push({ x: wx(state.player.x), z: wz(state.player.y) });
+    route.forEach((target) => {
+      points.push({ x: wx(target.deliveryX ?? target.x), z: wz(target.deliveryY ?? target.y) });
+      points.push({ x: wx(target.x), z: wz(target.y) });
+    });
+    const base = ROAD_SEGMENTS
+      .map((seg) => ({ ...seg, len: Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) }))
+      .filter((seg) => seg.len > 38);
+    if (!points.length) return base.sort((a, b) => b.len - a.len);
+    return base
+      .map((seg) => {
+        const d = Math.min(...points.map((p) => distancePointToSceneSegment(p, seg)));
+        const alongRouteBonus = points.some((p) => distancePointToSceneSegment(p, seg) < 18) ? -22 : 0;
+        return { ...seg, routeScore: d + alongRouteBonus };
+      })
+      .filter((seg) => seg.routeScore < 92)
+      .sort((a, b) => a.routeScore - b.routeScore || b.len - a.len);
+  }
+
+  arrangePassersNearRoute(state) {
+    if (!this.passers.length || !state?.route?.length) return;
+    const routeKey = [
+      state.worldLayout?.seed || "",
+      state.config?.moveMode || "",
+      ...state.route.map((n) => n.id),
+    ].join("|");
+    if (this.passerRouteKey === routeKey) return;
+    this.passerRouteKey = routeKey;
+    const lanes = this.routeFocusedLanes(state);
+    if (!lanes.length) return;
+    const nearLanes = lanes.slice(0, Math.min(12, lanes.length));
+    const midLanes = lanes.slice(0, Math.min(20, lanes.length));
+    this.passers.forEach((item, i) => {
+      const pool = i < Math.ceil(this.passers.length * 0.72) ? nearLanes : midLanes;
+      const seg = pool[(i * 5 + (item.kind === "cyclist" ? 3 : 0)) % pool.length];
+      const reverse = (i + (item.kind === "cyclist" ? 1 : 0)) % 4 === 0;
+      item.x1 = reverse ? seg.x2 : seg.x1;
+      item.z1 = reverse ? seg.z2 : seg.z1;
+      item.x2 = reverse ? seg.x1 : seg.x2;
+      item.z2 = reverse ? seg.z1 : seg.z2;
+      item.length = seg.len || Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) || 1;
+      item.offset = item.kind === "cyclist"
+        ? (i % 2 === 0 ? 2.2 : -2.2)
+        : (i % 4 < 2 ? -6.8 : 6.8) + ((i % 3) - 1) * 0.55;
+      item.phase = ((i * 0.173) + (state.floatTime || 0) * 0.03) % 1;
+      item.routeLaneRank = lanes.indexOf(seg);
+    });
+  }
+
   createAnimal(kind, color) {
     const group = new THREE.Group();
     const animalMat = mat(color);
@@ -2313,6 +2377,7 @@ export class ThreeRenderer {
   }
 
   updateAmbientLife(t, state) {
+    this.arrangePassersNearRoute(state);
     this.floatingBits.forEach((item, i) => {
       item.bit.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * item.drift;
       item.bit.position.z = item.baseZ + Math.cos(t * (item.speed * 0.8) + item.phase) * item.drift * 0.42;
