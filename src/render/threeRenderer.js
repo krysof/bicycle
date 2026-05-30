@@ -261,6 +261,10 @@ function orthogonalAngleToward(fromX, fromZ, toX, toZ) {
   return dz >= 0 ? -Math.PI / 2 : Math.PI / 2;
 }
 
+function snapRightAngle(angle = 0) {
+  return Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
+}
+
 export class ThreeRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -715,7 +719,7 @@ export class ThreeRenderer {
     // 每局从共享 layout 生成不同住宅、商店、树木；碰撞体也使用同一份 layout，避免空气墙。
     (this.worldLayout?.lots || []).forEach((lot) => {
       const group = this.addResidentialLot(lot.x, lot.z, lot.roof, lot.wall, lot.scale, lot.variant, lot);
-      group.rotation.y = Number.isFinite(lot.angle) ? lot.angle : (lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0));
+      group.rotation.y = snapRightAngle(Number.isFinite(lot.angle) ? lot.angle : (lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0)));
     });
 
     (this.worldLayout?.trees || []).forEach((tree) => {
@@ -726,7 +730,7 @@ export class ThreeRenderer {
   addResidentialLot(x, z, roof, wall, scale = 1, variant = "house-red", spec = null) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
-    group.rotation.y = ((x + z) % 5) * 0.018;
+    group.rotation.y = 0;
 
     if (spec && !spec.fixedService) {
       this.addSimpleResidentialLot(group, roof, wall, scale, spec);
@@ -745,13 +749,7 @@ export class ThreeRenderer {
     yard.receiveShadow = true;
     group.add(yard);
 
-    const wallMat = mat(0xf6f0df);
-    for (const [px, pz, w, d] of [[0, -yardD / 2, yardW, 0.12], [0, yardD / 2, yardW, 0.12], [-yardW / 2, 0, 0.12, yardD], [yardW / 2, 0, 0.12, yardD]]) {
-      const fence = new THREE.Mesh(new THREE.BoxGeometry(w, 0.28, d), wallMat);
-      fence.position.set(px, 0.22, pz);
-      fence.castShadow = true;
-      group.add(fence);
-    }
+    // 普通地块不画围栏。之前每户都有白色边线，远看像错误多边形。
 
     this.addBuildingVariant(group, variant, roof, wall, (spec?.frontage ? 1.58 : 2.05) * scale);
     this.markLodGroup(group, spec?.fixedService ? 112 : 58, Boolean(spec?.fixedService));
@@ -885,11 +883,11 @@ export class ThreeRenderer {
   addHouse(n) {
     const group = new THREE.Group();
     group.position.set(wx(n.x), 0, wz(n.y));
-    if (Number.isFinite(n.faceAngle)) group.rotation.y = n.faceAngle;
+    if (Number.isFinite(n.faceAngle)) group.rotation.y = snapRightAngle(n.faceAngle);
     else {
       const dx = wx(n.deliveryX ?? n.x) - wx(n.x);
       const dz = wz(n.deliveryY ?? n.y) - wz(n.y);
-      group.rotation.y = Math.atan2(dx, dz);
+      group.rotation.y = snapRightAngle(Math.atan2(dx, dz));
     }
     this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), n.osakaLot ? 2.34 : 2.65, n.variant || TARGET_VARIANTS[n.id] || "house-red");
     const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
@@ -1024,7 +1022,7 @@ export class ThreeRenderer {
   }
 
   addDecorHouse(x, z, roof, wall, scale = 1) {
-    const group = new THREE.Group(); group.position.set(x, 0, z); group.rotation.y = ((x + z) % 7) * 0.035; group.scale.setScalar(scale);
+    const group = new THREE.Group(); group.position.set(x, 0, z); group.rotation.y = 0; group.scale.setScalar(scale);
     this.addHouseParts(group, roof, wall, 0x76583f, 2.05, "decor"); this.registerOccluder(group); this.scene.add(group);
   }
 
@@ -1033,13 +1031,7 @@ export class ThreeRenderer {
     yard.position.set(0, 0.06, 0.25);
     yard.receiveShadow = true;
     group.add(yard);
-    const fenceMat = mat(0xf3ead8);
-    for (const [px, pz, w, d] of [[0, -3.2, 8.4, 0.13], [-4.2, 0.1, 0.13, 6.2], [4.2, 0.1, 0.13, 6.2]]) {
-      const fence = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), fenceMat);
-      fence.position.set(px, 0.22, pz);
-      fence.castShadow = true;
-      group.add(fence);
-    }
+    // 投递目标也不再画整圈围栏，只保留门前石板和小绿植，避免出现奇怪白色多边形边框。
     const pathMat = mat(0xd0c0a8);
     for (let i = 0; i < 5; i += 1) {
       const stone = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.035, 0.36), pathMat);
@@ -1048,12 +1040,6 @@ export class ThreeRenderer {
       stone.receiveShadow = true;
       group.add(stone);
     }
-    const gateLeft = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.12), fenceMat);
-    gateLeft.position.set(-0.52, 0.32, 3.15);
-    const gateRight = gateLeft.clone(); gateRight.position.x = 1.45;
-    const gateTop = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.10, 0.12), fenceMat);
-    gateTop.position.set(0.46, 0.58, 3.15);
-    group.add(gateLeft, gateRight, gateTop);
     for (let i = 0; i < 6; i += 1) {
       const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 8), mat(i % 2 ? 0x74b86f : 0x5da45f));
       shrub.position.set(-3.35 + i * 0.42, 0.22, 2.78 + (i % 2) * 0.08);
