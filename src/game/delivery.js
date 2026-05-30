@@ -164,6 +164,10 @@ function appendWaypoint(points, point) {
   if (!last || Math.hypot(last.x - point.x, last.y - point.y) > 70) points.push(point);
 }
 
+function normalizeAngle(angle) {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
 export function buildAutoNavPath(state, target) {
   const startScene = worldToScenePoint(state.player.x, state.player.y);
   const targetScene = worldToScenePoint(target.deliveryX ?? target.x, target.deliveryY ?? target.y);
@@ -379,9 +383,15 @@ export function updatePlayer(state, dt) {
     const beforeY = state.player.y;
     moveWithCollision(state, nextX, nextY);
     if (autoNav && Math.hypot(state.player.x - beforeX, state.player.y - beforeY) < Math.max(1, Math.abs(step) * 0.12)) {
-      state.autoNavPath = null;
-      state.autoNavTargetId = null;
-      state.autoNavIndex = 0;
+      state.autoStuckTime = (state.autoStuckTime || 0) + dt;
+      if (state.autoStuckTime > 0.55) {
+        state.autoNavPath = null;
+        state.autoNavTargetId = null;
+        state.autoNavIndex = 0;
+        state.autoStuckTime = 0;
+      }
+    } else if (autoNav) {
+      state.autoStuckTime = 0;
     }
   }
 }
