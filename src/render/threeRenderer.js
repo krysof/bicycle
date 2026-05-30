@@ -121,9 +121,10 @@ function makeSkyTexture() {
   canvas.height = 256;
   const ctx = canvas.getContext("2d");
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0, "#8fd4ff");
-  grad.addColorStop(0.52, "#cfeeff");
-  grad.addColorStop(1, "#fff0c9");
+  grad.addColorStop(0, "#9fd6f0");
+  grad.addColorStop(0.38, "#c7e9f7");
+  grad.addColorStop(0.78, "#eaf6f3");
+  grad.addColorStop(1, "#f2ead0");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const texture = new THREE.CanvasTexture(canvas);
@@ -140,21 +141,6 @@ function makeCloudTexture() {
   ctx.shadowBlur = 18;
   [[126,104,72],[202,78,92],[292,100,82],[372,112,58]].forEach(([x,y,r]) => { ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); });
   ctx.fillRect(110, 102, 280, 52);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-function makeSunTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext("2d");
-  const grad = ctx.createRadialGradient(128, 128, 20, 128, 128, 126);
-  grad.addColorStop(0, "rgba(255,255,230,1)");
-  grad.addColorStop(0.34, "rgba(255,216,122,.92)");
-  grad.addColorStop(1, "rgba(255,216,122,0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 256, 256);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -400,37 +386,30 @@ export class ThreeRenderer {
   addLights() {
     const atmosphere = this.worldLayout?.atmosphere || {};
     const dusk = atmosphere.timeOfDay === "dusk";
-    this.scene.fog.color.setHex(dusk ? 0xf1d7c7 : 0xdff2ff);
-    this.scene.add(new THREE.HemisphereLight(dusk ? 0xffe6d2 : 0xfffff5, 0x8fc486, dusk ? 2.05 : 2.4));
-    const sun = new THREE.DirectionalLight(dusk ? 0xffb37a : 0xffefc0, dusk ? 2.35 : 2.7);
-    sun.position.set(dusk ? -58 : -35, dusk ? 34 : 55, dusk ? 44 : 30);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -420; sun.shadow.camera.right = 420; sun.shadow.camera.top = 310; sun.shadow.camera.bottom = -310;
-    this.scene.add(sun);
+    this.scene.fog.color.setHex(dusk ? 0xe7d4c8 : 0xddeef2);
+    this.scene.add(new THREE.HemisphereLight(dusk ? 0xffead6 : 0xf7fbff, 0x8fc486, dusk ? 1.9 : 2.25));
+    // 不再在天空挂一个太阳贴片；只用柔和方向光暗示日照，更自然也更不突兀。
+    const keyLight = new THREE.DirectionalLight(dusk ? 0xffbf8c : 0xfff2cd, dusk ? 2.15 : 2.55);
+    keyLight.position.set(dusk ? -70 : -44, dusk ? 30 : 58, dusk ? 54 : 36);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -420; keyLight.shadow.camera.right = 420; keyLight.shadow.camera.top = 310; keyLight.shadow.camera.bottom = -310;
+    this.scene.add(keyLight);
+    const fill = new THREE.DirectionalLight(0xbfdfff, 0.34);
+    fill.position.set(64, 28, -80);
+    this.scene.add(fill);
   }
 
   addSkyDetails() {
-    const atmosphere = this.worldLayout?.atmosphere || {};
-    const dusk = atmosphere.timeOfDay === "dusk";
-    const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSunTexture(), transparent: true, depthWrite: false, fog: false }));
-    sun.position.set(dusk ? -92 : -72, dusk ? 30 : 48, -96);
-    sun.scale.set(dusk ? 24 : 19, dusk ? 24 : 19, 1);
-    this.scene.add(sun);
+    // 天空表现改成薄云和柔和雾色，不放卡通太阳，也不放任何大型竖直色块，
+    // 避免玩家在城市边缘看到像“墙”一样的背景片。
 
-    if (dusk) {
-      const glow = new THREE.Mesh(new THREE.PlaneGeometry(260, 52), mat(0xffb28a, 0.22));
-      glow.position.set(0, 14, -119);
-      glow.rotation.x = -0.08;
-      this.scene.add(glow);
-    }
-
-
-    const cloudSpriteMat = new THREE.SpriteMaterial({ map: makeCloudTexture(), transparent: true, opacity: 0.92, depthWrite: false, fog: false });
+    const cloudSpriteMat = new THREE.SpriteMaterial({ map: makeCloudTexture(), transparent: true, opacity: 0.62, depthWrite: false, fog: false });
     [
-      [-62, 27, -48, 24, 8.5, 0.10],
-      [12, 31, -56, 30, 10, 0.08],
-      [72, 26, -42, 22, 7.5, 0.11],
+      [-92, 35, -92, 34, 8.2, 0.055],
+      [-18, 39, -116, 42, 9.4, 0.045],
+      [74, 33, -86, 32, 7.6, 0.060],
+      [126, 28, -124, 46, 8.0, 0.040],
     ].forEach(([x, y, z, sx, sy, speed], idx) => {
       const sprite = new THREE.Sprite(cloudSpriteMat.clone());
       sprite.position.set(x, y, z);
@@ -439,14 +418,14 @@ export class ThreeRenderer {
       this.clouds.push({ group: sprite, baseX: x, phase: idx * 1.2 + 4, speed, amplitude: 3.5 + idx });
     });
 
-    const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.86, depthWrite: false, fog: false });
+    const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.46, depthWrite: false, fog: false });
     const cloudSeeds = [
-      [-82, 39, -68, 1.15, 0.09],
-      [-28, 46, -92, 0.92, 0.12],
-      [32, 42, -82, 1.05, 0.08],
-      [86, 37, -64, 0.82, 0.11],
-      [-104, 34, 12, 0.74, 0.07],
-      [72, 48, 18, 0.88, 0.10],
+      [-120, 44, -128, 0.92, 0.045],
+      [-48, 50, -154, 0.74, 0.052],
+      [36, 46, -136, 0.82, 0.040],
+      [116, 40, -118, 0.66, 0.048],
+      [-112, 33, -18, 0.56, 0.038],
+      [82, 48, -26, 0.68, 0.046],
     ];
     cloudSeeds.forEach(([x, y, z, scale, speed], idx) => {
       const group = new THREE.Group();
@@ -483,6 +462,10 @@ export class ThreeRenderer {
   }
 
   addGround() {
+    // 可玩区域外也铺一层低矮地表作为视觉延伸；碰撞仍由 WORLD_BOUNDS 控制，
+    // 但玩家不会直接看到地图切断线或空白边界。
+    const visualGround = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 180, 0.12, MAP_D + 160), mat(0xb2d6a8));
+    visualGround.position.y = -0.38; this.scene.add(visualGround);
     const ground = new THREE.Mesh(new THREE.BoxGeometry(MAP_W, 0.28, MAP_D), mat(0xb9ddb0));
     ground.position.y = -0.16; ground.receiveShadow = true; this.scene.add(ground);
     const border = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 2, 0.16, MAP_D + 2), mat(0xa7cfa0));
@@ -508,16 +491,17 @@ export class ThreeRenderer {
   }
 
   addBoundaryCityBelt() {
-    // 世界边界不能像空气墙。四周用远景建筑背面、围栏和堤岸收边，让“过不去”有视觉理由。
-    const edgeZ = MAP_D / 2 - 5;
-    const backZ = -MAP_D / 2 + 5;
-    const edgeX = MAP_W / 2 - 5;
-    const backX = -MAP_W / 2 + 5;
+    // 世界边界不能像空气墙。把“城市延伸”放在可玩区域外侧，而不是在边界内侧立墙。
+    // 玩家被不可见边界挡住时，前方仍然看起来像还有房屋和街区。
+    const edgeZ = MAP_D / 2 + 26;
+    const backZ = -MAP_D / 2 - 26;
+    const edgeX = MAP_W / 2 + 26;
+    const backX = -MAP_W / 2 - 26;
     const colors = [0xd9dcc8, 0xcfd7cf, 0xe4d5bd, 0xd6dfeb];
     for (let i = 0; i < 18; i += 1) {
-      const x = -MAP_W / 2 + 22 + i * 42;
-      const h = 3.2 + (i % 4) * 1.0;
-      const b1 = new THREE.Mesh(new THREE.BoxGeometry(18 + (i % 3) * 4, h, 4.2), mat(colors[i % colors.length]));
+      const x = -MAP_W / 2 + 22 + i * 42 + ((i % 2) ? 7 : -5);
+      const h = 2.2 + (i % 4) * 0.7;
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(12 + (i % 3) * 4, h, 3.4), mat(colors[i % colors.length]));
       b1.position.set(x, h / 2, backZ);
       const b2 = b1.clone();
       b2.material = mat(colors[(i + 2) % colors.length]);
@@ -525,19 +509,15 @@ export class ThreeRenderer {
       this.scene.add(b1, b2);
     }
     for (let i = 0; i < 12; i += 1) {
-      const z = -MAP_D / 2 + 26 + i * 44;
-      const h = 2.8 + (i % 3) * 0.9;
-      const b1 = new THREE.Mesh(new THREE.BoxGeometry(4.2, h, 17 + (i % 4) * 3), mat(colors[(i + 1) % colors.length]));
+      const z = -MAP_D / 2 + 26 + i * 44 + ((i % 2) ? -6 : 5);
+      const h = 2.1 + (i % 3) * 0.65;
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, 12 + (i % 4) * 3), mat(colors[(i + 1) % colors.length]));
       b1.position.set(backX, h / 2, z);
       const b2 = b1.clone();
       b2.material = mat(colors[(i + 3) % colors.length]);
       b2.position.set(edgeX, h / 2, z + 9);
       this.scene.add(b1, b2);
     }
-    this.addPlane(0, 0.09, edgeZ - 7, MAP_W - 24, 0.55, 0x8f9a8a, 0);
-    this.addPlane(0, 0.09, backZ + 7, MAP_W - 24, 0.55, 0x8f9a8a, 0);
-    this.addPlane(edgeX - 7, 0.09, 0, 0.55, MAP_D - 30, 0x8f9a8a, 0);
-    this.addPlane(backX + 7, 0.09, 0, 0.55, MAP_D - 30, 0x8f9a8a, 0);
   }
 
   addRoadNetwork() {

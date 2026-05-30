@@ -1,6 +1,6 @@
 import { neighbors } from "./data/neighbors.js";
 import { createWorldLayout, createWorldObstacles } from "./data/world.js";
-import { answersFromMode, buildConfig, pickRoute, pickStartPoint } from "./game/difficulty.js";
+import { answersFromMode, buildConfig, pickRoute, pickStartNearTarget } from "./game/difficulty.js";
 import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard, bindTouchControls } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
@@ -255,7 +255,11 @@ export class App {
     ["bike", "walk"].forEach((mode) => {
       const answers = this.answersForMode(mode);
       const config = buildConfig(answers);
-      const player = pickStartPoint();
+      // 先在内部街区生成一条预览路线，再把出生点放到第一个投递点附近。
+      // 这样开局不会在城市边缘，也不会一开始就看到“地图尽头”。
+      const previewRoute = pickRoute(neighbors, config, { x: 0, y: 0 });
+      const firstSeed = previewRoute[0] || neighbors[Math.floor(Math.random() * neighbors.length)];
+      const player = pickStartNearTarget(firstSeed, mode);
       const route = pickRoute(neighbors, config, player);
       this.state.preparedRuns[mode] = { answers, config, player, route };
     });
