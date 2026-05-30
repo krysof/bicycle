@@ -43,6 +43,56 @@ function simplifyRoadPoints(points, epsilon) {
   return left.slice(0, -1).concat(right);
 }
 
+function snapRoad(v) {
+  return Math.round(v * 2) / 2;
+}
+
+function addOrthogonalSegment(out, base, x1, z1, x2, z2, suffix) {
+  const ax = snapRoad(x1);
+  const az = snapRoad(z1);
+  const bx = snapRoad(x2);
+  const bz = snapRoad(z2);
+  if (Math.hypot(bx - ax, bz - az) < 9) return;
+  out.push({
+    ...base,
+    id: `${base.id}-${suffix}`,
+    x1: ax,
+    z1: az,
+    x2: bx,
+    z2: bz,
+    dir: "line",
+  });
+}
+
+function addManhattanRoad(out, base, a, b, index, highway) {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const len = Math.hypot(dx, dz);
+  if (len < 12) return;
+  const adx = Math.abs(dx);
+  const adz = Math.abs(dz);
+
+  // 风格化成 90 度道路：横向就横、纵向就纵，明显斜线则拆成一个 L 形转角。
+  // 这样保留北江口道路的大致位置关系，但视觉上像干净的住宅区街道。
+  if (adz < 5 || adx >= adz * 2.4) {
+    addOrthogonalSegment(out, base, a.x, a.z, b.x, a.z, `${index}h`);
+    return;
+  }
+  if (adx < 5 || adz >= adx * 2.4) {
+    addOrthogonalSegment(out, base, a.x, a.z, a.x, b.z, `${index}v`);
+    return;
+  }
+
+  const horizontalFirst = highway === "primary" || index % 2 === 0;
+  if (horizontalFirst) {
+    addOrthogonalSegment(out, base, a.x, a.z, b.x, a.z, `${index}h`);
+    addOrthogonalSegment(out, base, b.x, a.z, b.x, b.z, `${index}v`);
+  } else {
+    addOrthogonalSegment(out, base, a.x, a.z, a.x, b.z, `${index}v`);
+    addOrthogonalSegment(out, base, a.x, b.z, b.x, b.z, `${index}h`);
+  }
+}
+
 function makeCleanRoadSegments(rawSegments) {
   const groups = new Map();
   rawSegments.forEach((seg) => {
@@ -73,30 +123,37 @@ function makeCleanRoadSegments(rawSegments) {
     for (let i = 1; i < simplified.length; i += 1) {
       const a = simplified[i - 1];
       const b = simplified[i];
-      const len = Math.hypot(b.x - a.x, b.z - a.z);
-      if (len < 12) continue;
-      cleaned.push({
+      addManhattanRoad(cleaned, {
         id: `${groupId}-clean-${i}`,
-        x1: a.x,
-        z1: a.z,
-        x2: b.x,
-        z2: b.z,
         main,
         highway,
         name: segments[0]?.name || "",
-        dir: "line",
-      });
+      }, a, b, i, highway);
     }
   });
   return cleaned;
 }
 
+function makeCleanIntersections(segments) {
+  const seen = new Set();
+  const points = [];
+  segments.forEach((seg) => {
+    [[seg.x1, seg.z1], [seg.x2, seg.z2]].forEach(([x, z]) => {
+      const key = `${Math.round(x * 2) / 2},${Math.round(z * 2) / 2}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      points.push([Math.round(x * 2) / 2, Math.round(z * 2) / 2]);
+    });
+  });
+  return points;
+}
+
 export const RAW_ROAD_SEGMENTS = ROAD_SEGMENTS_OSM.map((seg) => ({ ...seg, dir: "line" }));
-// 北江口周边真实路网的“干净游戏版”：保留道路走向，合并细碎折线，去掉太短小路。
+// 北江口周边真实路网的“干净游戏版”：保留区域结构，但风格化成横平竖直的 90 度道路。
 export const ROAD_SEGMENTS = makeCleanRoadSegments(ROAD_SEGMENTS_OSM);
 export const RAIL_SEGMENTS = RAIL_SEGMENTS_OSM;
 export const WATER_SEGMENTS = WATER_SEGMENTS_OSM;
-export const ROAD_INTERSECTIONS = ROAD_INTERSECTIONS_OSM;
+export const ROAD_INTERSECTIONS = makeCleanIntersections(ROAD_SEGMENTS);
 
 // 旧コード互換用。道路生成は ROAD_SEGMENTS を使うが、環境物や人流の初期値として使う。
 export const ROAD_X = [...new Set(ROAD_INTERSECTIONS.map((p) => Math.round(p[0] / 12) * 12))].slice(0, 16);
