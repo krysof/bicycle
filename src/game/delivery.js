@@ -254,10 +254,14 @@ function moveWithCollision(state, nextX, nextY) {
   const radius = PLAYER_RADIUS[mode] || PLAYER_RADIUS.walk;
   const current = { x: state.player.x, y: state.player.y };
   const tryX = clampPoint({ x: nextX, y: current.y }, radius);
-  if (!collides(state, tryX.x, tryX.y, radius)) current.x = tryX.x;
+  const hitX = collisionAt(state, tryX.x, tryX.y, radius);
+  if (!hitX) current.x = tryX.x;
+  else noteTrafficCollision(state, hitX);
 
   const tryY = clampPoint({ x: current.x, y: nextY }, radius);
-  if (!collides(state, tryY.x, tryY.y, radius)) current.y = tryY.y;
+  const hitY = collisionAt(state, tryY.x, tryY.y, radius);
+  if (!hitY) current.y = tryY.y;
+  else noteTrafficCollision(state, hitY);
 
   state.player.x = current.x;
   state.player.y = current.y;
@@ -270,14 +274,33 @@ function clampPoint(point, radius) {
   };
 }
 
-function collides(state, x, y, radius) {
-  const obstacles = state.worldObstacles || WORLD_OBSTACLES;
-  return obstacles.some((obstacle) => {
+function allObstacles(state) {
+  const staticObstacles = state.worldObstacles || WORLD_OBSTACLES;
+  const traffic = Array.isArray(state.trafficObstacles) ? state.trafficObstacles : [];
+  return staticObstacles.concat(traffic);
+}
+
+function collisionAt(state, x, y, radius) {
+  for (const obstacle of allObstacles(state)) {
     if (obstacle.type === "circle") {
-      return Math.hypot(x - obstacle.x, y - obstacle.y) < radius + obstacle.r;
+      if (Math.hypot(x - obstacle.x, y - obstacle.y) < radius + obstacle.r) return obstacle;
+      continue;
     }
     const closestX = Math.max(obstacle.x - obstacle.halfW, Math.min(x, obstacle.x + obstacle.halfW));
     const closestY = Math.max(obstacle.y - obstacle.halfH, Math.min(y, obstacle.y + obstacle.halfH));
-    return Math.hypot(x - closestX, y - closestY) < radius;
-  });
+    if (Math.hypot(x - closestX, y - closestY) < radius) return obstacle;
+  }
+  return null;
+}
+
+function noteTrafficCollision(state, obstacle) {
+  if (!obstacle || (obstacle.kind !== "pedestrian" && obstacle.kind !== "cyclist")) return;
+  const now = state.floatTime || 0;
+  if (now - (state.lastTrafficBumpAt ?? -99) < 1.55) return;
+  const key = obstacle.kind === "cyclist" ? "trafficBumpCyclist" : "trafficBumpPedestrian";
+  const line = t(key);
+  state.lastTrafficBumpAt = now;
+  state.trafficBump = { kind: obstacle.kind, id: obstacle.id || obstacle.kind, time: 0.8 };
+  state.message = line;
+  state.comic = { text: line, tone: "hint safety", time: 2.2, speaker: "companion" };
 }

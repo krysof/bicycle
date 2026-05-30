@@ -45,10 +45,10 @@ export class Hud {
     const done = state.delivered.length;
     const total = state.route.length;
     if (!target) {
-      this.targetName.textContent = t("targetDone");
+      this.targetName.textContent = t("deliverDone", done, total);
       this.targetHint.textContent = t("summaryReady");
     } else {
-      this.targetName.textContent = t("deliverTo", done + 1, total, nt(target, "name"));
+      this.targetName.textContent = t("deliverTo", done, total, nt(target, "name"));
       this.targetHint.textContent = t("targetHint", nt(target, "paper"));
     }
     this.companionLine.textContent = state.message;

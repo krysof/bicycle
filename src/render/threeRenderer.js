@@ -254,6 +254,7 @@ export class ThreeRenderer {
     this.walkParts = {};
     this.bike = null;
     this.bikeRoll = 0;
+    this.walkCycle = 0;
     this.lastBikeAnimTime = 0;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
@@ -306,6 +307,8 @@ export class ThreeRenderer {
     this.player = null;
     this.walkParts = {};
     this.bike = null;
+    this.bikeRoll = 0;
+    this.walkCycle = 0;
     this.currentPlayerStyle = null;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
@@ -1319,12 +1322,36 @@ export class ThreeRenderer {
     brim.visible = hat.visible;
     const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), mat(skin));
     nose.position.set(0.13, 1.24, 0);
+    const eyeMat = mat(0x2c2724);
+    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), eyeMat);
+    const rightEye = leftEye.clone();
+    leftEye.position.set(0.132, 1.275, -0.047);
+    rightEye.position.set(0.132, 1.275, 0.047);
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.009, 0.075), mat(0xa35d55));
+    mouth.position.set(0.142, 1.198, 0);
+    const glasses = new THREE.Group();
+    if (style % 3 === 1) {
+      const lensGeo = new THREE.TorusGeometry(0.040, 0.004, 5, 12);
+      const g1 = new THREE.Mesh(lensGeo, eyeMat);
+      const g2 = g1.clone();
+      g1.position.set(0.145, 1.275, -0.048);
+      g2.position.set(0.145, 1.275, 0.048);
+      g1.rotation.y = Math.PI / 2;
+      g2.rotation.y = Math.PI / 2;
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.036), eyeMat);
+      bridge.position.set(0.147, 1.275, 0);
+      glasses.add(g1, g2, bridge);
+    }
     const bag = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.22, 0.09), mat(style % 2 ? 0x7b5c47 : 0x345f86));
     bag.position.set(0.20, 0.76, 0.08);
     const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.34, 4, 8), mat(skin));
     const rightArm = leftArm.clone();
     leftArm.position.set(0.02, 0.88, -0.21);
     rightArm.position.set(0.02, 0.88, 0.21);
+    const leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.046, 8, 6), mat(skin));
+    const rightHand = leftHand.clone();
+    leftHand.position.set(0.02, 0.68, -0.24);
+    rightHand.position.set(0.02, 0.68, 0.24);
     const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.38, 4, 8), mat(pants));
     const rightLeg = leftLeg.clone();
     leftLeg.position.set(-0.02, 0.40, -0.075);
@@ -1352,8 +1379,8 @@ export class ThreeRenderer {
       top.position.set(0.33, 1.00, -0.25);
       accessory.add(umbrella, top);
     }
-    group.add(body, scarf, head, hairCap, hat, brim, nose, bag, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe, accessory);
-    group.userData.parts = { leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe, bag, accessory };
+    group.add(body, scarf, head, hairCap, hat, brim, nose, leftEye, rightEye, mouth, glasses, bag, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe, accessory);
+    group.userData.parts = { body, head, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe, bag, accessory };
     return group;
   }
 
@@ -1373,10 +1400,24 @@ export class ThreeRenderer {
     basket.position.set(0.68, 0.52, 0);
     const rack = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.045, 0.22), mat(0x666666));
     rack.position.set(-0.48, 0.52, 0);
-    group.add(rear, front, frame, handle, basket, rack);
+    const fork = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.48, 8), mat(0x555555));
+    fork.position.set(0.47, 0.44, 0);
+    fork.rotation.z = -0.22;
+    const crank = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.10, 8), mat(0x444444));
+    crank.position.set(0.02, 0.40, 0);
+    crank.rotation.x = Math.PI / 2;
+    const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.025, 0.035), mat(0x333333));
+    pedal.position.set(0.02, 0.40, 0);
+    const handleStem = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.34, 8), mat(0x444444));
+    handleStem.position.set(0.56, 0.62, 0);
+    handleStem.rotation.z = -0.22;
+    group.add(rear, front, frame, handle, basket, rack, fork, crank, pedal, handleStem);
     group.userData.wheels = [rear, front];
     group.userData.handle = handle;
     group.userData.basket = basket;
+    group.userData.crank = crank;
+    group.userData.pedal = pedal;
+    group.userData.fork = fork;
     return group;
   }
 
@@ -1511,21 +1552,45 @@ export class ThreeRenderer {
         item.group.position.set(item.lane + item.offset, 0, along);
         item.group.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
       }
-      item.group.position.y = item.kind === "pedestrian" ? Math.abs(Math.sin(t * item.speed * 2.2 + i)) * 0.035 : 0;
-      const walkPhase = t * item.speed * 2.4 + i;
       const parts = item.group.userData.parts || {};
-      if (parts.leftLeg) parts.leftLeg.rotation.z = Math.sin(walkPhase) * 0.35;
-      if (parts.rightLeg) parts.rightLeg.rotation.z = -Math.sin(walkPhase) * 0.35;
-      if (parts.leftArm) parts.leftArm.rotation.z = -Math.sin(walkPhase) * 0.28;
-      if (parts.rightArm) parts.rightArm.rotation.z = Math.sin(walkPhase) * 0.28;
-      if (parts.leftShoe) parts.leftShoe.position.x = 0.035 + Math.sin(walkPhase) * 0.035;
-      if (parts.rightShoe) parts.rightShoe.position.x = 0.035 - Math.sin(walkPhase) * 0.035;
-      if (parts.bag) parts.bag.rotation.z = Math.sin(walkPhase * 0.7) * 0.08;
-      if (parts.accessory) parts.accessory.rotation.z = Math.sin(walkPhase * 0.55) * 0.05;
-      if (item.kind === "cyclist" && item.group.userData.wheels) {
-        item.group.userData.wheels.forEach((w) => (w.rotation.z -= 0.22));
-        if (item.group.userData.handle) item.group.userData.handle.rotation.y = Math.sin(t * 1.6 + i) * 0.10;
-        if (item.group.userData.basket) item.group.userData.basket.rotation.y = Math.sin(t * 1.6 + i) * 0.05;
+      const stride = Math.max(2.4, item.speed * (item.kind === "cyclist" ? 3.1 : 1.75));
+      const walkPhase = t * stride + i;
+      const sin = Math.sin(walkPhase);
+      const cos = Math.cos(walkPhase);
+      if (item.kind === "cyclist") {
+        item.group.position.y = 0;
+        const cyclePhase = t * Math.max(5.8, item.speed * 2.25) + i;
+        const cSin = Math.sin(cyclePhase);
+        if (parts.body) { parts.body.rotation.x = 0.10; parts.body.rotation.z = Math.sin(t * 1.2 + i) * 0.018; }
+        if (parts.leftLeg) { parts.leftLeg.rotation.z = 0.42 + cSin * 0.28; parts.leftLeg.position.set(-0.02, 0.40, -0.105); }
+        if (parts.rightLeg) { parts.rightLeg.rotation.z = 0.42 - cSin * 0.28; parts.rightLeg.position.set(-0.02, 0.40, 0.105); }
+        if (parts.leftArm) parts.leftArm.rotation.z = -0.78;
+        if (parts.rightArm) parts.rightArm.rotation.z = -0.78;
+        if (parts.leftHand) parts.leftHand.position.set(0.26, 0.72, -0.25);
+        if (parts.rightHand) parts.rightHand.position.set(0.26, 0.72, 0.25);
+        if (parts.leftShoe) parts.leftShoe.position.set(0.06, 0.18 + cSin * 0.055, -0.12);
+        if (parts.rightShoe) parts.rightShoe.position.set(0.06, 0.18 - cSin * 0.055, 0.12);
+        if (parts.bag) parts.bag.rotation.z = Math.sin(cyclePhase * 0.45) * 0.05;
+        if (item.group.userData.wheels) item.group.userData.wheels.forEach((w) => (w.rotation.z = -cyclePhase));
+        if (item.group.userData.crank) item.group.userData.crank.rotation.z = -cyclePhase;
+        if (item.group.userData.pedal) item.group.userData.pedal.rotation.z = -cyclePhase;
+        const steerWiggle = Math.sin(t * 1.35 + i) * 0.08;
+        if (item.group.userData.handle) item.group.userData.handle.rotation.y = steerWiggle;
+        if (item.group.userData.fork) item.group.userData.fork.rotation.y = steerWiggle * 0.7;
+        if (item.group.userData.basket) item.group.userData.basket.rotation.y = steerWiggle * 0.45;
+      } else {
+        item.group.position.y = Math.abs(sin) * 0.030;
+        if (parts.body) parts.body.rotation.z = sin * 0.025;
+        if (parts.leftLeg) parts.leftLeg.rotation.z = sin * 0.34;
+        if (parts.rightLeg) parts.rightLeg.rotation.z = -sin * 0.34;
+        if (parts.leftArm) parts.leftArm.rotation.z = -sin * 0.26;
+        if (parts.rightArm) parts.rightArm.rotation.z = sin * 0.26;
+        if (parts.leftHand) parts.leftHand.position.x = 0.02 - sin * 0.055;
+        if (parts.rightHand) parts.rightHand.position.x = 0.02 + sin * 0.055;
+        if (parts.leftShoe) { parts.leftShoe.position.x = 0.035 + sin * 0.045; parts.leftShoe.position.y = 0.12 + Math.max(0, cos) * 0.025; }
+        if (parts.rightShoe) { parts.rightShoe.position.x = 0.035 - sin * 0.045; parts.rightShoe.position.y = 0.12 + Math.max(0, -cos) * 0.025; }
+        if (parts.bag) parts.bag.rotation.z = Math.sin(walkPhase * 0.7) * 0.08;
+        if (parts.accessory) parts.accessory.rotation.z = Math.sin(walkPhase * 0.55) * 0.05;
       }
       const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
       if (d < best && d < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = d; near = item.kind; }
@@ -1546,10 +1611,20 @@ export class ThreeRenderer {
       }
     });
 
+    const trafficObstacles = this.passers.map((item, i) => ({
+      id: `traffic-${i}`,
+      type: "circle",
+      x: item.group.position.x / WORLD_SCALE,
+      y: item.group.position.z / WORLD_SCALE,
+      r: item.kind === "cyclist" ? 118 : 82,
+      kind: item.kind,
+    }));
+
     this.lastAmbientInfo = {
       nearPasserby: near,
       distance: near ? best : Infinity,
       nearestTraffic,
+      trafficObstacles,
       area: this.currentArea(px, pz),
       passerCount: this.passers.length,
       pedestrianCount: this.passers.filter((item) => item.kind === "pedestrian").length,
@@ -2019,7 +2094,12 @@ export class ThreeRenderer {
     if (pedaling) this.bikeRoll += throttle * animDt * ((state.config?.speed || 430) * WORLD_SCALE / 0.36);
 
     const moving = forward || backward;
-    const t = bikeMode ? this.bikeRoll : state.floatTime * 6;
+    if (!bikeMode && moving) {
+      const walkSpeed = Math.max(60, state.config?.speed || 145);
+      const direction = backward ? 0.55 : 1;
+      this.walkCycle += animDt * walkSpeed * WORLD_SCALE * 1.95 * direction;
+    }
+    const t = bikeMode ? this.bikeRoll : this.walkCycle;
     const step = moving ? Math.sin(t) * 0.35 : 0;
 
     this.walkParts.leftLeg.visible = true;

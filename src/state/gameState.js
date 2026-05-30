@@ -44,6 +44,10 @@ export function createInitialState() {
     summaryEarly: false,
     lastSafetyHintAt: -99,
     lastRestHintAt: -99,
+    nearTraffic: null,
+    trafficObstacles: [],
+    trafficBump: null,
+    lastTrafficBumpAt: -99,
   };
 }
 
