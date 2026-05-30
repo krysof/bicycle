@@ -690,7 +690,9 @@ export class ThreeRenderer {
 
     if (spec && !spec.fixedService) {
       this.addSimpleResidentialLot(group, roof, wall, scale, spec);
-      this.markLodGroup(group, 42, false);
+      // 普通住宅也不能一直是低清盒子：近处自动显示门窗、瓦片、空调、阳台等细节，
+      // 只有远处才退回低细节外形以保证性能。
+      this.markLodGroup(group, 118, false);
       this.registerOccluder(group);
       this.scene.add(group);
       return group;
@@ -735,8 +737,10 @@ export class ThreeRenderer {
     body.receiveShadow = true;
     group.add(body);
 
-    const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(w * 1.12, 0.36, d * 1.12), mat(roof));
-    roofMesh.position.y = h + 0.36;
+    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.62, 4), mat(roof));
+    roofMesh.position.y = h + 0.46;
+    roofMesh.rotation.y = Math.PI / 4;
+    roofMesh.scale.z = Math.max(0.72, d / Math.max(w, 0.1));
     roofMesh.castShadow = true;
     group.add(roofMesh);
 
@@ -745,6 +749,96 @@ export class ThreeRenderer {
     const win = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.032), mat(0xdff3ff));
     win.position.set(-w * 0.22, 0.86, d / 2 + 0.028);
     group.add(door, win);
+    this.addSimpleResidentialDetails(group, { w, d, h, scale, roof, wall, spec });
+  }
+
+  addSimpleResidentialDetails(group, cfg) {
+    const { w, d, h, scale, roof, spec } = cfg;
+    const trim = mat(0x6f7f82);
+    const wood = mat(0x76583f);
+    const glass = mat(0xe9f7ff, 0.42);
+
+    const eaveF = new THREE.Mesh(new THREE.BoxGeometry(w * 1.14, 0.08, 0.12), mat(roof));
+    eaveF.position.set(0, h + 0.10, d * 0.58);
+    const eaveB = eaveF.clone(); eaveB.position.z = -d * 0.58;
+    group.add(eaveF, eaveB);
+
+    const ridge = new THREE.Mesh(new THREE.BoxGeometry(w * 0.72, 0.055, 0.055), mat(0x5f463c));
+    ridge.position.set(0, h + 0.78, 0);
+    ridge.rotation.y = Math.PI / 4;
+    group.add(ridge);
+    for (let i = -2; i <= 2; i += 1) {
+      const tile = new THREE.Mesh(new THREE.BoxGeometry(w * 0.48, 0.018, 0.035), mat(0x6d5142));
+      tile.position.set(i * 0.18, h + 0.55 - Math.abs(i) * 0.028, d * 0.22 + i * 0.02);
+      tile.rotation.y = Math.PI / 4;
+      group.add(tile);
+      this.markEraDetail(tile);
+    }
+
+    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.43 * scale, 0.82 * scale, 0.026), mat(0xf8efdc));
+    doorFrame.position.set(w * 0.25, 0.53, d / 2 + 0.038);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.032 * scale, 8, 6), mat(0xf3c35a));
+    knob.position.set(w * 0.35, 0.48, d / 2 + 0.068);
+    group.add(doorFrame, knob);
+
+    const windowSpecs = [
+      [-w * 0.24, 0.92, d / 2 + 0.052, 0.50, 0.36, 0],
+      [w * 0.08, 1.34, d / 2 + 0.052, 0.42, 0.30, 0],
+      [-w / 2 - 0.025, 0.92, -d * 0.12, 0.34, 0.28, Math.PI / 2],
+    ];
+    windowSpecs.forEach(([x, y, z, ww, hh, rot]) => {
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(ww * scale, hh * scale, 0.025), glass);
+      pane.position.set(x, y, z);
+      pane.rotation.y = rot;
+      const top = new THREE.Mesh(new THREE.BoxGeometry(ww * scale, 0.035, 0.028), trim);
+      const bottom = top.clone();
+      const left = new THREE.Mesh(new THREE.BoxGeometry(0.035, hh * scale, 0.028), trim);
+      const right = left.clone();
+      top.position.set(x, y + hh * scale / 2, z + 0.002);
+      bottom.position.set(x, y - hh * scale / 2, z + 0.002);
+      left.position.set(x - ww * scale / 2, y, z + 0.002);
+      right.position.set(x + ww * scale / 2, y, z + 0.002);
+      [top, bottom, left, right].forEach((m) => { m.rotation.y = rot; });
+      group.add(pane, top, bottom, left, right);
+      this.markEraDetail(pane, top, bottom, left, right);
+    });
+
+    const gutter = new THREE.Mesh(new THREE.BoxGeometry(w * 1.12, 0.035, 0.045), trim);
+    gutter.position.set(0, h + 0.08, d * 0.60);
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.86, 8), trim);
+    pipe.position.set(-w * 0.53, 0.78, d * 0.61);
+    group.add(gutter, pipe);
+
+    const ac = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.20, 0.15), mat(0xd8dde0));
+    ac.position.set(-w / 2 - 0.03, 0.72, -d * 0.20);
+    ac.rotation.y = Math.PI / 2;
+    group.add(ac);
+
+    if ((spec?.frontage || 0) > 5.0) {
+      const balcony = new THREE.Mesh(new THREE.BoxGeometry(Math.min(1.15, w * 0.42), 0.10, 0.28), mat(0xd9dde2));
+      balcony.position.set(-w * 0.06, 1.38, d / 2 + 0.18);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(Math.min(1.12, w * 0.40), 0.22, 0.045), mat(0x8f9aa0, 0.55));
+      rail.position.set(balcony.position.x, 1.54, d / 2 + 0.31);
+      group.add(balcony, rail);
+      this.markEraDetail(balcony, rail);
+    }
+
+    const mailbox = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.18, 0.14), mat(0xdc604c));
+    mailbox.position.set(w * 0.52, 0.26, d / 2 + 0.25);
+    const namePlate = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.11, 0.025), mat(0xf7efd8));
+    namePlate.position.set(w * 0.52, 0.56, d / 2 + 0.075);
+    group.add(mailbox, namePlate);
+
+    for (let i = 0; i < 3; i += 1) {
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.12, 8), mat(0x9c5c3c));
+      pot.position.set(-w * 0.44 + i * 0.28, 0.12, d / 2 + 0.22);
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 6), mat(i % 2 ? 0x5aaa77 : 0x74b86f));
+      leaf.position.set(pot.position.x, 0.25, pot.position.z);
+      group.add(pot, leaf);
+      this.markEraDetail(pot, leaf);
+    }
+
+    this.markEraDetail(eaveF, eaveB, ridge, doorFrame, knob, gutter, pipe, ac, mailbox, namePlate);
   }
 
   addHouse(n) {
