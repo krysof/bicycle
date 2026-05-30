@@ -728,26 +728,27 @@ export class ThreeRenderer {
     yard.receiveShadow = true;
     group.add(yard);
 
-    const w = Math.max(2.0, yardW * 0.62) * scale;
-    const d = Math.max(2.2, yardD * 0.56) * scale;
-    const h = Math.max(1.4, Math.min(2.35, 1.55 * scale + ((spec?.depth || 6) - 5) * 0.05));
+    const w = Math.max(2.1, yardW * 0.62) * scale;
+    const d = Math.max(2.3, yardD * 0.56) * scale;
+    // 人物约 1.5 场景单位高，住宅至少要有两层量感；主要增加高度，不扩大占地，避免压路。
+    const h = Math.max(2.15, Math.min(3.35, 2.35 * scale + ((spec?.depth || 6) - 5) * 0.07));
     const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(wall));
     body.position.y = h / 2 + 0.09;
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
 
-    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.62, 4), mat(roof));
-    roofMesh.position.y = h + 0.46;
+    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.78, 4), mat(roof));
+    roofMesh.position.y = h + 0.55;
     roofMesh.rotation.y = Math.PI / 4;
     roofMesh.scale.z = Math.max(0.72, d / Math.max(w, 0.1));
     roofMesh.castShadow = true;
     group.add(roofMesh);
 
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.72, 0.035), mat(0x6b4d33));
-    door.position.set(w * 0.25, 0.47, d / 2 + 0.025);
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.032), mat(0xdff3ff));
-    win.position.set(-w * 0.22, 0.86, d / 2 + 0.028);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.82, 0.035), mat(0x6b4d33));
+    door.position.set(w * 0.25, 0.52, d / 2 + 0.025);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.36, 0.032), mat(0xdff3ff));
+    win.position.set(-w * 0.22, 1.05, d / 2 + 0.028);
     group.add(door, win);
     this.addSimpleResidentialDetails(group, { w, d, h, scale, roof, wall, spec });
   }
@@ -2120,6 +2121,8 @@ export class ThreeRenderer {
     this.paperReadyIcon = this.createPaperReadyIcon();
     this.paperReadyIcon.visible = false;
     group.add(this.paperReadyIcon);
+    // 与两层住宅比例对齐：人略小一点，房屋更有真实体量。
+    group.scale.setScalar(0.9);
     this.player = group;
     this.scene.add(group);
   }

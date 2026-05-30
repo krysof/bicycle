@@ -478,9 +478,10 @@ function allObstacles(state) {
 function collisionAt(state, x, y, radius) {
   const onRoad = isOnRoadCorridorWorld(x, y);
   for (const obstacle of allObstacles(state)) {
-    // 道路是最高优先级：OSM 建筑轮廓/自动生成碰撞体如果压到道路，
-    // 不能形成看不见的墙，玩家在道路中心线上应始终能通过。
-    if (onRoad && (obstacle.kind === "house" || obstacle.kind === "tree" || obstacle.kind === "object")) continue;
+    // 不能再忽略 house：上一版为了消除空气墙跳过了压路建筑碰撞，
+    // 结果玩家会从可见房子中穿过去。现在只允许路面上的小树/小物件让路，
+    // 房屋仍然必须挡住玩家。
+    if (onRoad && (obstacle.kind === "tree" || obstacle.kind === "object")) continue;
     if (obstacle.type === "circle") {
       if (Math.hypot(x - obstacle.x, y - obstacle.y) < radius + obstacle.r) return obstacle;
       continue;
