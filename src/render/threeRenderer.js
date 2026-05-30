@@ -214,8 +214,9 @@ export class ThreeRenderer {
     this.canvas = canvas;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // 关闭实时阴影。之前高楼和道路在低角度视角下会把大片阴影压到地面，
+    // 看起来像破碎的褐色地形块；本项目优先要干净、老人容易辨认的街区画面。
+    this.renderer.shadowMap.enabled = false;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.scene = new THREE.Scene();
@@ -391,9 +392,7 @@ export class ThreeRenderer {
     // 不再在天空挂一个太阳贴片；只用柔和方向光暗示日照，更自然也更不突兀。
     const keyLight = new THREE.DirectionalLight(dusk ? 0xffbf8c : 0xfff2cd, dusk ? 2.15 : 2.55);
     keyLight.position.set(dusk ? -70 : -44, dusk ? 30 : 58, dusk ? 54 : 36);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(2048, 2048);
-    keyLight.shadow.camera.left = -420; keyLight.shadow.camera.right = 420; keyLight.shadow.camera.top = 310; keyLight.shadow.camera.bottom = -310;
+    keyLight.castShadow = false;
     this.scene.add(keyLight);
     const fill = new THREE.DirectionalLight(0xbfdfff, 0.34);
     fill.position.set(64, 28, -80);
