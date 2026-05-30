@@ -92,8 +92,10 @@ function makeRoadMapTexture(segments) {
   canvas.height = Math.round(canvas.width * (MAP_D / MAP_W));
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  // 道路是 90 度街区时不能用 round cap，否则 T 字路口和断点会膨胀成“蘑菇 / 花瓣”形怪路。
+  // 用方形端点 + 方形转角，让路口更像真实城市道路。
+  ctx.lineCap = "square";
+  ctx.lineJoin = "miter";
   const sx = canvas.width / MAP_W;
   const sz = canvas.height / MAP_D;
   const scale = (sx + sz) / 2;
@@ -108,6 +110,8 @@ function makeRoadMapTexture(segments) {
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
     ctx.lineWidth = width * scale;
+    ctx.lineCap = dash ? "butt" : "square";
+    ctx.lineJoin = "miter";
     ctx.setLineDash(dash ? dash.map((v) => v * scale) : []);
     ctx.beginPath();
     ctx.moveTo(x1, y1);
