@@ -143,7 +143,7 @@ export function pickStartNearTarget(target, mode = "bike") {
   };
 }
 
-export function pickRoute(neighbors, config, start = { x: -4320, y: -3240 }) {
+export function pickRoute(neighbors, config, start = { x: -4320, y: -3240 }, preferredFirst = null) {
   // 送报点不能出现在城市边缘。边界碰撞仍然存在，但玩家视觉上应看到城市还在延伸，
   // 所以任务目标只从内部街区挑选，避免导航把老人带到“地图边界”。
   const inner = neighbors.filter((n) => insidePlayableDelivery(n));
@@ -188,9 +188,14 @@ export function pickRoute(neighbors, config, start = { x: -4320, y: -3240 }) {
   };
 
   let bestRoute = [];
-  const attempts = firstPool.slice(0, Math.min(firstPool.length, 14)).map((item) => item.n);
+  const attempts = [];
+  if (preferredFirst && pool.some((n) => n.id === preferredFirst.id)) attempts.push(preferredFirst);
+  firstPool.slice(0, Math.min(firstPool.length, 14)).forEach((item) => {
+    if (!attempts.some((n) => n.id === item.n.id)) attempts.push(item.n);
+  });
   for (const first of attempts) {
     const candidate = buildFrom(first);
+    if (preferredFirst && first.id === preferredFirst.id) return candidate;
     if (candidate.length > bestRoute.length) bestRoute = candidate;
     if (candidate.length >= count) {
       bestRoute = candidate;

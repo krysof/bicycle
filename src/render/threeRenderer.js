@@ -472,13 +472,7 @@ export class ThreeRenderer {
     border.position.y = -0.3; this.scene.add(border);
     // 北江口 / 井高野周边是低平市街地。边缘不直接刷成可骑的大蓝面，
     // 水路交给 OSM 河道层绘制，地图边界用绿地/建筑背面收口。
-    this.addPlane(0, 0.012, -MAP_D / 2 + 18, MAP_W - 28, 12, 0xc7e3b4, 0);
-    this.addPlane(-MAP_W / 2 + 18, 0.014, 0, 14, MAP_D - 34, 0xb6d4c0, 0);
-    this.addPlane(MAP_W / 2 - 18, 0.014, 0, 12, MAP_D - 42, 0xc4d8b5, 0);
-
-    (this.worldLayout?.landmarks?.grassPatches || []).forEach((patch) => {
-      this.addPlane(patch.x, 0.018, patch.z, patch.w, patch.d, patch.color, patch.rot);
-    });
+    // 不再铺随机矩形草皮块；实际地形保持连续，避免画面出现“拼贴块”。
 
     // 大阪市街地风格：山只作为地图外很远的低矮背景，不压住住宅。
     (this.worldLayout?.landmarks?.hills || []).forEach((cfg) => {
@@ -680,7 +674,7 @@ export class ThreeRenderer {
 
     const yardW = spec?.frontage || 7.3;
     const yardD = spec?.depth || 5.6;
-    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.035, yardD), mat(0xd6e9bf));
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.018, yardD), mat(0xb9ddb0));
     yard.position.set(0, 0.07, 0);
     yard.receiveShadow = true;
     group.add(yard);
@@ -703,7 +697,7 @@ export class ThreeRenderer {
   addSimpleResidentialLot(group, roof, wall, scale = 1, spec = null) {
     const yardW = spec?.frontage || 6.0;
     const yardD = spec?.depth || 6.8;
-    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.025, yardD), mat(0xd6e9bf));
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.016, yardD), mat(0xb9ddb0));
     yard.position.set(0, 0.055, 0);
     yard.receiveShadow = true;
     group.add(yard);
@@ -971,7 +965,7 @@ export class ThreeRenderer {
   }
 
   addTargetLot(group, roofColor, wallColor, trimColor, scale, variant = "house-red") {
-    const yard = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.04, 6.8), mat(0xd7ecc2));
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.018, 6.8), mat(0xb9ddb0));
     yard.position.set(0, 0.06, 0.25);
     yard.receiveShadow = true;
     group.add(yard);

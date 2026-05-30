@@ -260,7 +260,7 @@ export class App {
       const previewRoute = pickRoute(neighbors, config, { x: 0, y: 0 });
       const firstSeed = previewRoute[0] || neighbors[Math.floor(Math.random() * neighbors.length)];
       const player = pickStartNearTarget(firstSeed, mode);
-      const route = pickRoute(neighbors, config, player);
+      const route = pickRoute(neighbors, config, player, firstSeed);
       this.state.preparedRuns[mode] = { answers, config, player, route };
     });
   }
