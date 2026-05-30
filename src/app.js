@@ -651,6 +651,7 @@ export class App {
     this.updateThoughtHint();
     this.updateNavigationHint();
     const renderInfo = this.renderer.render(this.state);
+    this.state.nearTraffic = renderInfo?.nearestTraffic || null;
     this.audio.update(this.state, dt, renderInfo);
     this.updateRestPointHint(renderInfo);
     this.updateSafetyHint(renderInfo);

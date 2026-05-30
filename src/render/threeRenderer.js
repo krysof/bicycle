@@ -1530,10 +1530,26 @@ export class ThreeRenderer {
       const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
       if (d < best && d < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = d; near = item.kind; }
     });
+    const hx = state?.player?.headingX ?? 1;
+    const hz = state?.player?.headingY ?? 0;
+    let nearestTraffic = null;
+    let trafficBest = Infinity;
+    this.passers.forEach((item) => {
+      const vx = item.group.position.x - px;
+      const vz = item.group.position.z - pz;
+      const distance = Math.hypot(vx, vz);
+      const ahead = distance > 0 ? ((vx / distance) * hx + (vz / distance) * hz) > 0.26 : false;
+      const limit = item.kind === "cyclist" ? 11.2 : 8.6;
+      if (ahead && distance < limit && distance < trafficBest) {
+        trafficBest = distance;
+        nearestTraffic = { kind: item.kind, distance, ahead };
+      }
+    });
 
     this.lastAmbientInfo = {
       nearPasserby: near,
       distance: near ? best : Infinity,
+      nearestTraffic,
       area: this.currentArea(px, pz),
       passerCount: this.passers.length,
       pedestrianCount: this.passers.filter((item) => item.kind === "pedestrian").length,
@@ -1983,7 +1999,7 @@ export class ThreeRenderer {
     const bikeMode = state.config?.moveMode === "bike"; this.bike.visible = bikeMode;
     const touchThrottle = state.touchThrottle || 0;
     const touchSteer = state.touchSteer || 0;
-    const autoMoving = Boolean(state.autoNavMoving);
+    const autoMoving = Boolean(state.autoNavMoving && !state.autoAvoiding);
     const forward = state.keys.has("arrowup") || state.keys.has("w") || touchThrottle > 0.05 || autoMoving;
     const backward = state.keys.has("arrowdown") || state.keys.has("s") || touchThrottle < -0.05;
     const keyTurn = (state.keys.has("arrowright") || state.keys.has("d") ? 1 : 0) - (state.keys.has("arrowleft") || state.keys.has("a") ? 1 : 0);

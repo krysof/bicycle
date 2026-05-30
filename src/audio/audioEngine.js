@@ -371,7 +371,7 @@ export class AudioEngine {
 
   update(state, dt, ambientInfo = null) {
     if (!this.started || !this.ctx) return;
-    const movingForward = state.keys?.has("arrowup") || state.keys?.has("w") || (state.touchThrottle || 0) > 0.05 || state.autoNavMoving;
+    const movingForward = state.keys?.has("arrowup") || state.keys?.has("w") || (state.touchThrottle || 0) > 0.05 || (state.autoNavMoving && !state.autoAvoiding);
     const movingBack = state.keys?.has("arrowdown") || state.keys?.has("s") || (state.touchThrottle || 0) < -0.05;
     const bike = state.config?.moveMode === "bike";
     const walk = state.config?.moveMode === "walk";

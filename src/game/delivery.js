@@ -31,24 +31,47 @@ function buildAutoNavPath(state, target) {
   const py = state.player.y;
   const tx = target.deliveryX ?? target.x;
   const ty = target.deliveryY ?? target.y;
+  const startRoadX = nearestRoad(px, ROAD_X_WORLD);
   const startRoadY = nearestRoad(py, ROAD_Y_WORLD);
+  const targetRoadX = nearestRoad(tx, ROAD_X_WORLD);
   const targetRoadY = nearestRoad(ty, ROAD_Y_WORLD);
-  const jointX = nearestRoad(tx, ROAD_X_WORLD);
+  const dxToVertical = Math.abs(px - startRoadX);
+  const dyToHorizontal = Math.abs(py - startRoadY);
+  const startOnVertical = dxToVertical < dyToHorizontal;
+  const jointX = targetRoadX;
   const points = [];
-  appendWaypoint(points, { x: px, y: startRoadY });
-  appendWaypoint(points, { x: jointX, y: startRoadY });
-  appendWaypoint(points, { x: jointX, y: targetRoadY });
+
+  if (startOnVertical) {
+    appendWaypoint(points, { x: startRoadX, y: py });
+    appendWaypoint(points, { x: startRoadX, y: targetRoadY });
+    appendWaypoint(points, { x: jointX, y: targetRoadY });
+  } else {
+    appendWaypoint(points, { x: px, y: startRoadY });
+    appendWaypoint(points, { x: jointX, y: startRoadY });
+    appendWaypoint(points, { x: jointX, y: targetRoadY });
+  }
   appendWaypoint(points, { x: tx, y: targetRoadY });
   appendWaypoint(points, { x: tx, y: ty });
   return points;
 }
 
 function nextAutoWaypoint(state, target) {
-  const path = buildAutoNavPath(state, target);
   const px = state.player.x;
   const py = state.player.y;
-  const threshold = state.config?.moveMode === "bike" ? 115 : 72;
-  return path.find((point) => Math.hypot(point.x - px, point.y - py) > threshold) || path[path.length - 1] || null;
+  const needNewPath = !state.autoNavPath || state.autoNavTargetId !== target.id || !Number.isInteger(state.autoNavIndex);
+  if (needNewPath) {
+    state.autoNavPath = buildAutoNavPath(state, target);
+    state.autoNavTargetId = target.id;
+    state.autoNavIndex = 0;
+  }
+  const path = state.autoNavPath || [];
+  const threshold = state.config?.moveMode === "bike" ? 125 : 82;
+  while (state.autoNavIndex < path.length - 1) {
+    const point = path[state.autoNavIndex];
+    if (Math.hypot(point.x - px, point.y - py) > threshold) break;
+    state.autoNavIndex += 1;
+  }
+  return path[state.autoNavIndex] || null;
 }
 
 export function deliveryDistance(state, target = currentTarget(state)) {
@@ -150,6 +173,8 @@ export function updatePlayer(state, dt) {
   const target = currentTarget(state);
   const autoNav = Boolean(state.autoForward && target && !state.delivery?.active);
   state.autoNavMoving = false;
+  state.autoAvoiding = false;
+  state.autoAvoidCooldown = Math.max(0, (state.autoAvoidCooldown || 0) - dt);
 
   let throttle = 0;
   if (state.touchThrottle) throttle += state.touchThrottle > 0 ? state.touchThrottle : state.touchThrottle * reverseFactor;
@@ -162,19 +187,41 @@ export function updatePlayer(state, dt) {
   if (state.keys.has("arrowright") || state.keys.has("d")) turn += 1;
   turn = Math.max(-1, Math.min(1, turn));
 
-  if (autoNav && throttle >= 0 && !canDeliverNow(state, target)) {
+  const nearInfo = state.nearTraffic;
+  const shouldYield = autoNav
+    && nearInfo
+    && nearInfo.distance < (nearInfo.kind === "cyclist" ? 8.5 : 6.7)
+    && nearInfo.ahead !== false
+    && (state.autoAvoidCooldown || 0) <= 0;
+
+  if (autoNav && shouldYield) {
+    throttle = 0;
+    state.autoAvoiding = true;
+    state.autoNavMoving = false;
+    state.autoAvoidTimer = (state.autoAvoidTimer || 0) + dt;
+    if (state.autoAvoidTimer > 0.9) {
+      state.autoAvoidCooldown = 1.8;
+      state.autoAvoidTimer = 0;
+    }
+  } else if (autoNav && throttle >= 0 && !canDeliverNow(state, target)) {
+    state.autoAvoidTimer = 0;
     const waypoint = nextAutoWaypoint(state, target);
     if (waypoint) {
       const desiredAngle = Math.atan2(waypoint.y - state.player.y, waypoint.x - state.player.x);
       const diff = normalizeAngle(desiredAngle - state.player.headingAngle);
-      const maxTurn = (mode === "bike" ? 1.22 : 2.45) * dt;
+      const absDiff = Math.abs(diff);
+      const maxTurn = (mode === "bike" ? 2.15 : 3.6) * dt;
       state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
-      throttle = Math.max(throttle, state.easyMode ? 0.36 : 0.58);
-      state.autoNavMoving = true;
+      const turnSlowdown = absDiff > 1.05 ? 0.18 : absDiff > 0.55 ? 0.38 : 1;
+      throttle = Math.max(throttle, (state.easyMode ? 0.34 : 0.56) * turnSlowdown);
+      state.autoNavMoving = throttle > 0.05;
       state.autoNavWaypoint = waypoint;
     }
   } else if (autoNav && canDeliverNow(state, target)) {
     state.autoNavWaypoint = null;
+    state.autoNavPath = null;
+    state.autoNavTargetId = null;
+    state.autoNavIndex = 0;
     throttle = 0;
   } else if (mode === "bike") {
     // 自行车不应像原地旋转的角色；只有按住前进 / 后退移动时才逐渐改变朝向。
@@ -191,7 +238,14 @@ export function updatePlayer(state, dt) {
     const step = speed * throttle * dt;
     const nextX = state.player.x + state.player.headingX * step;
     const nextY = state.player.y + state.player.headingY * step;
+    const beforeX = state.player.x;
+    const beforeY = state.player.y;
     moveWithCollision(state, nextX, nextY);
+    if (autoNav && Math.hypot(state.player.x - beforeX, state.player.y - beforeY) < Math.max(1, Math.abs(step) * 0.12)) {
+      state.autoNavPath = null;
+      state.autoNavTargetId = null;
+      state.autoNavIndex = 0;
+    }
   }
 }
 
