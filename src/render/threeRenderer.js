@@ -487,10 +487,11 @@ export class ThreeRenderer {
     ground.position.y = -0.16; ground.receiveShadow = true; this.scene.add(ground);
     const border = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 2, 0.16, MAP_D + 2), mat(0xa7cfa0));
     border.position.y = -0.3; this.scene.add(border);
-    // 北江口 / 井高野周边是河川に囲まれた低平地：用浅色低地带和水路边界表现，而不是山地。
-    this.addPlane(0, 0.012, -MAP_D / 2 + 18, MAP_W - 28, 18, 0x9fc8d4, 0);
-    this.addPlane(-MAP_W / 2 + 18, 0.014, 0, 18, MAP_D - 34, 0xb6d4c0, 0);
-    this.addPlane(MAP_W / 2 - 18, 0.014, 0, 14, MAP_D - 42, 0xc4d8b5, 0);
+    // 北江口 / 井高野周边是低平市街地。边缘不直接刷成可骑的大蓝面，
+    // 水路交给 OSM 河道层绘制，地图边界用绿地/建筑背面收口。
+    this.addPlane(0, 0.012, -MAP_D / 2 + 18, MAP_W - 28, 12, 0xc7e3b4, 0);
+    this.addPlane(-MAP_W / 2 + 18, 0.014, 0, 14, MAP_D - 34, 0xb6d4c0, 0);
+    this.addPlane(MAP_W / 2 - 18, 0.014, 0, 12, MAP_D - 42, 0xc4d8b5, 0);
 
     (this.worldLayout?.landmarks?.grassPatches || []).forEach((patch) => {
       this.addPlane(patch.x, 0.018, patch.z, patch.w, patch.d, patch.color, patch.rot);
@@ -503,6 +504,40 @@ export class ThreeRenderer {
       hill.rotation.y = cfg.rot;
       this.scene.add(hill);
     });
+    this.addBoundaryCityBelt();
+  }
+
+  addBoundaryCityBelt() {
+    // 世界边界不能像空气墙。四周用远景建筑背面、围栏和堤岸收边，让“过不去”有视觉理由。
+    const edgeZ = MAP_D / 2 - 5;
+    const backZ = -MAP_D / 2 + 5;
+    const edgeX = MAP_W / 2 - 5;
+    const backX = -MAP_W / 2 + 5;
+    const colors = [0xd9dcc8, 0xcfd7cf, 0xe4d5bd, 0xd6dfeb];
+    for (let i = 0; i < 18; i += 1) {
+      const x = -MAP_W / 2 + 22 + i * 42;
+      const h = 3.2 + (i % 4) * 1.0;
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(18 + (i % 3) * 4, h, 4.2), mat(colors[i % colors.length]));
+      b1.position.set(x, h / 2, backZ);
+      const b2 = b1.clone();
+      b2.material = mat(colors[(i + 2) % colors.length]);
+      b2.position.set(x + 8, h / 2, edgeZ);
+      this.scene.add(b1, b2);
+    }
+    for (let i = 0; i < 12; i += 1) {
+      const z = -MAP_D / 2 + 26 + i * 44;
+      const h = 2.8 + (i % 3) * 0.9;
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(4.2, h, 17 + (i % 4) * 3), mat(colors[(i + 1) % colors.length]));
+      b1.position.set(backX, h / 2, z);
+      const b2 = b1.clone();
+      b2.material = mat(colors[(i + 3) % colors.length]);
+      b2.position.set(edgeX, h / 2, z + 9);
+      this.scene.add(b1, b2);
+    }
+    this.addPlane(0, 0.09, edgeZ - 7, MAP_W - 24, 0.55, 0x8f9a8a, 0);
+    this.addPlane(0, 0.09, backZ + 7, MAP_W - 24, 0.55, 0x8f9a8a, 0);
+    this.addPlane(edgeX - 7, 0.09, 0, 0.55, MAP_D - 30, 0x8f9a8a, 0);
+    this.addPlane(backX + 7, 0.09, 0, 0.55, MAP_D - 30, 0x8f9a8a, 0);
   }
 
   addRoadNetwork() {
@@ -556,13 +591,54 @@ export class ThreeRenderer {
   }
 
   addRailAndWater() {
-    WATER_SEGMENTS.filter((_, i) => i % 8 === 0).forEach((seg) => {
-      this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, seg.kind === "river" ? 7.0 : 3.6, COLORS.water, 0.028);
-    });
+    WATER_SEGMENTS.filter((_, i) => i % 6 === 0).forEach((seg) => this.addRiverSegment(seg));
     RAIL_SEGMENTS.filter((_, i) => i % 8 === 0).forEach((seg) => {
       this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, 3.2, 0x647078, 0.076);
       this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, 0.6, 0xf6f1d7, 0.094);
     });
+  }
+
+  addOffsetStripBetween(x1, z1, x2, z2, offset, width, color, y = 0.06) {
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const len = Math.hypot(dx, dz) || 1;
+    const nx = -dz / len;
+    const nz = dx / len;
+    return this.addStripBetween(x1 + nx * offset, z1 + nz * offset, x2 + nx * offset, z2 + nz * offset, width, color, y);
+  }
+
+  addRiverSegment(seg) {
+    const dx = seg.x2 - seg.x1;
+    const dz = seg.z2 - seg.z1;
+    const len = Math.hypot(dx, dz);
+    if (len < 4) return;
+    const river = seg.kind === "river";
+    const waterWidth = river ? 7.2 : 3.0;
+    const bankWidth = river ? 10.6 : 5.4;
+    // 河道要像实际地形：先做低一层的护岸槽，再放水面，不是平地刷蓝色。
+    this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, bankWidth, 0x9eb58d, 0.018);
+    this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, waterWidth, 0x63b7c9, 0.026);
+    this.addOffsetStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, bankWidth / 2 + 0.35, 0.42, 0xd8d0b6, 0.072);
+    this.addOffsetStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, -bankWidth / 2 - 0.35, 0.42, 0xd8d0b6, 0.072);
+    if (!river || len < 12) return;
+    const railMat = mat(0xf0efe4);
+    const postMat = mat(0x8b928a);
+    const steps = Math.min(8, Math.max(2, Math.floor(len / 12)));
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      const x = seg.x1 + dx * t;
+      const z = seg.z1 + dz * t;
+      const baseLen = Math.hypot(dx, dz) || 1;
+      const nx = -dz / baseLen;
+      const nz = dx / baseLen;
+      [-1, 1].forEach((side) => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.72, 8), postMat);
+        post.position.set(x + nx * side * (waterWidth / 2 + 0.55), 0.42, z + nz * side * (waterWidth / 2 + 0.55));
+        this.scene.add(post);
+      });
+    }
+    this.addOffsetStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, waterWidth / 2 + 0.55, 0.12, 0xf0efe4, 0.82).material = railMat;
+    this.addOffsetStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, -waterWidth / 2 - 0.55, 0.12, 0xf0efe4, 0.82).material = railMat;
   }
 
   addStreet(direction, pos, customLen = null, centerX = 0, centerZ = 0, main = false) {
@@ -1337,9 +1413,19 @@ export class ThreeRenderer {
     const fields = landmarks.fields || [[86, -64], [100, -62]];
     const [signX, signZ] = landmarks.sign || [-18, 72];
 
-    // 南侧宽河川和堤防道路（截图下方的神崎川 / 河川敷感）。
-    this.addPlane(0, 0.032, MAP_D / 2 - 26, MAP_W - 16, 30, COLORS.water, 0);
-    this.addPlane(0, 0.062, MAP_D / 2 - 50, MAP_W - 20, 4.2, 0x9eb58d, 0);
+    // 南侧宽河川和堤防道路（神崎川 / 河川敷感）：下凹水面 + 护岸 + 围栏。
+    this.addPlane(0, 0.018, MAP_D / 2 - 25, MAP_W - 22, 26, 0x87b7a2, 0);
+    this.addPlane(0, 0.026, MAP_D / 2 - 25, MAP_W - 34, 18, 0x63b7c9, 0);
+    this.addPlane(0, 0.072, MAP_D / 2 - 39, MAP_W - 28, 0.58, 0xd8d0b6, 0);
+    this.addPlane(0, 0.072, MAP_D / 2 - 11, MAP_W - 28, 0.58, 0xd8d0b6, 0);
+    for (let x = -340; x <= 340; x += 18) {
+      const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.72, 8), mat(0x8b928a));
+      p1.position.set(x, 0.42, MAP_D / 2 - 38.3);
+      const p2 = p1.clone(); p2.position.z = MAP_D / 2 - 11.7;
+      this.scene.add(p1, p2);
+    }
+    this.addPlane(0, 0.84, MAP_D / 2 - 38.3, MAP_W - 28, 0.12, 0xf0efe4, 0);
+    this.addPlane(0, 0.84, MAP_D / 2 - 11.7, MAP_W - 28, 0.12, 0xf0efe4, 0);
     this.addPlane(0, 0.067, MAP_D / 2 - 62, MAP_W - 30, 7.2, COLORS.asphalt, 0);
     for (let x = -330; x <= 330; x += 110) this.addPlane(x, 0.075, MAP_D / 2 - 62, 2.6, 0.09, COLORS.lane, 0);
 

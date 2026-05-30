@@ -96,7 +96,13 @@ function varyLot(rand, lot, index) {
 }
 
 function generateLots(rand) {
-  const reserved = BUILDING_LOTS_OSM.filter((lot) => !isReservedSceneSpot(lot.x, lot.z, 9.0, 8.0));
+  const reserved = BUILDING_LOTS_OSM.filter((lot) => {
+    if (isReservedSceneSpot(lot.x, lot.z, 9.0, 8.0)) return false;
+    // OSM 建筑轮廓偶尔会贴到道路中心线；这种建筑会造成“房子压路”。
+    // 真实街道优先，过近的普通建筑不生成；重要设施保留但碰撞会缩小。
+    if (!lot.fixedService && nearAnyRoad(lot.x, lot.z, 4.9)) return false;
+    return true;
+  });
   // 维持建筑数量，但让普通建筑细节按 LOD 显示；固定设施全部保留。
   const service = reserved.filter((lot) => lot.fixedService);
   const homes = reserved.filter((lot) => !lot.fixedService);
@@ -178,8 +184,10 @@ export function createWorldObstacles(layout = createWorldLayout(1)) {
 
   layout.lots.forEach((lot) => {
     const p = sceneToWorld(lot.x, lot.z);
-    const w = Math.max(118, (lot.frontage || 6.4) * 18.5) * (lot.scale || 1);
-    const h = Math.max(118, (lot.depth || 6.4) * 18.5) * (lot.scale || 1);
+    const tooCloseToRoad = nearAnyRoad(lot.x, lot.z, 5.8);
+    const shrink = tooCloseToRoad ? 0.36 : (lot.fixedService ? 0.58 : 0.46);
+    const w = Math.max(58, (lot.frontage || 6.4) * 18.5 * shrink) * (lot.scale || 1);
+    const h = Math.max(58, (lot.depth || 6.4) * 18.5 * shrink) * (lot.scale || 1);
     obstacles.push(rect(lot.id, p.x, p.y, w, h, "house"));
   });
 

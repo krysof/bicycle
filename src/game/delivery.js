@@ -58,6 +58,35 @@ function addGraphEdge(nodes, a, b) {
   nb.links.set(na.key, dist);
 }
 
+function connectNearbyRoadNodes(nodes, radius = 3.2) {
+  // OSM 上有些小路口 / 桥下道路端点不是完全同一个 node。
+  // 这里用很小半径把“几乎相接”的道路端点连起来，避免寻路失败后退化成穿房直线。
+  const cell = radius;
+  const buckets = new Map();
+  const bucketKey = (x, z) => `${Math.floor(x / cell)},${Math.floor(z / cell)}`;
+  nodes.forEach((node) => {
+    const k = bucketKey(node.x, node.z);
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(node);
+  });
+  const offsets = [-1, 0, 1];
+  nodes.forEach((node) => {
+    const bx = Math.floor(node.x / cell);
+    const bz = Math.floor(node.z / cell);
+    offsets.forEach((ox) => offsets.forEach((oz) => {
+      const list = buckets.get(`${bx + ox},${bz + oz}`) || [];
+      list.forEach((other) => {
+        if (other.key === node.key) return;
+        const d = Math.hypot(node.x - other.x, node.z - other.z);
+        if (d > 0.01 && d <= radius) {
+          node.links.set(other.key, d);
+          other.links.set(node.key, d);
+        }
+      });
+    }));
+  });
+}
+
 function buildRoadGraph(extraPoints = []) {
   const nodes = new Map();
   const pointsBySegment = new Map();
@@ -110,6 +139,7 @@ function buildRoadGraph(extraPoints = []) {
     });
     for (let i = 0; i < sorted.length - 1; i += 1) addGraphEdge(nodes, sorted[i], sorted[i + 1]);
   });
+  connectNearbyRoadNodes(nodes);
   return nodes;
 }
 
@@ -168,6 +198,24 @@ function normalizeAngle(angle) {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
+function sceneDistanceToRoad(x, z) {
+  let best = Infinity;
+  ROAD_SEGMENTS.forEach((seg) => {
+    const vx = seg.x2 - seg.x1;
+    const vz = seg.z2 - seg.z1;
+    const len2 = vx * vx + vz * vz;
+    const u = len2 ? Math.max(0, Math.min(1, ((x - seg.x1) * vx + (z - seg.z1) * vz) / len2)) : 0;
+    const sx = seg.x1 + vx * u;
+    const sz = seg.z1 + vz * u;
+    best = Math.min(best, Math.hypot(x - sx, z - sz));
+  });
+  return best;
+}
+
+function isOnRoadCorridorWorld(x, y) {
+  return sceneDistanceToRoad(x * WORLD_SCALE, y * WORLD_SCALE) <= 5.4;
+}
+
 export function buildAutoNavPath(state, target) {
   const startScene = worldToScenePoint(state.player.x, state.player.y);
   const targetScene = worldToScenePoint(target.deliveryX ?? target.x, target.deliveryY ?? target.y);
@@ -175,9 +223,9 @@ export function buildAutoNavPath(state, target) {
   const targetSnap = nearestSegmentPoint(targetScene);
   const nodes = buildRoadGraph([startSnap, targetSnap]);
   let scenePath = simplifyScenePath(shortestPath(nodes, key(startSnap.point), key(targetSnap.point)));
-  // OSM 道路存在跨线桥、私道缺口或被过滤的小支路时，两个点可能在不同连通分量。
-  // 这种情况下仍沿最近道路点给出温和导航，避免自动导航停住。
-  if (scenePath.length < 2) scenePath = [startSnap.point, targetSnap.point];
+  // 如果仍然没有连通路径，不再直接画一条穿房子的直线；只引导到当前最近道路点，
+  // 下一帧会重新选择附近道路，至少保证箭头留在路面上。
+  if (scenePath.length < 2) scenePath = [startSnap.point];
   const points = [];
   scenePath.forEach((point) => appendWaypoint(points, sceneToWorldPoint(point)));
   appendWaypoint(points, sceneToWorldPoint(targetScene));
@@ -428,7 +476,11 @@ function allObstacles(state) {
 }
 
 function collisionAt(state, x, y, radius) {
+  const onRoad = isOnRoadCorridorWorld(x, y);
   for (const obstacle of allObstacles(state)) {
+    // 道路是最高优先级：OSM 建筑轮廓/自动生成碰撞体如果压到道路，
+    // 不能形成看不见的墙，玩家在道路中心线上应始终能通过。
+    if (onRoad && (obstacle.kind === "house" || obstacle.kind === "tree" || obstacle.kind === "object")) continue;
     if (obstacle.type === "circle") {
       if (Math.hypot(x - obstacle.x, y - obstacle.y) < radius + obstacle.r) return obstacle;
       continue;

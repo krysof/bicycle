@@ -46,6 +46,7 @@ function roadStartPoints() {
       const angle = Math.atan2(seg.z2 - seg.z1, seg.x2 - seg.x1);
       return { x: x / WORLD_SCALE, y: z / WORLD_SCALE, angle };
     })
+    .filter((p) => Math.abs(p.x * WORLD_SCALE) < 320 && Math.abs(p.y * WORLD_SCALE) < 235)
     .filter((p) => !blocked(p.x * WORLD_SCALE, p.y * WORLD_SCALE))
     .slice(0, 16);
 }
