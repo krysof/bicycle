@@ -293,16 +293,16 @@ function scenePathFromAutoNav(state, target) {
   if (!state?.player || !target) return [];
   const px = wx(state.player.x);
   const pz = wz(state.player.y);
+  const liveStart = { x: px, z: pz };
   const cacheKey = [
     target.id,
     state.autoNavTargetId || "",
     state.autoNavIndex || 0,
-    Math.round(px / 1.5),
-    Math.round(pz / 1.5),
     Boolean(state.autoNavPath),
+    state.autoNavPath?.length || 0,
   ].join("|");
-  if (state.__navScenePathCacheKey === cacheKey && Array.isArray(state.__navScenePathCache)) {
-    return state.__navScenePathCache;
+  if (state.__navSceneTailCacheKey === cacheKey && Array.isArray(state.__navSceneTailCache)) {
+    return uniqueScenePath([liveStart, ...state.__navSceneTailCache]);
   }
   let nav = null;
   if (state.autoNavPath && state.autoNavTargetId === target.id) {
@@ -310,11 +310,10 @@ function scenePathFromAutoNav(state, target) {
   } else {
     nav = buildAutoNavPath(state, target);
   }
-  const worldPath = [{ x: state.player.x, y: state.player.y }, ...(nav || [])];
-  const path = uniqueScenePath(worldPath.map((p) => ({ x: wx(p.x), z: wz(p.y) })));
-  state.__navScenePathCacheKey = cacheKey;
-  state.__navScenePathCache = path;
-  return path;
+  const tail = uniqueScenePath((nav || []).map((p) => ({ x: wx(p.x), z: wz(p.y) })));
+  state.__navSceneTailCacheKey = cacheKey;
+  state.__navSceneTailCache = tail;
+  return uniqueScenePath([liveStart, ...tail]);
 }
 
 function samplePath(points, distance) {
@@ -2918,9 +2917,19 @@ export class ThreeRenderer {
       }
       if (!sample) { arrow.visible = false; return; }
       arrow.visible = true;
-      arrow.position.x = sample.x;
-      arrow.position.z = sample.z;
-      arrow.rotation.z = sample.angle;
+      const snap = arrow.userData.navTargetId !== target.id || !arrow.userData.ready || Math.hypot(arrow.position.x - sample.x, arrow.position.z - sample.z) > 18;
+      arrow.userData.navTargetId = target.id;
+      arrow.userData.ready = true;
+      if (snap) {
+        arrow.position.x = sample.x;
+        arrow.position.z = sample.z;
+        arrow.rotation.z = sample.angle;
+      } else {
+        arrow.position.x += (sample.x - arrow.position.x) * 0.34;
+        arrow.position.z += (sample.z - arrow.position.z) * 0.34;
+        const diff = Math.atan2(Math.sin(sample.angle - arrow.rotation.z), Math.cos(sample.angle - arrow.rotation.z));
+        arrow.rotation.z += diff * 0.32;
+      }
       const finalPoint = path[path.length - 1] || { x: ringX, z: ringZ };
       const distToTarget = nearTarget ? distToRing : Math.hypot(finalPoint.x - px, finalPoint.z - pz);
       const proximity = Math.max(0, Math.min(1, 1 - distToTarget / 38));

@@ -51,6 +51,10 @@ function shuffle(list) {
   return result;
 }
 
+function jitter(value, amount = 1) {
+  return value + (Math.random() - 0.5) * amount;
+}
+
 function roadStartPoints() {
   const blocked = (x, z) => BUILDING_LOTS_OSM.some((lot) => Math.abs(lot.x - x) < (lot.frontage || 6) * 0.85 && Math.abs(lot.z - z) < (lot.depth || 6) * 0.85);
   return ROAD_SEGMENTS
@@ -156,8 +160,14 @@ export function pickRoute(neighbors, config, start = { x: -4320, y: -3240 }, pre
   const nearby = shuffled
     .map((n) => ({ n, d: Math.hypot((n.deliveryX ?? n.x) - start.x, (n.deliveryY ?? n.y) - start.y) }))
     .filter((item) => item.d >= firstMin && item.d <= firstMax)
-    .sort((a, b) => a.d - b.d);
-  const firstPool = nearby.length ? nearby : shuffled.map((n) => ({ n, d: Math.hypot((n.deliveryX ?? n.x) - start.x, (n.deliveryY ?? n.y) - start.y) })).sort((a, b) => a.d - b.d);
+    .map((item) => ({ ...item, score: jitter(item.d, 460) }))
+    .sort((a, b) => a.score - b.score);
+  const firstPool = nearby.length ? nearby : shuffled
+    .map((n) => {
+      const d = Math.hypot((n.deliveryX ?? n.x) - start.x, (n.deliveryY ?? n.y) - start.y);
+      return { n, d, score: jitter(d, 720) };
+    })
+    .sort((a, b) => a.score - b.score);
   const idealStep = config.moveMode === "bike" ? 3000 : 1850;
   const maxStep = config.moveMode === "bike" ? 7000 : 4500;
 
@@ -173,14 +183,19 @@ export function pickRoute(neighbors, config, start = { x: -4320, y: -3240 }, pre
       const sorted = remaining
         .map((n) => ({ n, d: Math.hypot((n.deliveryX ?? n.x) - cx, (n.deliveryY ?? n.y) - cy) }))
         .filter((item) => item.d <= maxStep)
+        .map((item) => {
+          const ac = Math.hypot((item.n.deliveryX ?? item.n.x) - routeCenterX, (item.n.deliveryY ?? item.n.y) - routeCenterY);
+          return { ...item, centerDistance: ac, routeScore: jitter(Math.abs(item.d - idealStep), 900) + jitter(ac, 500) * 0.08 };
+        })
         .sort((a, b) => {
-          const ac = Math.hypot((a.n.deliveryX ?? a.n.x) - routeCenterX, (a.n.deliveryY ?? a.n.y) - routeCenterY);
-          const bc = Math.hypot((b.n.deliveryX ?? b.n.x) - routeCenterX, (b.n.deliveryY ?? b.n.y) - routeCenterY);
-          return Math.abs(a.d - idealStep) - Math.abs(b.d - idealStep) || ac - bc;
+          return a.routeScore - b.routeScore || a.centerDistance - b.centerDistance;
         });
-      // 不硬跨城：如果附近没有下一个目标，就结束这一局路线，避免箭头跨越边界或穿过大半个城市。
-      if (!sorted.length) break;
-      const next = sorted[0].n;
+      // 优先走附近目标；如果随机到的片区不足，则补一个最近目标，避免任务数忽然缩水。
+      const fallback = remaining
+        .map((n) => ({ n, d: Math.hypot((n.deliveryX ?? n.x) - cx, (n.deliveryY ?? n.y) - cy) }))
+        .sort((a, b) => a.d - b.d);
+      const next = (sorted[0] || fallback[0])?.n;
+      if (!next) break;
       route.push(next);
       remaining.splice(remaining.findIndex((n) => n.id === next.id), 1);
     }
@@ -190,7 +205,7 @@ export function pickRoute(neighbors, config, start = { x: -4320, y: -3240 }, pre
   let bestRoute = [];
   const attempts = [];
   if (preferredFirst && pool.some((n) => n.id === preferredFirst.id)) attempts.push(preferredFirst);
-  firstPool.slice(0, Math.min(firstPool.length, 14)).forEach((item) => {
+  shuffle(firstPool.slice(0, Math.min(firstPool.length, 18))).forEach((item) => {
     if (!attempts.some((n) => n.id === item.n.id)) attempts.push(item.n);
   });
   for (const first of attempts) {
