@@ -85,6 +85,54 @@ function mat(color, roughness = 0.82, metalness = 0.02) {
 function transparentMat(color, opacity) {
   return new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
 }
+
+function makeRoadMapTexture(segments) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = Math.round(canvas.width * (MAP_D / MAP_W));
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const sx = canvas.width / MAP_W;
+  const sz = canvas.height / MAP_D;
+  const scale = (sx + sz) / 2;
+  const toCanvas = (x, z) => [
+    (x + MAP_W / 2) * sx,
+    (z + MAP_D / 2) * sz,
+  ];
+  const strokeSegment = (seg, width, color, alpha = 1, dash = null) => {
+    const [x1, y1] = toCanvas(seg.x1, seg.z1);
+    const [x2, y2] = toCanvas(seg.x2, seg.z2);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width * scale;
+    ctx.setLineDash(dash ? dash.map((v) => v * scale) : []);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  };
+  const visible = segments.filter((seg) => Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) > 8);
+  const roadWidth = (seg) => seg.highway === "primary" ? 10.8 : seg.highway === "tertiary" ? 9.4 : 7.4;
+  const formal = (seg) => seg.highway === "primary" || seg.highway === "tertiary";
+
+  // 先画人行道/路缘，再画路面。全部用圆角线条，避免矩形路块交叉形成三角碎片。
+  visible.filter(formal).forEach((seg) => strokeSegment(seg, roadWidth(seg) + 2.8, "#bfc3c0", 1));
+  visible.filter(formal).forEach((seg) => strokeSegment(seg, roadWidth(seg) + 0.6, "#e8e3d6", 1));
+  visible.forEach((seg) => strokeSegment(seg, roadWidth(seg), "#2f3338", 1));
+  visible.filter((seg) => formal(seg) && Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) > 58)
+    .forEach((seg) => strokeSegment(seg, 0.14, "#f4efe0", 0.8, [3.2, 18]));
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
@@ -515,10 +563,22 @@ export class ThreeRenderer {
 
   addRoadNetwork() {
     // Paperboy 参考比例：宽黑色车道 + 灰色人行道 + 白色路缘/标线。
-    // 道路中心线来自 OpenStreetMap 北江口周边真实路网，不再使用棋盘网格。
-    ROAD_SEGMENTS.forEach((seg) => this.addStreetSegment(seg));
+    // 道路中心线来自 OpenStreetMap 北江口周边真实路网；视觉层使用一张圆角道路贴图，
+    // 不再用大量矩形块拼道路，避免交叉口和斜路出现破碎三角地形。
+    this.addRoadTextureLayer();
     this.addRailAndWater();
     this.addStreetFurniture();
+  }
+
+  addRoadTextureLayer() {
+    const texture = makeRoadMapTexture(ROAD_SEGMENTS);
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(MAP_W, MAP_D),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.074;
+    this.scene.add(mesh);
   }
 
   addStreetSegment(seg) {
@@ -836,15 +896,15 @@ export class ThreeRenderer {
   }
 
   addStreetFurniture() {
-    ROAD_INTERSECTIONS.slice(0, 34).forEach(([x, z], i) => {
+    ROAD_INTERSECTIONS.slice(0, 10).filter((_, i) => i % 3 === 0).forEach(([x, z], i) => {
       this.addCrosswalk(x, z, i % 2 ? "h" : "v");
     });
-    ROAD_INTERSECTIONS.slice(8, 18).forEach(([x, z], i) => {
+    ROAD_INTERSECTIONS.slice(8, 16).filter((_, i) => i % 2 === 0).forEach(([x, z], i) => {
       this.addRoadMirror(x + (i % 2 ? -6.2 : 6.2), z + 5.8);
       this.addStopMark(x, z + (i % 2 ? -4.8 : 4.8));
     });
-    ROAD_INTERSECTIONS.slice(18, 26).forEach(([x, z], i) => (i % 2 ? this.addNoticeBoard(x, z) : this.addGarbageStation(x, z)));
-    ROAD_INTERSECTIONS.slice(26, 30).forEach(([x, z]) => this.addPhoneBooth(x, z));
+    ROAD_INTERSECTIONS.slice(18, 24).filter((_, i) => i % 2 === 0).forEach(([x, z], i) => (i % 2 ? this.addNoticeBoard(x, z) : this.addGarbageStation(x, z)));
+    ROAD_INTERSECTIONS.slice(26, 28).forEach(([x, z]) => this.addPhoneBooth(x, z));
     if (this.worldLayout?.atmosphere?.weather === "afterRain") {
       [[-42, -24], [12, 0], [58, 48], [-86, 72], [80, -48], [-12, 24]].forEach(([x, z], i) => this.addPuddle(x, z, i));
     }
