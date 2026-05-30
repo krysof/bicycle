@@ -445,6 +445,7 @@ export class ThreeRenderer {
     items.forEach((item) => {
       if (!item) return;
       item.userData.eraDetail = true;
+      item.userData.alwaysDetail = true;
       item.userData.detailVisible = true;
       this.eraDetailCount += 1;
     });
@@ -477,6 +478,7 @@ export class ThreeRenderer {
       group.userData.lodHigh = high;
       group.traverse((child) => {
         if (!child.userData?.eraDetail) return;
+        if (child.userData.alwaysDetail) { child.visible = true; return; }
         child.visible = high;
       });
     });
@@ -960,6 +962,9 @@ export class ThreeRenderer {
       [-w * 0.24, 0.92, d / 2 + 0.052, 0.50, 0.36, 0],
       [w * 0.08, 1.34, d / 2 + 0.052, 0.42, 0.30, 0],
       [-w / 2 - 0.025, 0.92, -d * 0.12, 0.34, 0.28, Math.PI / 2],
+      [w / 2 + 0.025, 1.04, -d * 0.18, 0.34, 0.28, Math.PI / 2],
+      [-w * 0.16, 1.18, -d / 2 - 0.025, 0.42, 0.30, 0],
+      [w * 0.20, 0.86, -d / 2 - 0.025, 0.38, 0.26, 0],
     ];
     windowSpecs.forEach(([x, y, z, ww, hh, rot]) => {
       const pane = new THREE.Mesh(new THREE.BoxGeometry(ww * scale, hh * scale, 0.025), glass);
@@ -976,6 +981,18 @@ export class ThreeRenderer {
       [top, bottom, left, right].forEach((m) => { m.rotation.y = rot; });
       group.add(pane, top, bottom, left, right);
       this.markEraDetail(pane, top, bottom, left, right);
+    });
+
+    // 远看也要有“不是低模盒子”的轮廓：外墙腰线、雨樋和侧面小设备保持常显。
+    [0.62, 1.18].forEach((yy) => {
+      const lineF = new THREE.Mesh(new THREE.BoxGeometry(w * 0.92, 0.026, 0.022), trim);
+      lineF.position.set(0, yy, d / 2 + 0.054);
+      const lineB = lineF.clone(); lineB.position.z = -d / 2 - 0.054;
+      const lineL = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.026, d * 0.72), trim);
+      lineL.position.set(-w / 2 - 0.054, yy, 0);
+      const lineR = lineL.clone(); lineR.position.x = w / 2 + 0.054;
+      group.add(lineF, lineB, lineL, lineR);
+      this.markEraDetail(lineF, lineB, lineL, lineR);
     });
 
     const gutter = new THREE.Mesh(new THREE.BoxGeometry(w * 1.12, 0.035, 0.045), trim);
@@ -1280,7 +1297,27 @@ export class ThreeRenderer {
         const win = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.24 * scale, 0.035), winMat);
         win.position.set(i * 0.62 * scale, 0.75 * scale + f * 0.58 * scale, d / 2 + 0.04);
         group.add(win);
+        this.markEraDetail(win);
+        const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.23 * scale, 0.32 * scale), winMat);
+        sideL.position.set(-w / 2 - 0.025, 0.75 * scale + f * 0.58 * scale, i * 0.46 * scale);
+        const sideR = sideL.clone(); sideR.position.x = w / 2 + 0.025;
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.30 * scale, 0.22 * scale, 0.035), winMat);
+        back.position.set(i * 0.58 * scale, 0.76 * scale + f * 0.58 * scale, -d / 2 - 0.025);
+        group.add(sideL, sideR, back);
+        this.markEraDetail(sideL, sideR, back);
       }
+    }
+
+    for (let f = 1; f <= Math.max(1, floors); f += 1) {
+      const y = 0.48 * scale + f * 0.52 * scale;
+      const trimF = new THREE.Mesh(new THREE.BoxGeometry(w * 0.92, 0.035 * scale, 0.035), mat(0x7c878b));
+      trimF.position.set(0, y, d / 2 + 0.055);
+      const trimB = trimF.clone(); trimB.position.z = -d / 2 - 0.055;
+      const trimL = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035 * scale, d * 0.82), mat(0x7c878b));
+      trimL.position.set(-w / 2 - 0.055, y, 0);
+      const trimR = trimL.clone(); trimR.position.x = w / 2 + 0.055;
+      group.add(trimF, trimB, trimL, trimR);
+      this.markEraDetail(trimF, trimB, trimL, trimR);
     }
 
     this.addCommercialDetails(group, scale, w, d, h, variant);
@@ -1704,10 +1741,12 @@ export class ThreeRenderer {
 
   addYodogawaRiver() {
     const riverZ = 238;
-    const waterW = 28;
-    const bankW = 54;
-    this.addPlane(0, 0.018, riverZ, MAP_W + 12, bankW, 0x87b7a2, 0);
-    this.addPlane(0, 0.026, riverZ, MAP_W + 4, waterW, 0x63b7c9, 0);
+    const waterW = 46;
+    const bankW = 82;
+    this.addPlane(0, 0.018, riverZ, MAP_W + 12, bankW, 0x8fbd9b, 0);
+    this.addPlane(0, 0.026, riverZ, MAP_W + 4, waterW, 0x4aaed0, 0);
+    this.addPlane(0, 0.032, riverZ - 7, MAP_W + 4, 7.2, 0x76c7dc, 0);
+    this.addPlane(0, 0.033, riverZ + 8, MAP_W + 4, 4.8, 0x358fb2, 0);
     this.addPlane(0, 0.055, riverZ - waterW / 2 - 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
     this.addPlane(0, 0.055, riverZ + waterW / 2 + 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
     this.addPlane(0, 0.083, riverZ - waterW / 2 - 7.2, MAP_W - 16, 1.0, 0xd8d0b6, 0);
@@ -1725,9 +1764,16 @@ export class ThreeRenderer {
         this.scene.add(post);
       }
     });
-    for (let x = -348; x <= 348; x += 28) {
-      this.addTree(x + ((Math.floor((x + 400) / 28) % 2) ? 5 : -5), riverZ - waterW / 2 - 15.4, false, 0.78);
-      if ((x / 28) % 2 === 0) this.addTree(x + 8, riverZ + waterW / 2 + 15.2, true, 0.72);
+    for (let x = -356; x <= 356; x += 18) {
+      const odd = Math.floor((x + 400) / 18) % 2;
+      this.addTree(x + (odd ? 3.8 : -3.8), riverZ - waterW / 2 - 15.4, false, odd ? 1.16 : 1.0);
+      if (x % 36 === 0) this.addTree(x + 6, riverZ + waterW / 2 + 15.2, true, 1.06);
+      if (x % 54 === 0) {
+        const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 8), mat(0x6fae68));
+        shrub.position.set(x - 5, 0.45, riverZ + waterW / 2 + 10.2);
+        shrub.scale.set(1.8, 0.56, 0.72);
+        this.scene.add(shrub);
+      }
     }
     [-252, -96, 112, 252].forEach((x) => {
       const bridge = new THREE.Mesh(new THREE.BoxGeometry(13.5, 0.20, bankW + 8), mat(0xb8b3a5));
@@ -2228,7 +2274,7 @@ export class ThreeRenderer {
 
   currentArea(px, pz) {
     const landmarks = this.worldLayout?.landmarks || {};
-    if (Math.abs(pz - 238) < 24) return "river";
+    if (Math.abs(pz - 238) < 36) return "river";
     const [parkX, parkZ] = landmarks.park || [-78, 58];
     if (Math.hypot(px - parkX, pz - parkZ) < 18) return "park";
     const [shopX, shopZ] = landmarks.shop || [-70, -68];

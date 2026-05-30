@@ -300,7 +300,7 @@ function generateInfillLots(rand, existingLots) {
         const x = seg.x1 + dx * t + nx * side * (15.8 + rand() * 4.8);
         const z = seg.z1 + dz * t + nz * side * (15.8 + rand() * 4.8);
         if (Math.abs(x) > MAP_W / 2 - 28 || Math.abs(z) > MAP_D / 2 - 34) return;
-        if (Math.abs(z - 238) < 42) return; // 淀川河道和河堤区域留空
+        if (Math.abs(z - 238) < 58) return; // 淀川河道和河堤区域留空
         if (isReservedSceneSpot(x, z, 11, 9) || nearAnyRoad(x, z, 6.3) || occupied(x, z)) return;
         const i = lots.length + si;
         lots.push({
@@ -326,7 +326,7 @@ function generateInfillLots(rand, existingLots) {
     attempts += 1;
     const x = -MAP_W / 2 + 34 + rand() * (MAP_W - 68);
     const z = -MAP_D / 2 + 36 + rand() * (MAP_D - 78);
-    if (Math.abs(z - 238) < 44) continue;
+    if (Math.abs(z - 238) < 60) continue;
     const roadDistance = ROAD_SEGMENTS.reduce((best, seg) => Math.min(best, distancePointToSegment({ x, z }, seg)), Infinity);
     if (roadDistance < 10.5 || roadDistance > 32.0) continue;
     if (isReservedSceneSpot(x, z, 12, 10) || occupied(x, z, 4.8)) continue;
@@ -356,6 +356,8 @@ function generateInfillLots(rand, existingLots) {
 function generateLots(rand) {
   const reserved = BUILDING_LOTS_OSM.filter((lot) => {
     if (isReservedSceneSpot(lot.x, lot.z, 9.0, 8.0)) return false;
+    // 主河道和河堤必须清出来，否则水面会被普通住宅盖住，玩家看不到“淀川”。
+    if (!lot.fixedService && Math.abs(lot.z - 238) < 58) return false;
     // OSM 建筑轮廓偶尔会贴到道路中心线；这种建筑会造成“房子压路”。
     // 真实街道优先，过近的普通建筑不生成；重要设施保留但碰撞会缩小。
     if (!lot.fixedService && nearAnyRoad(lot.x, lot.z, 6.8)) return false;
@@ -458,7 +460,7 @@ export function createWorldObstacles(layout = createWorldLayout(1)) {
 
   // 可见的淀川水面本身也阻挡玩家；桥的位置留出通道，避免再出现“看不见的空气墙”。
   const riverZ = 238;
-  const waterW = 28;
+  const waterW = 46;
   const bridgeCenters = [-252, -96, 112, 252];
   const gaps = bridgeCenters.map((x) => [x - 8.8, x + 8.8]);
   let cursor = -MAP_W / 2;
