@@ -17,6 +17,17 @@ const BUILDING_VARIANTS = [
 const ROOF_COLORS = [0xc85f4d, 0xd59a34, 0x4f91d5, 0x5aaa77, 0xb86695, 0x9c7556, 0x5c9ab5];
 const WALL_COLORS = [0xffe3c2, 0xe8f3ff, 0xe7f4d6, 0xffe8ef, 0xfff0c8, 0xe7f6f4, 0xf4f1e9];
 
+const SERVICE_LOTS = [
+  { id: "service-convenience", x: -50, z: 62, orientation: "h", variant: "convenience", scale: 1.08, roof: 0x3d79a8, wall: 0xfffbef, frontage: 8.4, depth: 6.2 },
+  { id: "service-supermarket", x: 50, z: 62, orientation: "h", variant: "supermarket", scale: 1.05, roof: 0xc9823d, wall: 0xf4e4c8, frontage: 10.2, depth: 7.0 },
+  { id: "service-hospital", x: -82, z: 62, orientation: "h", variant: "hospital", scale: 1.04, roof: 0xf8f8ff, wall: 0xe6f4ff, frontage: 10.0, depth: 7.0 },
+  { id: "service-school", x: 82, z: -62, orientation: "h", variant: "school", scale: 1.02, roof: 0xc78d4d, wall: 0xfff0d4, frontage: 11.0, depth: 7.4 },
+  { id: "service-post-office", x: 18, z: 62, orientation: "h", variant: "post-office", scale: 1.04, roof: 0xb84a42, wall: 0xfff0e8, frontage: 8.0, depth: 6.0 },
+  { id: "service-police", x: 104, z: -62, orientation: "h", variant: "police", scale: 1.02, roof: 0x4f91d5, wall: 0xffffff, frontage: 7.2, depth: 5.8 },
+  { id: "service-pharmacy", x: -18, z: -62, orientation: "h", variant: "pharmacy", scale: 1.03, roof: 0x3dbb70, wall: 0xf0fff2, frontage: 7.8, depth: 5.8 },
+  { id: "service-bathhouse", x: 106, z: 38, orientation: "h", variant: "bathhouse", scale: 1.02, roof: 0x4f91d5, wall: 0xe8f8ff, frontage: 8.2, depth: 6.2 },
+];
+
 function rect(id, x, y, w, h, kind = "solid") {
   return { id, type: "rect", x, y, halfW: w / 2, halfH: h / 2, kind };
 }
@@ -55,13 +66,15 @@ function nearAny(value, list, margin) {
 }
 
 function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
-  return neighbors.some((n) => {
+  const nearNeighbor = neighbors.some((n) => {
     const hx = worldToSceneX(n.x);
     const hz = worldToSceneZ(n.y);
     const dx = worldToSceneX(n.deliveryX ?? n.x);
     const dz = worldToSceneZ(n.deliveryY ?? n.y);
     return (Math.abs(x - hx) < marginX && Math.abs(z - hz) < marginZ) || Math.hypot(x - dx, z - dz) < 8.6;
   });
+  if (nearNeighbor) return true;
+  return SERVICE_LOTS.some((lot) => Math.abs(x - lot.x) < (lot.frontage || 8) * 0.7 && Math.abs(z - lot.z) < (lot.depth || 6) * 0.8);
 }
 
 function makeLot(rand, id, x, z, orientation = "h") {
@@ -115,7 +128,7 @@ function generateLots(rand) {
       }
     }
   }
-  return lots.slice(0, 86);
+  return lots.slice(0, 78).concat(SERVICE_LOTS.map((lot) => ({ ...lot, fixedService: true })));
 }
 
 function generateTrees(rand, lots) {
@@ -150,12 +163,13 @@ function generateLandmarks(rand) {
       x: pick(rand, ROAD_X.filter((x) => x !== 0)) + (rand() < 0.5 ? -6.3 : 6.3),
       z: -60 + i * 13 + (rand() - 0.5) * 5,
     })),
-    hills: Array.from({ length: 9 }, (_, i) => ({
-      x: -104 + i * 26 + (rand() - 0.5) * 8,
-      z: -88 + (rand() - 0.5) * 2,
-      h: 10 + rand() * 7,
-      r: 9 + rand() * 5,
-      color: rand() < 0.5 ? 0x8fbf8a : 0x93c79a,
+    // 大阪市街地不应满屏是山；只保留极远处低矮绿影，不进入住宅地。
+    hills: Array.from({ length: 2 }, (_, i) => ({
+      x: i === 0 ? -96 : 96,
+      z: -96,
+      h: 5 + rand() * 2,
+      r: 13 + rand() * 3,
+      color: 0x8fbf8a,
       rot: rand() * Math.PI,
     })),
     grassPatches: Array.from({ length: 9 }, (_, i) => ({
@@ -220,7 +234,6 @@ export function createWorldObstacles(layout = createWorldLayout(1)) {
     rect("vending-a", (shopX - 8) / WORLD_SCALE, (shopZ + 5) / WORLD_SCALE, 58, 58, "object"),
     rect("vending-b", (shopX + 6) / WORLD_SCALE, (shopZ + 5) / WORLD_SCALE, 58, 58, "object"),
     rect("torii", shrineX / WORLD_SCALE, shrineZ / WORLD_SCALE, 140, 70, "shrine"),
-    rect("mountain-wall", 0, -3860, 10400, 560, "mountain"),
   );
 
   return obstacles;

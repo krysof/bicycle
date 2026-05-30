@@ -451,17 +451,13 @@ export class ThreeRenderer {
       this.addPlane(patch.x, 0.018, patch.z, patch.w, patch.d, patch.color, patch.rot);
     });
 
-    // 远处山影
+    // 大阪市街地风格：山只作为地图外很远的低矮背景，不压住住宅。
     (this.worldLayout?.landmarks?.hills || []).forEach((cfg) => {
-      const hill = new THREE.Mesh(new THREE.ConeGeometry(cfg.r, cfg.h, 5), mat(cfg.color));
-      hill.position.set(cfg.x, cfg.h * 0.45, cfg.z);
+      const hill = new THREE.Mesh(new THREE.ConeGeometry(cfg.r, cfg.h, 5), transparentMat(cfg.color, 0.42));
+      hill.position.set(cfg.x, cfg.h * 0.35, cfg.z);
       hill.rotation.y = cfg.rot;
       this.scene.add(hill);
     });
-    const mountainFence = new THREE.Mesh(new THREE.BoxGeometry(MAP_W - 8, 0.55, 0.8), mat(0x7da16f));
-    mountainFence.position.set(0, 0.28, -82.5);
-    mountainFence.castShadow = true;
-    this.scene.add(mountainFence);
   }
 
   addRoadNetwork() {
