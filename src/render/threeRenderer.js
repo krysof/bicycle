@@ -545,21 +545,23 @@ export class ThreeRenderer {
     const cz = (z1 + z2) / 2;
     const angle = Math.atan2(dz, dx);
     const rot = -angle;
-    const laneWidth = main ? 10.6 : highway === "service" ? 6.2 : 7.7;
+    const formalRoad = highway === "primary" || highway === "tertiary";
+    const laneWidth = highway === "primary" ? 10.8 : highway === "tertiary" ? 9.4 : 7.4;
     const nx = -dz / len;
     const nz = dx / len;
-    const sidewalk = highway === "service" ? 0.9 : 1.42;
     this.addPlane(cx, 0.032, cz, len, laneWidth, COLORS.asphalt, rot);
-    // 真实 OSM 路段很多；普通住宅路只画路面，主干路才补全人行道/路缘，避免 draw call 过高导致卡顿。
-    if (!main) return;
+    // 画面要干净：住宅 / 生活道路只保留黑色路面；只有较大的道路才画人行道和线。
+    // 否则 OSM 的短折线会叠出大量白色杂线，看起来像“乱七八糟的路”。
+    if (!formalRoad) return;
+    const sidewalk = highway === "primary" ? 1.35 : 1.05;
     this.addPlane(cx + nx * (laneWidth / 2 + sidewalk), 0.04, cz + nz * (laneWidth / 2 + sidewalk), len, sidewalk, COLORS.sidewalk, rot);
     this.addPlane(cx - nx * (laneWidth / 2 + sidewalk), 0.04, cz - nz * (laneWidth / 2 + sidewalk), len, sidewalk, COLORS.sidewalk, rot);
     this.addPlane(cx + nx * (laneWidth / 2 + 0.18), 0.055, cz + nz * (laneWidth / 2 + 0.18), len, 0.16, COLORS.curb, rot);
     this.addPlane(cx - nx * (laneWidth / 2 + 0.18), 0.055, cz - nz * (laneWidth / 2 + 0.18), len, 0.16, COLORS.curb, rot);
-    if (main || len > 34) {
-      for (let d = 8; d < len - 8; d += 11) {
+    if (len > 58) {
+      for (let d = 12; d < len - 12; d += 22) {
         const t = d / len;
-        this.addPlane(x1 + dx * t, 0.068, z1 + dz * t, 2.2, 0.09, COLORS.lane, rot);
+        this.addPlane(x1 + dx * t, 0.068, z1 + dz * t, 2.8, 0.09, COLORS.lane, rot);
       }
     }
   }

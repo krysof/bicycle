@@ -7,8 +7,93 @@ export const MAP_D = 563;
 export const WORLD_BOUNDS = { minX: -MAP_W / (2 * WORLD_SCALE), maxX: MAP_W / (2 * WORLD_SCALE), minY: -MAP_D / (2 * WORLD_SCALE), maxY: MAP_D / (2 * WORLD_SCALE) };
 export const PLAYER_RADIUS = { walk: 52, bike: 72 };
 
-// OpenStreetMap から抽出した北江口周辺の実道路。dir:"line" は任意角度の道路。
-export const ROAD_SEGMENTS = ROAD_SEGMENTS_OSM.map((seg) => ({ ...seg, dir: "line" }));
+function roadGroupId(id = "") {
+  return String(id).replace(/_\d+$/, "");
+}
+
+function roadSegmentLength(seg) {
+  return Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1);
+}
+
+function pointLineDistance(p, a, b) {
+  const vx = b.x - a.x;
+  const vz = b.z - a.z;
+  const len2 = vx * vx + vz * vz;
+  if (!len2) return Math.hypot(p.x - a.x, p.z - a.z);
+  const t = clamp(((p.x - a.x) * vx + (p.z - a.z) * vz) / len2, 0, 1);
+  return Math.hypot(p.x - (a.x + vx * t), p.z - (a.z + vz * t));
+}
+
+function simplifyRoadPoints(points, epsilon) {
+  if (points.length <= 2) return points;
+  let maxDistance = 0;
+  let index = 0;
+  const first = points[0];
+  const last = points[points.length - 1];
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const d = pointLineDistance(points[i], first, last);
+    if (d > maxDistance) {
+      maxDistance = d;
+      index = i;
+    }
+  }
+  if (maxDistance <= epsilon) return [first, last];
+  const left = simplifyRoadPoints(points.slice(0, index + 1), epsilon);
+  const right = simplifyRoadPoints(points.slice(index), epsilon);
+  return left.slice(0, -1).concat(right);
+}
+
+function makeCleanRoadSegments(rawSegments) {
+  const groups = new Map();
+  rawSegments.forEach((seg) => {
+    const id = roadGroupId(seg.id);
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push(seg);
+  });
+  const cleaned = [];
+  groups.forEach((segments, groupId) => {
+    segments.sort((a, b) => {
+      const ai = Number.parseInt(String(a.id).split("_").pop(), 10) || 0;
+      const bi = Number.parseInt(String(b.id).split("_").pop(), 10) || 0;
+      return ai - bi;
+    });
+    const highway = segments[0]?.highway || "residential";
+    const main = Boolean(segments[0]?.main);
+    const totalLength = segments.reduce((sum, seg) => sum + roadSegmentLength(seg), 0);
+    // 原始 OSM 里有大量住宅细碎支路，直接渲染会像“乱线”。保留北江口路网的走势，
+    // 但只显示足够长、对送报体验有意义的街道骨架。
+    const keep = main
+      ? totalLength >= 30
+      : (highway === "residential" ? totalLength >= 72 : totalLength >= 52);
+    if (!keep) return;
+    const points = [{ x: segments[0].x1, z: segments[0].z1 }];
+    segments.forEach((seg) => points.push({ x: seg.x2, z: seg.z2 }));
+    const epsilon = highway === "primary" ? 2.8 : highway === "tertiary" ? 3.6 : 4.8;
+    const simplified = simplifyRoadPoints(points, epsilon);
+    for (let i = 1; i < simplified.length; i += 1) {
+      const a = simplified[i - 1];
+      const b = simplified[i];
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 12) continue;
+      cleaned.push({
+        id: `${groupId}-clean-${i}`,
+        x1: a.x,
+        z1: a.z,
+        x2: b.x,
+        z2: b.z,
+        main,
+        highway,
+        name: segments[0]?.name || "",
+        dir: "line",
+      });
+    }
+  });
+  return cleaned;
+}
+
+export const RAW_ROAD_SEGMENTS = ROAD_SEGMENTS_OSM.map((seg) => ({ ...seg, dir: "line" }));
+// 北江口周边真实路网的“干净游戏版”：保留道路走向，合并细碎折线，去掉太短小路。
+export const ROAD_SEGMENTS = makeCleanRoadSegments(ROAD_SEGMENTS_OSM);
 export const RAIL_SEGMENTS = RAIL_SEGMENTS_OSM;
 export const WATER_SEGMENTS = WATER_SEGMENTS_OSM;
 export const ROAD_INTERSECTIONS = ROAD_INTERSECTIONS_OSM;
