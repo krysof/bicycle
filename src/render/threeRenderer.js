@@ -2000,55 +2000,62 @@ export class ThreeRenderer {
     }
 
     const passerConfigs = [];
-    const personColors = [0x7b87c8, 0xb86695, 0xd59a34, 0x5aaa77, 0x8a6fb0, 0x9c7556, 0x4f91d5, 0xd66b53];
+    const personColors = [0x7b87c8, 0xb86695, 0xd59a34, 0x5aaa77, 0x8a6fb0, 0x9c7556, 0x4f91d5, 0xd66b53, 0x4f6f54, 0xc46a78];
+    const profiles = ["elderlyMale", "elderlyFemale", "adultMale", "adultFemale", "childBoy", "childGirl", "adultFemale", "adultMale"];
     const lanes = ROAD_SEGMENTS
       .map((seg) => ({ ...seg, len: Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) }))
       .filter((seg) => seg.len > 38)
       .sort((a, b) => b.len - a.len);
-    for (let i = 0; i < 34; i += 1) {
-      const seg = lanes[(i * 7) % lanes.length];
-      const reverse = i % 5 === 0;
+    for (let i = 0; i < 68; i += 1) {
+      const seg = lanes[(i * 5 + Math.floor(i / 3)) % lanes.length];
+      const reverse = i % 4 === 0;
+      const hasDog = i % 9 === 2 || i % 13 === 5;
       passerConfigs.push({
         kind: "pedestrian",
         path: true,
+        hasDog,
+        profile: hasDog ? (i % 2 ? "adultFemale" : "elderlyMale") : profiles[i % profiles.length],
         x1: reverse ? seg.x2 : seg.x1,
         z1: reverse ? seg.z2 : seg.z1,
         x2: reverse ? seg.x1 : seg.x2,
         z2: reverse ? seg.z1 : seg.z2,
         length: seg.len,
-        offset: (i % 4 < 2 ? -6.4 : 6.4) + ((i % 3) - 1) * 0.35,
-        speed: 1.45 + (i % 5) * 0.28,
+        offset: (i % 4 < 2 ? -6.8 : 6.8) + ((i % 3) - 1) * 0.55,
+        speed: hasDog ? 1.15 + (i % 3) * 0.16 : (profiles[i % profiles.length].startsWith("child") ? 1.62 : 1.25) + (i % 5) * 0.22,
         phase: (i * 0.137) % 1,
         color: personColors[i % personColors.length],
         style: i,
       });
     }
-    for (let i = 0; i < 10; i += 1) {
-      const seg = lanes[(i * 11 + 3) % lanes.length];
+    for (let i = 0; i < 24; i += 1) {
+      const seg = lanes[(i * 7 + 3) % lanes.length];
       const reverse = i % 3 === 0;
       passerConfigs.push({
         kind: "cyclist",
         path: true,
+        profile: profiles[(i + 2) % profiles.length],
         x1: reverse ? seg.x2 : seg.x1,
         z1: reverse ? seg.z2 : seg.z1,
         x2: reverse ? seg.x1 : seg.x2,
         z2: reverse ? seg.z1 : seg.z2,
         length: seg.len,
         offset: i % 2 === 0 ? 2.4 : -2.4,
-        speed: 4.0 + (i % 4) * 0.45,
+        speed: 3.35 + (i % 4) * 0.38,
         phase: (0.21 + i * 0.113) % 1,
         color: personColors[(i + 3) % personColors.length],
         style: i + 30,
       });
     }
     passerConfigs.forEach((cfg) => {
-      const group = cfg.kind === "cyclist" ? this.createAmbientCyclist(cfg.color, cfg.style || 0) : this.createAmbientPedestrian(cfg.color, cfg.style || 0);
+      const group = cfg.kind === "cyclist"
+        ? this.createAmbientCyclist(cfg.color, cfg.style || 0, cfg.profile)
+        : this.createAmbientPedestrian(cfg.color, cfg.style || 0, cfg.profile, cfg.hasDog);
       this.scene.add(group);
       this.passers.push({ group, ...cfg });
     });
   }
 
-  createAmbientPedestrian(color, style = 0) {
+  createAmbientPedestrian(color, style = 0, profile = "adultMale", hasDog = false) {
     const group = new THREE.Group();
     const skinColors = [0xf0c08d, 0xe6b07d, 0xf2cfaa, 0xd9a06f];
     const pantsColors = [0x2f4f64, 0x5d6380, 0x594f6f, 0x6f5a43];
@@ -2056,8 +2063,14 @@ export class ThreeRenderer {
     const skin = skinColors[style % skinColors.length];
     const pants = pantsColors[(style + 1) % pantsColors.length];
     const hair = hairColors[(style + 2) % hairColors.length];
+    const isChild = profile?.startsWith("child");
+    const isElderly = profile?.startsWith("elderly");
+    const isFemale = profile?.endsWith("Female") || profile?.endsWith("Girl");
+    const heightScale = isChild ? 0.74 : isElderly ? 0.90 : isFemale ? 0.96 : 1.02;
+    group.scale.setScalar(heightScale);
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.48, 5, 12), mat(color));
     body.position.y = 0.82;
+    if (isFemale) body.scale.set(0.92, 1.0, 0.96);
     const scarf = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.055, 0.20), mat(style % 2 ? 0xffe08a : 0xe85f79));
     scarf.position.set(0.02, 1.04, 0.02);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 10), mat(skin));
@@ -2067,10 +2080,13 @@ export class ThreeRenderer {
     hairCap.position.set(0, 1.31, -0.012);
     const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.075, 16), mat(style % 3 === 0 ? 0xd6b56d : 0x5d7b57));
     hat.position.set(0, 1.38, 0);
-    hat.visible = style % 4 === 0;
+    hat.visible = style % 4 === 0 || isElderly;
     const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.018, 16), mat(style % 3 === 0 ? 0xd6b56d : 0x5d7b57));
     brim.position.set(0, 1.34, 0);
     brim.visible = hat.visible;
+    const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.20, 0.34, 12), mat(color));
+    skirt.position.set(0, 0.58, 0);
+    skirt.visible = isFemale && !isChild && style % 2 === 0;
     const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), mat(skin));
     nose.position.set(0.13, 1.24, 0);
     const eyeMat = mat(0x2c2724);
@@ -2112,7 +2128,7 @@ export class ThreeRenderer {
     leftShoe.position.set(0.035, 0.12, -0.08);
     rightShoe.position.set(0.035, 0.12, 0.08);
     const accessory = new THREE.Group();
-    if (style % 5 === 0) {
+    if (style % 5 === 0 || isElderly) {
       const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.62, 8), mat(0x7b5c47));
       cane.position.set(0.24, 0.38, 0.24);
       cane.rotation.z = -0.18;
@@ -2130,14 +2146,24 @@ export class ThreeRenderer {
       top.position.set(0.33, 1.00, -0.25);
       accessory.add(umbrella, top);
     }
-    group.add(body, scarf, head, hairCap, hat, brim, nose, leftEye, rightEye, mouth, glasses, bag, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe, accessory);
-    group.userData.parts = { body, head, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe, bag, accessory };
+    let dog = null;
+    let leash = null;
+    if (hasDog) {
+      dog = this.createAnimal("dog", style % 2 ? 0xcaa06a : 0x8a6248);
+      dog.scale.setScalar(0.72);
+      dog.position.set(0.50, 0, -0.52);
+      leash = this.cylinderBetween(new THREE.Vector3(0.16, 0.68, -0.18), new THREE.Vector3(0.50, 0.38, -0.52), 0.008, mat(0x6f5a43));
+    }
+    group.add(body, skirt, scarf, head, hairCap, hat, brim, nose, leftEye, rightEye, mouth, glasses, bag, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe, accessory);
+    if (dog) group.add(dog, leash);
+    group.userData.parts = { body, head, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg, leftShoe, rightShoe, bag, accessory, dog, leash };
     return group;
   }
 
-  createAmbientCyclist(color, style = 0) {
-    const group = this.createAmbientPedestrian(color, style);
-    group.scale.setScalar(0.92);
+  createAmbientCyclist(color, style = 0, profile = "adultMale") {
+    const group = this.createAmbientPedestrian(color, style, profile, false);
+    const baseScale = group.scale.x;
+    group.scale.setScalar(baseScale * 0.92);
     const wheelMat = mat(0x1f2938);
     const rear = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.025, 8, 24), wheelMat);
     const front = rear.clone();
@@ -2393,6 +2419,14 @@ export class ThreeRenderer {
         if (parts.rightShoe) { parts.rightShoe.position.x = 0.035 - sin * 0.045; parts.rightShoe.position.y = 0.12 + Math.max(0, -cos) * 0.025; }
         if (parts.bag) parts.bag.rotation.z = Math.sin(walkPhase * 0.7) * 0.08;
         if (parts.accessory) parts.accessory.rotation.z = Math.sin(walkPhase * 0.55) * 0.05;
+        if (parts.dog) {
+          parts.dog.position.x = 0.50 + Math.sin(walkPhase * 0.85) * 0.08;
+          parts.dog.position.z = -0.52 + Math.cos(walkPhase * 0.7) * 0.06;
+          parts.dog.rotation.y = Math.sin(walkPhase * 0.9) * 0.18;
+          const dogLegs = parts.dog.userData?.legs || [];
+          dogLegs.forEach((leg, li) => { leg.rotation.z = Math.sin(walkPhase * 1.4 + li) * 0.24; });
+        }
+        if (parts.leash) parts.leash.rotation.z = Math.sin(walkPhase * 0.7) * 0.045;
       }
       const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
       if (d < best && d < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = d; near = item.kind; }
