@@ -1,4 +1,4 @@
-import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS, WORLD_SCALE, ROAD_X, ROAD_Z } from "../data/world.js";
+import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS, WORLD_SCALE, ROAD_SEGMENTS } from "../data/world.js";
 import { currentTarget } from "../state/gameState.js";
 import { nt, t } from "../i18n.js";
 
@@ -7,17 +7,130 @@ import { nt, t } from "../i18n.js";
 // 2026-05-28 调整：可见光圈直径扩大 1 倍，隐形投递圈同比扩大。
 const VISIBLE_TARGET_RING_RADIUS_SCENE = 8.3;
 const INVISIBLE_DELIVERY_RADIUS_MULTIPLIER = 5;
-const ROAD_X_WORLD = ROAD_X.map((x) => x / WORLD_SCALE);
-const ROAD_Y_WORLD = ROAD_Z.map((z) => z / WORLD_SCALE);
-
-function nearestRoad(value, roads) {
-  return roads.reduce((best, item) => Math.abs(item - value) < Math.abs(best - value) ? item : best, roads[0]);
+function sceneToWorldPoint(point) {
+  return { x: point.x / WORLD_SCALE, y: point.z / WORLD_SCALE };
 }
 
-function normalizeAngle(angle) {
-  let result = angle;
-  while (result > Math.PI) result -= Math.PI * 2;
-  while (result < -Math.PI) result += Math.PI * 2;
+function worldToScenePoint(x, y) {
+  return { x: x * WORLD_SCALE, z: y * WORLD_SCALE };
+}
+
+function key(point) {
+  return `${Math.round(point.x * 100) / 100},${Math.round(point.z * 100) / 100}`;
+}
+
+function nearestPointOnSegment(point, seg) {
+  if (seg.dir === "h") {
+    const x = Math.max(seg.x1, Math.min(seg.x2, point.x));
+    return { point: { x, z: seg.z }, distance: Math.hypot(point.x - x, point.z - seg.z), seg };
+  }
+  const z = Math.max(seg.z1, Math.min(seg.z2, point.z));
+  return { point: { x: seg.x, z }, distance: Math.hypot(point.x - seg.x, point.z - z), seg };
+}
+
+function nearestSegmentPoint(point) {
+  return ROAD_SEGMENTS
+    .map((seg) => nearestPointOnSegment(point, seg))
+    .sort((a, b) => a.distance - b.distance)[0];
+}
+
+function addGraphNode(nodes, point) {
+  const k = key(point);
+  if (!nodes.has(k)) nodes.set(k, { ...point, key: k, links: new Map() });
+  return nodes.get(k);
+}
+
+function addGraphEdge(nodes, a, b) {
+  const na = addGraphNode(nodes, a);
+  const nb = addGraphNode(nodes, b);
+  const dist = Math.hypot(na.x - nb.x, na.z - nb.z);
+  if (dist < 0.01) return;
+  na.links.set(nb.key, dist);
+  nb.links.set(na.key, dist);
+}
+
+function buildRoadGraph(extraPoints = []) {
+  const nodes = new Map();
+  const pointsBySegment = new Map();
+  const collect = (seg, point) => {
+    const id = JSON.stringify(seg);
+    if (!pointsBySegment.has(id)) pointsBySegment.set(id, { seg, points: [] });
+    pointsBySegment.get(id).points.push(point);
+    addGraphNode(nodes, point);
+  };
+
+  ROAD_SEGMENTS.forEach((seg) => {
+    if (seg.dir === "h") {
+      collect(seg, { x: seg.x1, z: seg.z });
+      collect(seg, { x: seg.x2, z: seg.z });
+    } else {
+      collect(seg, { x: seg.x, z: seg.z1 });
+      collect(seg, { x: seg.x, z: seg.z2 });
+    }
+  });
+
+  for (const h of ROAD_SEGMENTS.filter((seg) => seg.dir === "h")) {
+    for (const v of ROAD_SEGMENTS.filter((seg) => seg.dir === "v")) {
+      if (v.x >= h.x1 && v.x <= h.x2 && h.z >= v.z1 && h.z <= v.z2) {
+        const p = { x: v.x, z: h.z };
+        collect(h, p);
+        collect(v, p);
+      }
+    }
+  }
+
+  extraPoints.forEach(({ seg, point }) => collect(seg, point));
+
+  pointsBySegment.forEach(({ seg, points }) => {
+    const sorted = [...points].sort((a, b) => seg.dir === "h" ? a.x - b.x : a.z - b.z);
+    for (let i = 0; i < sorted.length - 1; i += 1) addGraphEdge(nodes, sorted[i], sorted[i + 1]);
+  });
+  return nodes;
+}
+
+function shortestPath(nodes, startKey, targetKey) {
+  const dist = new Map();
+  const prev = new Map();
+  const open = new Set(nodes.keys());
+  nodes.forEach((_, k) => dist.set(k, Infinity));
+  dist.set(startKey, 0);
+  while (open.size) {
+    let current = null;
+    let best = Infinity;
+    open.forEach((k) => {
+      const d = dist.get(k) ?? Infinity;
+      if (d < best) { best = d; current = k; }
+    });
+    if (!current || current === targetKey) break;
+    open.delete(current);
+    const node = nodes.get(current);
+    node.links.forEach((cost, nextKey) => {
+      if (!open.has(nextKey)) return;
+      const nd = best + cost;
+      if (nd < (dist.get(nextKey) ?? Infinity)) {
+        dist.set(nextKey, nd);
+        prev.set(nextKey, current);
+      }
+    });
+  }
+  if (!prev.has(targetKey) && startKey !== targetKey) return [];
+  const path = [];
+  let cur = targetKey;
+  while (cur) {
+    const node = nodes.get(cur);
+    path.push({ x: node.x, z: node.z });
+    if (cur === startKey) break;
+    cur = prev.get(cur);
+  }
+  return path.reverse();
+}
+
+function simplifyScenePath(points) {
+  const result = [];
+  points.forEach((point) => {
+    const last = result[result.length - 1];
+    if (!last || Math.hypot(last.x - point.x, last.z - point.z) > 1.6) result.push(point);
+  });
   return result;
 }
 
@@ -27,31 +140,15 @@ function appendWaypoint(points, point) {
 }
 
 export function buildAutoNavPath(state, target) {
-  const px = state.player.x;
-  const py = state.player.y;
-  const tx = target.deliveryX ?? target.x;
-  const ty = target.deliveryY ?? target.y;
-  const startRoadX = nearestRoad(px, ROAD_X_WORLD);
-  const startRoadY = nearestRoad(py, ROAD_Y_WORLD);
-  const targetRoadX = nearestRoad(tx, ROAD_X_WORLD);
-  const targetRoadY = nearestRoad(ty, ROAD_Y_WORLD);
-  const dxToVertical = Math.abs(px - startRoadX);
-  const dyToHorizontal = Math.abs(py - startRoadY);
-  const startOnVertical = dxToVertical < dyToHorizontal;
-  const jointX = targetRoadX;
+  const startScene = worldToScenePoint(state.player.x, state.player.y);
+  const targetScene = worldToScenePoint(target.deliveryX ?? target.x, target.deliveryY ?? target.y);
+  const startSnap = nearestSegmentPoint(startScene);
+  const targetSnap = nearestSegmentPoint(targetScene);
+  const nodes = buildRoadGraph([startSnap, targetSnap]);
+  const scenePath = simplifyScenePath(shortestPath(nodes, key(startSnap.point), key(targetSnap.point)));
   const points = [];
-
-  if (startOnVertical) {
-    appendWaypoint(points, { x: startRoadX, y: py });
-    appendWaypoint(points, { x: startRoadX, y: targetRoadY });
-    appendWaypoint(points, { x: jointX, y: targetRoadY });
-  } else {
-    appendWaypoint(points, { x: px, y: startRoadY });
-    appendWaypoint(points, { x: jointX, y: startRoadY });
-    appendWaypoint(points, { x: jointX, y: targetRoadY });
-  }
-  appendWaypoint(points, { x: tx, y: targetRoadY });
-  appendWaypoint(points, { x: tx, y: ty });
+  scenePath.forEach((point) => appendWaypoint(points, sceneToWorldPoint(point)));
+  appendWaypoint(points, sceneToWorldPoint(targetScene));
   return points;
 }
 

@@ -1,6 +1,6 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
-import { createWorldLayout, MAP_D, MAP_W, ROAD_X, ROAD_Z } from "../data/world.js";
+import { createWorldLayout, MAP_D, MAP_W, ROAD_SEGMENTS, ROAD_X, ROAD_Z } from "../data/world.js";
 import { buildAutoNavPath, canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { locale, nt, t } from "../i18n.js";
@@ -507,34 +507,46 @@ export class ThreeRenderer {
 
   addRoadNetwork() {
     // Paperboy 参考比例：宽黑色车道 + 灰色人行道 + 白色路缘/标线。
-    for (const z of ROAD_Z) this.addStreet("h", z);
-    for (const x of ROAD_X) this.addStreet("v", x);
+    ROAD_SEGMENTS.forEach((seg) => this.addStreetSegment(seg));
     // 移除窄小斜路，只保留整齐、宽阔的道路网。
     this.addStreetFurniture();
   }
 
-  addStreet(direction, pos) {
-    const roadLen = direction === "h" ? MAP_W - 10 : 10.8;
-    const roadWid = direction === "h" ? 10.8 : MAP_D - 8;
-    const sideLen = direction === "h" ? MAP_W - 10 : 2.15;
-    const sideWid = direction === "h" ? 2.15 : MAP_D - 8;
-    const curbLen = direction === "h" ? MAP_W - 10 : 0.22;
-    const curbWid = direction === "h" ? 0.22 : MAP_D - 8;
+  addStreetSegment(seg) {
+    if (seg.dir === "h") {
+      const len = Math.max(1, seg.x2 - seg.x1);
+      const cx = (seg.x1 + seg.x2) / 2;
+      this.addStreet("h", seg.z, len, cx, 0, Boolean(seg.main));
+    } else {
+      const len = Math.max(1, seg.z2 - seg.z1);
+      const cz = (seg.z1 + seg.z2) / 2;
+      this.addStreet("v", seg.x, len, 0, cz, Boolean(seg.main));
+    }
+  }
+
+  addStreet(direction, pos, customLen = null, centerX = 0, centerZ = 0, main = false) {
+    const laneWidth = main ? 11.2 : 8.4;
+    const roadLen = direction === "h" ? (customLen ?? MAP_W - 10) : laneWidth;
+    const roadWid = direction === "h" ? laneWidth : (customLen ?? MAP_D - 8);
+    const sideLen = direction === "h" ? roadLen : 1.7;
+    const sideWid = direction === "h" ? 1.7 : roadWid;
+    const curbLen = direction === "h" ? roadLen : 0.18;
+    const curbWid = direction === "h" ? 0.18 : roadWid;
 
     if (direction === "h") {
-      this.addPlane(0, 0.032, pos, roadLen, roadWid, COLORS.asphalt, 0);
-      this.addPlane(0, 0.04, pos - 6.45, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(0, 0.04, pos + 6.45, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(0, 0.055, pos - 5.45, curbLen, curbWid, COLORS.curb, 0);
-      this.addPlane(0, 0.055, pos + 5.45, curbLen, curbWid, COLORS.curb, 0);
-      for (let i = -Math.floor(MAP_W / 2) + 16; i <= Math.floor(MAP_W / 2) - 16; i += 8) this.addPlane(i, 0.068, pos, 2.4, 0.09, COLORS.lane, 0);
+      this.addPlane(centerX, 0.032, pos, roadLen, roadWid, COLORS.asphalt, 0);
+      this.addPlane(centerX, 0.04, pos - laneWidth / 2 - 1.25, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(centerX, 0.04, pos + laneWidth / 2 + 1.25, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(centerX, 0.055, pos - laneWidth / 2 - 0.18, curbLen, curbWid, COLORS.curb, 0);
+      this.addPlane(centerX, 0.055, pos + laneWidth / 2 + 0.18, curbLen, curbWid, COLORS.curb, 0);
+      for (let i = centerX - roadLen / 2 + 12; i <= centerX + roadLen / 2 - 12; i += 9) this.addPlane(i, 0.068, pos, 2.4, 0.09, COLORS.lane, 0);
     } else {
-      this.addPlane(pos, 0.033, 0, roadLen, roadWid, COLORS.asphalt, 0);
-      this.addPlane(pos - 6.45, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(pos + 6.45, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
-      this.addPlane(pos - 5.45, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
-      this.addPlane(pos + 5.45, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
-      for (let i = -Math.floor(MAP_D / 2) + 16; i <= Math.floor(MAP_D / 2) - 16; i += 8) this.addPlane(pos, 0.069, i, 0.09, 2.4, COLORS.lane, 0);
+      this.addPlane(pos, 0.033, centerZ, roadLen, roadWid, COLORS.asphalt, 0);
+      this.addPlane(pos - laneWidth / 2 - 1.25, 0.041, centerZ, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(pos + laneWidth / 2 + 1.25, 0.041, centerZ, sideLen, sideWid, COLORS.sidewalk, 0);
+      this.addPlane(pos - laneWidth / 2 - 0.18, 0.056, centerZ, curbLen, curbWid, COLORS.curb, 0);
+      this.addPlane(pos + laneWidth / 2 + 0.18, 0.056, centerZ, curbLen, curbWid, COLORS.curb, 0);
+      for (let i = centerZ - roadWid / 2 + 12; i <= centerZ + roadWid / 2 - 12; i += 9) this.addPlane(pos, 0.069, i, 0.09, 2.4, COLORS.lane, 0);
     }
   }
 

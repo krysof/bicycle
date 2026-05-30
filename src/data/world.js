@@ -5,8 +5,29 @@ export const WORLD_BOUNDS = { minX: -16740, maxX: 16740, minY: -12675, maxY: 126
 export const PLAYER_RADIUS = { walk: 52, bike: 72 };
 export const MAP_W = 744;
 export const MAP_D = 563;
-export const ROAD_X = [-328, -276, -218, -162, -96, -38, 24, 88, 156, 236, 316];
+export const ROAD_X = [-328, -236, -162, -96, -38, 24, 88, 156, 236, 316];
 export const ROAD_Z = [-232, -172, -116, -64, -18, 44, 112, 188, 244];
+export const ROAD_SEGMENTS = [
+  { dir: "h", z: -232, x1: -356, x2: 344, main: true },
+  { dir: "h", z: -116, x1: -356, x2: 322, main: true },
+  { dir: "h", z: 44, x1: -330, x2: 344, main: true },
+  { dir: "h", z: 188, x1: -356, x2: 344, main: true },
+  { dir: "h", z: -172, x1: -324, x2: -82 },
+  { dir: "h", z: -64, x1: -260, x2: 118 },
+  { dir: "h", z: -18, x1: 20, x2: 286 },
+  { dir: "h", z: 112, x1: -318, x2: -28 },
+  { dir: "h", z: 244, x1: 86, x2: 344 },
+  { dir: "v", x: -328, z1: -250, z2: 210, main: true },
+  { dir: "v", x: -96, z1: -250, z2: 226, main: true },
+  { dir: "v", x: 88, z1: -238, z2: 262, main: true },
+  { dir: "v", x: 316, z1: -250, z2: 250, main: true },
+  { dir: "v", x: -236, z1: -232, z2: -58 },
+  { dir: "v", x: -162, z1: -186, z2: 54 },
+  { dir: "v", x: -38, z1: -116, z2: 118 },
+  { dir: "v", x: 24, z1: -70, z2: 196 },
+  { dir: "v", x: 156, z1: -116, z2: 52 },
+  { dir: "v", x: 236, z1: -24, z2: 244 },
+];
 
 const BUILDING_VARIANTS = [
   "house-red", "house-blue", "house-green", "house-brown", "modern-home", "old-wood",
@@ -103,35 +124,31 @@ function makeLot(rand, id, x, z, orientation = "h") {
 function generateLots(rand) {
   const lots = [];
   let idx = 0;
-  const frontageXs = [-346, -332, -304, -290, -250, -236, -204, -190, -148, -134, -108, -84, -58, -24, 42, 70, 104, 132, 170, 198, 250, 278, 330, 346];
-  for (const roadZ of ROAD_Z) {
-    for (const side of [-1, 1]) {
-      for (const baseX of frontageXs) {
-        if (rand() < 0.16 || nearAny(baseX, ROAD_X, 5.2)) { idx += 1; continue; }
-        const z = roadZ + side * (13.9 + rand() * 0.7);
-        if (z < -270 || z > 270) { idx += 1; continue; }
-        const lotX = baseX + (rand() - 0.5) * 1.2;
-        if (isReservedSceneSpot(lotX, z, 12.2, 9.2)) { idx += 1; continue; }
-        lots.push(makeLot(rand, `osaka-row-h-${idx}`, lotX, z, "h"));
-        idx += 1;
-      }
-    }
-  }
+  const addLot = (x, z, orientation) => {
+    if (x < -360 || x > 360 || z < -270 || z > 270) return;
+    if (isReservedSceneSpot(x, z, 12.2, 9.2)) return;
+    if (lots.some((lot) => Math.abs(lot.x - x) < 9.5 && Math.abs(lot.z - z) < 8.0)) return;
+    lots.push(makeLot(rand, `kitaeguchi-lot-${idx}`, x + (rand() - 0.5) * 1.1, z + (rand() - 0.5) * 0.8, orientation));
+    idx += 1;
+  };
 
-  // 少量转角店铺 / 竖向住宅，避免网格过空，但不再生成窄小怪路。
-  for (const roadX of ROAD_X.filter((x) => x !== 0)) {
-    for (const side of [-1, 1]) {
-      for (const z of [-224, -176, -128, -76, -24, 52, 120, 190, 236]) {
-        if (rand() < 0.55 || nearAny(z, ROAD_Z, 7.2)) { idx += 1; continue; }
-        const x = roadX + side * (13.8 + rand() * 0.8);
-        if (x < -365 || x > 365) { idx += 1; continue; }
-        const lotZ = z + (rand() - 0.5) * 1.4;
-        if (isReservedSceneSpot(x, lotZ, 12.2, 9.2)) { idx += 1; continue; }
-        lots.push(makeLot(rand, `osaka-corner-v-${idx}`, x, lotZ, "v"));
-        idx += 1;
+  ROAD_SEGMENTS.forEach((seg) => {
+    if (seg.dir === "h") {
+      const step = seg.main ? 22 : 18;
+      for (let x = seg.x1 + 14; x <= seg.x2 - 14; x += step) {
+        if (rand() < (seg.main ? 0.42 : 0.34)) continue;
+        const side = rand() < 0.5 ? -1 : 1;
+        addLot(x, seg.z + side * (13.8 + rand() * 1.4), "h");
+      }
+    } else {
+      const step = seg.main ? 24 : 20;
+      for (let z = seg.z1 + 14; z <= seg.z2 - 14; z += step) {
+        if (rand() < (seg.main ? 0.50 : 0.42)) continue;
+        const side = rand() < 0.5 ? -1 : 1;
+        addLot(seg.x + side * (13.6 + rand() * 1.3), z, "v");
       }
     }
-  }
+  });
   return lots.slice(0, 96).concat(SERVICE_LOTS.map((lot) => ({ ...lot, fixedService: true })));
 }
 
