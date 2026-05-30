@@ -284,10 +284,14 @@ export class AudioEngine {
     const ctx = this.ensure();
     if (!ctx) return;
     const now = ctx.currentTime;
-    const volume = clamp(0.045 + speed * 0.055, 0.045, 0.105);
-    this.noiseTap(now, 0.07, volume, 580, "bandpass");
-    this.tone(95, now, 0.09, volume * 0.58, "sine");
-    this.tone(185, now + 0.018, 0.06, volume * 0.22, "triangle");
+    // 自行车不能像脚步声那样“咚咚”低频落地。
+    // 改成链条/飞轮的轻快金属声 + 很短的轮胎摩擦声。
+    const volume = clamp(0.036 + speed * 0.046, 0.036, 0.092);
+    this.noiseTap(now, 0.105, volume * 0.62, 1750, "bandpass");
+    this.noiseTap(now + 0.028, 0.055, volume * 0.34, 2900, "highpass");
+    this.tone(920 + Math.random() * 90, now, 0.045, volume * 0.34, "triangle");
+    this.tone(1320 + Math.random() * 130, now + 0.052, 0.040, volume * 0.24, "sine");
+    this.tone(260, now, 0.085, volume * 0.10, "sine");
   }
 
   playFootstep(speed = 1, distant = false) {

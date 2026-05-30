@@ -137,6 +137,74 @@ function makeRoadMapTexture(segments) {
   return texture;
 }
 
+function makeGroundDetailTexture(lots = []) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = Math.round(canvas.width * (MAP_D / MAP_W));
+  const ctx = canvas.getContext("2d");
+  const sx = canvas.width / MAP_W;
+  const sz = canvas.height / MAP_D;
+  const toCanvas = (x, z) => [
+    (x + MAP_W / 2) * sx,
+    (z + MAP_D / 2) * sz,
+  ];
+
+  ctx.fillStyle = "#bee8a9";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 细小草色变化，不做大块斑驳，避免再出现“破碎地形”的感觉。
+  for (let i = 0; i < 1800; i += 1) {
+    const x = (i * 977) % canvas.width;
+    const y = (i * 617) % canvas.height;
+    const r = 0.6 + (i % 5) * 0.18;
+    ctx.fillStyle = i % 3 === 0 ? "rgba(111,166,92,0.10)" : "rgba(241,255,220,0.09)";
+    ctx.beginPath();
+    ctx.ellipse(x, y, r * 2.4, r, (i % 11) * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 住宅周边铺上柔和的庭院 / 砂利 / 小混凝土底色，让地面不再是一整块绿色。
+  lots.slice(0, 460).forEach((lot, i) => {
+    const [x, y] = toCanvas(lot.x, lot.z);
+    const w = Math.max(8, (lot.frontage || 7) * 1.85 * sx * (lot.scale || 1));
+    const h = Math.max(7, (lot.depth || 7) * 1.75 * sz * (lot.scale || 1));
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.round((lot.angle || 0) / (Math.PI / 2)) * (Math.PI / 2));
+    ctx.fillStyle = i % 4 === 0 ? "rgba(220,214,188,0.58)" : i % 4 === 1 ? "rgba(202,226,182,0.66)" : "rgba(232,224,199,0.50)";
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.strokeStyle = "rgba(126,150,112,0.14)";
+    ctx.lineWidth = Math.max(1, sx * 0.08);
+    ctx.strokeRect(-w / 2, -h / 2, w, h);
+    // 门前一小段铺装，方向统一按 90 度街区，不出现斜房子。
+    ctx.fillStyle = "rgba(188,184,166,0.42)";
+    ctx.fillRect(-w * 0.16, h * 0.16, w * 0.32, h * 0.26);
+    if (i % 5 === 0) {
+      ctx.fillStyle = "rgba(239,176,183,0.48)";
+      ctx.beginPath();
+      ctx.arc(w * 0.32, -h * 0.28, Math.max(1.2, sx * 0.8), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // 很淡的排水线 / 地块线，增加日本住宅区地面层次。
+  ctx.strokeStyle = "rgba(96,132,98,0.14)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x += 96) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 88) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
@@ -535,7 +603,12 @@ export class ThreeRenderer {
     // 但玩家不会直接看到地图切断线或空白边界。
     const visualGround = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 180, 0.12, MAP_D + 160), mat(0xb2d6a8));
     visualGround.position.y = -0.38; this.scene.add(visualGround);
-    const ground = new THREE.Mesh(new THREE.BoxGeometry(MAP_W, 0.28, MAP_D), mat(0xb9ddb0));
+    const ground = new THREE.Mesh(new THREE.BoxGeometry(MAP_W, 0.28, MAP_D), new THREE.MeshStandardMaterial({
+      map: makeGroundDetailTexture(this.worldLayout?.lots || []),
+      color: 0xffffff,
+      roughness: 0.9,
+      metalness: 0.0,
+    }));
     ground.position.y = -0.16; ground.receiveShadow = true; this.scene.add(ground);
     const border = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 2, 0.16, MAP_D + 2), mat(0xa7cfa0));
     border.position.y = -0.3; this.scene.add(border);
@@ -550,7 +623,56 @@ export class ThreeRenderer {
       hill.rotation.y = cfg.rot;
       this.scene.add(hill);
     });
+    this.addGroundDetails();
     this.addBoundaryCityBelt();
+  }
+
+  addGroundDetails() {
+    const lotMats = [
+      transparentMat(0xded5bd, 0.42),
+      transparentMat(0xcfe6bd, 0.38),
+      transparentMat(0xe6dfc9, 0.36),
+    ];
+    (this.worldLayout?.lots || []).slice(0, 520).forEach((lot, i) => {
+      const scale = lot.scale || 1;
+      const w = Math.max(6.0, (lot.frontage || 7) * 1.35 * scale);
+      const d = Math.max(5.6, (lot.depth || 7) * 1.25 * scale);
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(w, 0.026, d), lotMats[i % lotMats.length]);
+      pad.position.set(lot.x, 0.015, lot.z);
+      pad.rotation.y = Math.round((lot.angle || 0) / (Math.PI / 2)) * (Math.PI / 2);
+      this.scene.add(pad);
+      if (i % 6 === 0) {
+        const garden = new THREE.Mesh(new THREE.BoxGeometry(Math.min(2.8, w * 0.28), 0.035, 0.48), transparentMat(0x7ab66a, 0.55));
+        garden.position.set(lot.x + Math.cos(-pad.rotation.y) * w * 0.22, 0.04, lot.z + Math.sin(-pad.rotation.y) * w * 0.22);
+        garden.rotation.y = pad.rotation.y;
+        this.scene.add(garden);
+      }
+    });
+
+    const drainMat = transparentMat(0x7b897d, 0.34);
+    ROAD_SEGMENTS.filter((_, i) => i % 2 === 0).forEach((seg) => {
+      const dx = seg.x2 - seg.x1;
+      const dz = seg.z2 - seg.z1;
+      const len = Math.hypot(dx, dz);
+      if (len < 42) return;
+      const angle = Math.atan2(dz, dx);
+      const nx = -dz / len;
+      const nz = dx / len;
+      [-1, 1].forEach((side) => {
+        const gutter = new THREE.Mesh(new THREE.BoxGeometry(len * 0.94, 0.022, 0.11), drainMat);
+        gutter.position.set((seg.x1 + seg.x2) / 2 + nx * side * 4.15, 0.066, (seg.z1 + seg.z2) / 2 + nz * side * 4.15);
+        gutter.rotation.y = -angle;
+        this.scene.add(gutter);
+      });
+    });
+
+    const manholeMat = transparentMat(0x4b5357, 0.52);
+    ROAD_INTERSECTIONS.filter((_, i) => i % 4 === 0).slice(0, 34).forEach(([x, z]) => {
+      const cover = new THREE.Mesh(new THREE.CircleGeometry(0.45, 20), manholeMat);
+      cover.rotation.x = -Math.PI / 2;
+      cover.position.set(x + 2.2, 0.098, z - 1.8);
+      this.scene.add(cover);
+    });
   }
 
   addBoundaryCityBelt() {
@@ -2106,8 +2228,7 @@ export class ThreeRenderer {
 
   currentArea(px, pz) {
     const landmarks = this.worldLayout?.landmarks || {};
-    const riverX = landmarks.riverX;
-    if (Number.isFinite(riverX) && Math.abs(px - riverX) < 11) return "river";
+    if (Math.abs(pz - 238) < 24) return "river";
     const [parkX, parkZ] = landmarks.park || [-78, 58];
     if (Math.hypot(px - parkX, pz - parkZ) < 18) return "park";
     const [shopX, shopZ] = landmarks.shop || [-70, -68];
@@ -2119,6 +2240,15 @@ export class ThreeRenderer {
 
   addPlayer() {
     const group = new THREE.Group();
+    this.playerHalo = new THREE.Mesh(new THREE.CircleGeometry(0.82, 32), transparentMat(0x1d6f55, 0.18));
+    this.playerHalo.rotation.x = -Math.PI / 2;
+    this.playerHalo.position.y = 0.035;
+    group.add(this.playerHalo);
+    this.playerContactShadow = new THREE.Mesh(new THREE.CircleGeometry(0.58, 28), transparentMat(0x1f2522, 0.22));
+    this.playerContactShadow.rotation.x = -Math.PI / 2;
+    this.playerContactShadow.scale.set(1.2, 0.52, 1);
+    this.playerContactShadow.position.y = 0.04;
+    group.add(this.playerContactShadow);
     this.body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.56, 6, 16), mat(0x2f7d5c));
     this.body.position.y = 0.92;
     this.body.castShadow = true;
