@@ -291,6 +291,19 @@ function uniqueScenePath(points) {
 
 function scenePathFromAutoNav(state, target) {
   if (!state?.player || !target) return [];
+  const px = wx(state.player.x);
+  const pz = wz(state.player.y);
+  const cacheKey = [
+    target.id,
+    state.autoNavTargetId || "",
+    state.autoNavIndex || 0,
+    Math.round(px / 1.5),
+    Math.round(pz / 1.5),
+    Boolean(state.autoNavPath),
+  ].join("|");
+  if (state.__navScenePathCacheKey === cacheKey && Array.isArray(state.__navScenePathCache)) {
+    return state.__navScenePathCache;
+  }
   let nav = null;
   if (state.autoNavPath && state.autoNavTargetId === target.id) {
     nav = state.autoNavPath.slice(Math.max(0, state.autoNavIndex || 0));
@@ -298,7 +311,10 @@ function scenePathFromAutoNav(state, target) {
     nav = buildAutoNavPath(state, target);
   }
   const worldPath = [{ x: state.player.x, y: state.player.y }, ...(nav || [])];
-  return uniqueScenePath(worldPath.map((p) => ({ x: wx(p.x), z: wz(p.y) })));
+  const path = uniqueScenePath(worldPath.map((p) => ({ x: wx(p.x), z: wz(p.y) })));
+  state.__navScenePathCacheKey = cacheKey;
+  state.__navScenePathCache = path;
+  return path;
 }
 
 function samplePath(points, distance) {
@@ -380,6 +396,9 @@ export class ThreeRenderer {
     this.insects = [];
     this.passers = [];
     this.passerRouteKey = "";
+    this.cachedPasserCounts = { passerCount: 0, pedestrianCount: 0, cyclistCount: 0, dogWalkerCount: 0 };
+    this.lastTrafficObstacleUpdateAt = -99;
+    this.cachedTrafficObstacles = [];
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
     this.lodGroups = [];
@@ -440,6 +459,9 @@ export class ThreeRenderer {
     this.insects = [];
     this.passers = [];
     this.passerRouteKey = "";
+    this.cachedPasserCounts = { passerCount: 0, pedestrianCount: 0, cyclistCount: 0, dogWalkerCount: 0 };
+    this.lastTrafficObstacleUpdateAt = -99;
+    this.cachedTrafficObstacles = [];
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
     this.lodGroups = [];
@@ -2065,6 +2087,12 @@ export class ThreeRenderer {
       this.scene.add(group);
       this.passers.push({ group, ...cfg });
     });
+    this.cachedPasserCounts = {
+      passerCount: this.passers.length,
+      pedestrianCount: this.passers.filter((item) => item.kind === "pedestrian").length,
+      cyclistCount: this.passers.filter((item) => item.kind === "cyclist").length,
+      dogWalkerCount: this.passers.filter((item) => item.hasDog).length,
+    };
   }
 
   createAmbientPedestrian(color, style = 0, profile = "adultMale", hasDog = false) {
@@ -2446,11 +2474,15 @@ export class ThreeRenderer {
         }
       }
       const parts = item.group.userData.parts || {};
+      const distToPlayer = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
+      const animateNear = distToPlayer < (item.kind === "cyclist" ? 96 : 82) || item.hasDog || i % 5 === Math.floor((t * 2) % 5);
       const stride = Math.max(2.4, item.speed * (item.kind === "cyclist" ? 3.1 : 1.75));
       const walkPhase = t * stride + i;
       const sin = Math.sin(walkPhase);
       const cos = Math.cos(walkPhase);
-      if (item.kind === "cyclist") {
+      if (!animateNear) {
+        // 远处路人继续沿路线移动，但不每帧摆动四肢；画面数量不变，CPU 负担下降。
+      } else if (item.kind === "cyclist") {
         item.group.position.y = 0;
         const cyclePhase = t * Math.max(5.8, item.speed * 2.25) + i;
         const cSin = Math.sin(cyclePhase);
@@ -2493,8 +2525,7 @@ export class ThreeRenderer {
         }
         if (parts.leash) parts.leash.rotation.z = Math.sin(walkPhase * 0.7) * 0.045;
       }
-      const d = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
-      if (d < best && d < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = d; near = item.kind; }
+      if (distToPlayer < best && distToPlayer < (item.kind === "cyclist" ? 8.0 : 6.8)) { best = distToPlayer; near = item.kind; }
     });
     const hx = state?.player?.headingX ?? 1;
     const hz = state?.player?.headingY ?? 0;
@@ -2512,24 +2543,27 @@ export class ThreeRenderer {
       }
     });
 
-    const trafficObstacles = this.passers.map((item, i) => ({
-      id: `traffic-${i}`,
-      type: "circle",
-      x: item.group.position.x / WORLD_SCALE,
-      y: item.group.position.z / WORLD_SCALE,
-      r: item.kind === "cyclist" ? 118 : 82,
-      kind: item.kind,
-    }));
+    if (t - this.lastTrafficObstacleUpdateAt > 0.18) {
+      this.lastTrafficObstacleUpdateAt = t;
+      this.cachedTrafficObstacles = this.passers
+        .filter((item) => Math.hypot(item.group.position.x - px, item.group.position.z - pz) < 34)
+        .map((item, i) => ({
+          id: `traffic-${i}`,
+          type: "circle",
+          x: item.group.position.x / WORLD_SCALE,
+          y: item.group.position.z / WORLD_SCALE,
+          r: item.kind === "cyclist" ? 118 : 82,
+          kind: item.kind,
+        }));
+    }
 
     this.lastAmbientInfo = {
       nearPasserby: near,
       distance: near ? best : Infinity,
       nearestTraffic,
-      trafficObstacles,
+      trafficObstacles: this.cachedTrafficObstacles,
       area: this.currentArea(px, pz),
-      passerCount: this.passers.length,
-      pedestrianCount: this.passers.filter((item) => item.kind === "pedestrian").length,
-      cyclistCount: this.passers.filter((item) => item.kind === "cyclist").length,
+      ...this.cachedPasserCounts,
       animalCount: this.animals.length,
       insectCount: this.insects.length,
     };

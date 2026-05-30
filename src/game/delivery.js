@@ -693,9 +693,28 @@ function clampPoint(point, radius) {
 }
 
 function allObstacles(state) {
-  const staticObstacles = state.worldObstacles || WORLD_OBSTACLES;
+  const staticObstacles = nearbyStaticObstacles(state);
   const traffic = Array.isArray(state.trafficObstacles) ? state.trafficObstacles : [];
   return staticObstacles.concat(traffic);
+}
+
+function nearbyStaticObstacles(state) {
+  const source = state.worldObstacles || WORLD_OBSTACLES;
+  const px = state.player?.x ?? 0;
+  const py = state.player?.y ?? 0;
+  const cell = 620;
+  const key = `${source.length}:${Math.floor(px / cell)}:${Math.floor(py / cell)}`;
+  if (state.__nearObstacleKey === key && Array.isArray(state.__nearObstacles)) return state.__nearObstacles;
+  const range = 980;
+  const filtered = source.filter((obstacle) => {
+    if (obstacle.type === "circle") return Math.abs(obstacle.x - px) <= range && Math.abs(obstacle.y - py) <= range;
+    const ox = Math.max(obstacle.x - obstacle.halfW, Math.min(px, obstacle.x + obstacle.halfW));
+    const oy = Math.max(obstacle.y - obstacle.halfH, Math.min(py, obstacle.y + obstacle.halfH));
+    return Math.abs(ox - px) <= range && Math.abs(oy - py) <= range;
+  });
+  state.__nearObstacleKey = key;
+  state.__nearObstacles = filtered;
+  return filtered;
 }
 
 function collisionAt(state, x, y, radius) {
