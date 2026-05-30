@@ -656,6 +656,7 @@ export class App {
     this.audio.update(this.state, dt, renderInfo);
     this.updateRestPointHint(renderInfo);
     this.updateSafetyHint(renderInfo);
+    if (this.state.isPlaying) this.hud.update(this.state);
     this.updateComic();
     requestAnimationFrame((time) => this.loop(time));
   }

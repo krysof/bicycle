@@ -1,3 +1,4 @@
+import { canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { nt, t } from "../i18n.js";
 
@@ -53,6 +54,22 @@ export class Hud {
     }
     this.companionLine.textContent = state.message;
     this.pauseBtn.textContent = state.isPaused ? t("resume") : t("pause");
+    const deliverReady = canDeliverNow(state, target);
+    const moving = Boolean(
+      state.delivery?.active
+      || state.autoNavMoving
+      || state.touchThrottle
+      || state.keys.has("arrowup")
+      || state.keys.has("w")
+      || state.keys.has("arrowdown")
+      || state.keys.has("s")
+    );
+    const idleNeedsForward = Boolean(state.isPlaying && !state.isPaused && target && !deliverReady && !moving);
+    this.deliverBtn?.classList.toggle("deliver-ready", deliverReady);
+    this.touchDeliverBtn?.classList.toggle("deliver-ready", deliverReady);
+    this.touchForwardBtn?.classList.toggle("forward-nudge", idleNeedsForward);
+    this.autoForwardBtn?.classList.toggle("forward-nudge", idleNeedsForward && !state.autoForward);
+    this.targetHint?.classList.toggle("forward-nudge-text", idleNeedsForward);
     this.easyModeBtn?.classList.toggle("selected", Boolean(state.easyMode));
     this.autoForwardBtn?.classList.toggle("selected", Boolean(state.autoForward));
     this.contrastBtn?.classList.toggle("selected", Boolean(state.highContrast));

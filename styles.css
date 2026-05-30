@@ -1034,6 +1034,44 @@ body.high-contrast button.primary {
   background: linear-gradient(180deg, #399268, var(--accent-dark));
 }
 
+
+
+@keyframes readyBounce {
+  0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 8px 18px rgba(31, 43, 56, 0.18); }
+  42% { transform: translateY(-4px) scale(1.045); box-shadow: 0 13px 24px rgba(47, 125, 92, 0.28); }
+  68% { transform: translateY(1px) scale(0.992); }
+}
+
+@keyframes forwardNudge {
+  0%, 100% { transform: translateX(0) scale(1); }
+  28% { transform: translateX(3px) scale(1.025); }
+  56% { transform: translateX(-2px) scale(1.01); }
+}
+
+@keyframes softGlowText {
+  0%, 100% { color: var(--muted); }
+  50% { color: #2f7d5c; text-shadow: 0 0 10px rgba(244, 189, 82, 0.34); }
+}
+
+#deliverBtn.deliver-ready,
+.touch-deliver.deliver-ready {
+  animation: readyBounce 0.95s ease-in-out infinite;
+  outline: 4px solid rgba(255, 238, 126, 0.78);
+  outline-offset: 3px;
+}
+
+.touch-forward.forward-nudge,
+#autoForwardBtn.forward-nudge {
+  animation: forwardNudge 1.15s ease-in-out infinite;
+  outline: 3px solid rgba(244, 189, 82, 0.54);
+  outline-offset: 2px;
+}
+
+#targetHint.forward-nudge-text {
+  animation: softGlowText 1.4s ease-in-out infinite;
+  font-weight: 850;
+}
+
 @keyframes comicPop {
   from {
     transform: translateX(-50%) scale(0.86);

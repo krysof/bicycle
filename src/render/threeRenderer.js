@@ -1,7 +1,7 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
 import { createWorldLayout } from "../data/world.js";
-import { canDeliverNow } from "../game/delivery.js";
+import { buildAutoNavPath, canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { locale, nt, t } from "../i18n.js";
 
@@ -175,16 +175,20 @@ function appendSegment(points, from, to) {
   if (Math.hypot(from.x - to.x, from.z - to.z) > 0.08) points.push(to);
 }
 
-function buildRoadPath(px, pz, tx, tz) {
-  const startZ = nearestRoad(pz, ROAD_Z);
-  const targetZ = nearestRoad(tz, ROAD_Z);
-  const jointX = nearestRoad(tx, ROAD_X);
-  const points = [];
-  appendSegment(points, { x: px, z: startZ }, { x: jointX, z: startZ });
-  appendSegment(points, { x: jointX, z: startZ }, { x: jointX, z: targetZ });
-  appendSegment(points, { x: jointX, z: targetZ }, { x: tx, z: targetZ });
-  appendSegment(points, { x: tx, z: targetZ }, { x: tx, z: tz });
+function uniqueScenePath(points) {
   return points.filter((p, i, arr) => i === 0 || Math.hypot(p.x - arr[i - 1].x, p.z - arr[i - 1].z) > 0.08);
+}
+
+function scenePathFromAutoNav(state, target) {
+  if (!state?.player || !target) return [];
+  let nav = null;
+  if (state.autoNavPath && state.autoNavTargetId === target.id) {
+    nav = state.autoNavPath.slice(Math.max(0, state.autoNavIndex || 0));
+  } else {
+    nav = buildAutoNavPath(state, target);
+  }
+  const worldPath = [{ x: state.player.x, y: state.player.y }, ...(nav || [])];
+  return uniqueScenePath(worldPath.map((p) => ({ x: wx(p.x), z: wz(p.y) })));
 }
 
 function samplePath(points, distance) {
@@ -1950,13 +1954,12 @@ export class ThreeRenderer {
 
     const px = wx(state.player.x);
     const pz = wz(state.player.y);
-    const deliveryX = wx(target.deliveryX ?? target.x);
-    const deliveryZ = wz(target.deliveryY ?? target.y);
     const ringX = this.targetRing?.position.x ?? wx(target.x);
     const ringZ = this.targetRing?.position.z ?? wz(target.y);
     const distToRing = Math.hypot(ringX - px, ringZ - pz);
     const nearTarget = distToRing < 13.5 || canDeliverNow(state);
-    const path = buildRoadPath(px, pz, deliveryX, deliveryZ);
+    const path = scenePathFromAutoNav(state, target);
+    this.lastNavigationPath = path;
     const total = path.reduce((sum, p, i) => {
       if (i === 0) return 0;
       return sum + Math.hypot(p.x - path[i - 1].x, p.z - path[i - 1].z);
@@ -1977,7 +1980,8 @@ export class ThreeRenderer {
       arrow.position.x = sample.x;
       arrow.position.z = sample.z;
       arrow.rotation.z = sample.angle;
-      const distToTarget = nearTarget ? distToRing : Math.hypot(deliveryX - px, deliveryZ - pz);
+      const finalPoint = path[path.length - 1] || { x: ringX, z: ringZ };
+      const distToTarget = nearTarget ? distToRing : Math.hypot(finalPoint.x - px, finalPoint.z - pz);
       const proximity = Math.max(0, Math.min(1, 1 - distToTarget / 38));
       const pulse = 1 + Math.sin((state.floatTime || 0) * 4 + i) * 0.08;
       const base = Math.max(0.48, 0.9 + proximity * 0.26 - i * 0.035);

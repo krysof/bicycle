@@ -26,7 +26,7 @@ function appendWaypoint(points, point) {
   if (!last || Math.hypot(last.x - point.x, last.y - point.y) > 70) points.push(point);
 }
 
-function buildAutoNavPath(state, target) {
+export function buildAutoNavPath(state, target) {
   const px = state.player.x;
   const py = state.player.y;
   const tx = target.deliveryX ?? target.x;
