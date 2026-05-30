@@ -504,7 +504,7 @@ export class ThreeRenderer {
   addProceduralTown() {
     // 每局从共享 layout 生成不同住宅、商店、树木；碰撞体也使用同一份 layout，避免空气墙。
     (this.worldLayout?.lots || []).forEach((lot) => {
-      const group = this.addResidentialLot(lot.x, lot.z, lot.roof, lot.wall, lot.scale, lot.variant);
+      const group = this.addResidentialLot(lot.x, lot.z, lot.roof, lot.wall, lot.scale, lot.variant, lot);
       group.rotation.y = lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0);
     });
 
@@ -513,25 +513,27 @@ export class ThreeRenderer {
     });
   }
 
-  addResidentialLot(x, z, roof, wall, scale = 1, variant = "house-red") {
+  addResidentialLot(x, z, roof, wall, scale = 1, variant = "house-red", spec = null) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
     group.rotation.y = ((x + z) % 5) * 0.018;
 
-    const yard = new THREE.Mesh(new THREE.BoxGeometry(7.3, 0.035, 5.6), mat(0xd6e9bf));
+    const yardW = spec?.frontage || 7.3;
+    const yardD = spec?.depth || 5.6;
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.035, yardD), mat(0xd6e9bf));
     yard.position.set(0, 0.07, 0);
     yard.receiveShadow = true;
     group.add(yard);
 
     const wallMat = mat(0xf6f0df);
-    for (const [px, pz, w, d] of [[0, -2.75, 7.2, 0.12], [0, 2.75, 7.2, 0.12], [-3.6, 0, 0.12, 5.5], [3.6, 0, 0.12, 5.5]]) {
+    for (const [px, pz, w, d] of [[0, -yardD / 2, yardW, 0.12], [0, yardD / 2, yardW, 0.12], [-yardW / 2, 0, 0.12, yardD], [yardW / 2, 0, 0.12, yardD]]) {
       const fence = new THREE.Mesh(new THREE.BoxGeometry(w, 0.28, d), wallMat);
       fence.position.set(px, 0.22, pz);
       fence.castShadow = true;
       group.add(fence);
     }
 
-    this.addBuildingVariant(group, variant, roof, wall, 2.05 * scale);
+    this.addBuildingVariant(group, variant, roof, wall, (spec?.frontage ? 1.58 : 2.05) * scale);
     this.registerOccluder(group);
     this.scene.add(group);
     return group;
@@ -542,7 +544,7 @@ export class ThreeRenderer {
     group.position.set(wx(n.x), 0, wz(n.y));
     const frontZ = wz(n.deliveryY ?? n.y) - wz(n.y);
     if (frontZ < 0) group.rotation.y = Math.PI;
-    this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), 2.65, TARGET_VARIANTS[n.id] || "house-red");
+    this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), n.osakaLot ? 2.34 : 2.65, n.variant || TARGET_VARIANTS[n.id] || "house-red");
     const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
     this.addDeliveryReactionObjects(group, n);

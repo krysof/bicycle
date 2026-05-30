@@ -845,6 +845,29 @@ body.high-contrast button.primary {
 .comic-avatar.neighbor-watanabe { background: linear-gradient(145deg, #ffefd8, #b77a42); }
 .comic-avatar.neighbor-nakamura { background: linear-gradient(145deg, #ffe8e5, #da7c86); }
 .comic-avatar.neighbor-kato { background: linear-gradient(145deg, #e0f6fb, #5c9ab5); }
+.comic-avatar.neighbor-yoshida { background: linear-gradient(145deg, #d8c3a5, #ddcfba); }
+.comic-avatar.neighbor-yamada { background: linear-gradient(145deg, #8a6f48, #5c9ab5); }
+.comic-avatar.neighbor-sasaki { background: linear-gradient(145deg, #e8dfcf, #ffe8ef); }
+.comic-avatar.neighbor-yamaguchi { background: linear-gradient(145deg, #4f5f6f, #7b5a3d); }
+.comic-avatar.neighbor-matsumoto { background: linear-gradient(145deg, #f2e5cf, #e9e8ff); }
+.comic-avatar.neighbor-inoue { background: linear-gradient(145deg, #b86695, #6f5338); }
+.comic-avatar.neighbor-kimura { background: linear-gradient(145deg, #5b4638, #ffe6ef); }
+.comic-avatar.neighbor-hayashi { background: linear-gradient(145deg, #ddcfba, #8ecae6); }
+.comic-avatar.neighbor-shimizu { background: linear-gradient(145deg, #5c9ab5, #f1eadc); }
+.comic-avatar.neighbor-saito { background: linear-gradient(145deg, #ffe8ef, #7a5542); }
+.comic-avatar.neighbor-abe { background: linear-gradient(145deg, #7b5a3d, #d7ecc2); }
+.comic-avatar.neighbor-hashimoto { background: linear-gradient(145deg, #e9e8ff, #9c7556); }
+.comic-avatar.neighbor-ishikawa { background: linear-gradient(145deg, #6f5338, #e8f1ff); }
+.comic-avatar.neighbor-maeda { background: linear-gradient(145deg, #ffe6ef, #d59a34); }
+.comic-avatar.neighbor-ogawa { background: linear-gradient(145deg, #8ecae6, #f4e4c8); }
+.comic-avatar.neighbor-okada { background: linear-gradient(145deg, #f1eadc, #d8c3a5); }
+.comic-avatar.neighbor-hasegawa { background: linear-gradient(145deg, #7a5542, #8a6f48); }
+.comic-avatar.neighbor-fujita { background: linear-gradient(145deg, #d7ecc2, #e8dfcf); }
+.comic-avatar.neighbor-goto { background: linear-gradient(145deg, #9c7556, #4f5f6f); }
+.comic-avatar.neighbor-murakami { background: linear-gradient(145deg, #e8f1ff, #f2e5cf); }
+.comic-avatar.neighbor-kondo { background: linear-gradient(145deg, #d59a34, #b86695); }
+.comic-avatar.neighbor-endo { background: linear-gradient(145deg, #f4e4c8, #5b4638); }
+
 
 .comic-dialog {
   display: grid;

@@ -65,7 +65,9 @@ function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
 }
 
 function makeLot(rand, id, x, z, orientation = "h") {
-  const scale = 1.02 + rand() * 0.28;
+  // 大阪旧住宅区参考：小间口、深进深、木造二层 / 长屋感，整体沿道路整齐退让。
+  const scale = 0.88 + rand() * 0.18;
+  const osakaVariants = ["old-wood", "old-wood", "house-brown", "house-red", "house-blue", "modern-home", "bakery", "bookstore", "barber", "fish-shop"];
   return {
     id,
     x,
@@ -74,40 +76,46 @@ function makeLot(rand, id, x, z, orientation = "h") {
     roof: pick(rand, ROOF_COLORS),
     wall: pick(rand, WALL_COLORS),
     scale,
-    variant: pick(rand, BUILDING_VARIANTS),
-    yaw: (rand() - 0.5) * 0.08,
+    variant: pick(rand, osakaVariants),
+    yaw: (rand() - 0.5) * 0.025,
+    frontage: 4.2 + rand() * 1.1,
+    depth: 7.2 + rand() * 1.4,
   };
 }
 
 function generateLots(rand) {
   const lots = [];
   let idx = 0;
+  const frontageXs = [-112, -98, -84, -70, -56, -42, -28, -14, 14, 28, 42, 56, 70, 84, 98, 112];
   for (const roadZ of ROAD_Z) {
-    for (let x = -104; x <= 104; x += 22) {
-      if (rand() < 0.25 || Math.abs(x + 102) < 9 || Math.abs(x) < 7) { idx += 1; continue; }
-      const side = rand() < 0.5 ? -1 : 1;
-      const z = roadZ + side * (13.2 + rand() * 2.6);
-      if (z < -82 || z > 82) { idx += 1; continue; }
-      const lotX = x + (rand() - 0.5) * 5.2;
-      if (isReservedSceneSpot(lotX, z) || nearAny(lotX, ROAD_X, 8.5)) { idx += 1; continue; }
-      lots.push(makeLot(rand, `residential-h-${idx}`, lotX, z, "h"));
-      idx += 1;
+    for (const side of [-1, 1]) {
+      for (const baseX of frontageXs) {
+        if (rand() < 0.16 || nearAny(baseX, ROAD_X, 5.2)) { idx += 1; continue; }
+        const z = roadZ + side * (13.9 + rand() * 0.7);
+        if (z < -82 || z > 82) { idx += 1; continue; }
+        const lotX = baseX + (rand() - 0.5) * 1.2;
+        if (isReservedSceneSpot(lotX, z, 12.2, 9.2)) { idx += 1; continue; }
+        lots.push(makeLot(rand, `osaka-row-h-${idx}`, lotX, z, "h"));
+        idx += 1;
+      }
     }
   }
 
+  // 少量转角店铺 / 竖向住宅，避免网格过空，但不再生成窄小怪路。
   for (const roadX of ROAD_X.filter((x) => x !== 0)) {
-    for (let z = -76; z <= 76; z += 24) {
-      if (rand() < 0.35 || Math.abs(z) < 8) { idx += 1; continue; }
-      const side = rand() < 0.5 ? -1 : 1;
-      const x = roadX + side * (13.0 + rand() * 2.4);
-      if (x < -108 || x > 108) { idx += 1; continue; }
-      const lotZ = z + (rand() - 0.5) * 4.4;
-      if (isReservedSceneSpot(x, lotZ) || nearAny(lotZ, ROAD_Z, 8.5)) { idx += 1; continue; }
-      lots.push(makeLot(rand, `residential-v-${idx}`, x, lotZ, "v"));
-      idx += 1;
+    for (const side of [-1, 1]) {
+      for (let z = -60; z <= 60; z += 24) {
+        if (rand() < 0.55 || nearAny(z, ROAD_Z, 7.2)) { idx += 1; continue; }
+        const x = roadX + side * (13.8 + rand() * 0.8);
+        if (x < -110 || x > 110) { idx += 1; continue; }
+        const lotZ = z + (rand() - 0.5) * 1.4;
+        if (isReservedSceneSpot(x, lotZ, 12.2, 9.2)) { idx += 1; continue; }
+        lots.push(makeLot(rand, `osaka-corner-v-${idx}`, x, lotZ, "v"));
+        idx += 1;
+      }
     }
   }
-  return lots.slice(0, 54);
+  return lots.slice(0, 86);
 }
 
 function generateTrees(rand, lots) {

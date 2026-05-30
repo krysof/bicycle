@@ -1,225 +1,117 @@
-export const neighbors = [
-  {
-    id: "tanaka",
-    recipient: { gender: "male", avatar: "tanaka" },
-    name: "田中先生",
-    x: -3600,
-    y: -2820,
-    deliveryX: -3600,
-    deliveryY: -3150,
-    roof: "#c85f4d",
-    wall: "#ffe0b8",
-    trim: "#7c4b37",
-    paper: "体育报",
-    clue: "红色瓦屋顶，门口有篮球",
-    landmark: "basketball",
-    thanks: "田中先生：今天的体育新闻来得正好，谢谢你！",
-    l10n: {
-      zhHans: { name: "田中先生", paper: "体育报", clue: "红色瓦屋顶，门口有篮球", thanks: "田中先生：今天的体育新闻来得正好，谢谢你！" },
-      zhHant: { name: "田中先生", paper: "體育報", clue: "紅色瓦屋頂，門口有籃球", thanks: "田中先生：今天的體育新聞來得正好，謝謝你！" },
-      ja: { name: "田中さん", paper: "スポーツ新聞", clue: "赤い瓦屋根、玄関にバスケットボール", thanks: "田中さん：今日のスポーツ記事、ちょうど読みたかったよ。ありがとう！" },
-      en: { name: "Mr. Tanaka", paper: "sports paper", clue: "red tile roof with a basketball by the door", thanks: "Mr. Tanaka: Perfect timing for the sports news. Thank you!" },
-    },
-  },
-  {
-    id: "suzuki",
-    recipient: { gender: "female", avatar: "suzuki" },
-    name: "铃木女士",
-    x: -2450,
-    y: -2820,
-    deliveryX: -2450,
-    deliveryY: -3150,
-    roof: "#b86695",
-    wall: "#ffe6ef",
-    trim: "#80536a",
-    paper: "园艺报",
-    clue: "粉色屋顶，院子有红花",
-    landmark: "flowers",
-    thanks: "铃木女士：我正想看看花草专栏呢，辛苦你啦。",
-    l10n: {
-      zhHans: { name: "铃木女士", paper: "园艺报", clue: "粉色屋顶，院子有红花", thanks: "铃木女士：我正想看看花草专栏呢，辛苦你啦。" },
-      zhHant: { name: "鈴木女士", paper: "園藝報", clue: "粉色屋頂，院子有紅花", thanks: "鈴木女士：我正想看看花草專欄呢，辛苦你啦。" },
-      ja: { name: "鈴木さん", paper: "園芸新聞", clue: "桃色の屋根、庭に赤い花", thanks: "鈴木さん：花のコラムを読みたかったの。ご苦労さま。" },
-      en: { name: "Ms. Suzuki", paper: "gardening paper", clue: "pink roof with red flowers in the yard", thanks: "Ms. Suzuki: I wanted to read the gardening column. Thank you, dear." },
-    },
-  },
-  {
-    id: "yamamoto",
-    recipient: { gender: "couple", avatar: "yamamoto" },
-    name: "山本夫妇",
-    x: -1050,
-    y: -2820,
-    deliveryX: -1050,
-    deliveryY: -3150,
-    roof: "#4f91d5",
-    wall: "#deeeff",
-    trim: "#405e7d",
-    paper: "早报",
-    clue: "蓝色屋顶，白色小栅栏",
-    landmark: "fence",
-    thanks: "山本夫妇：你总是很准时，今天也谢谢。",
-    l10n: {
-      zhHans: { name: "山本夫妇", paper: "早报", clue: "蓝色屋顶，白色小栅栏", thanks: "山本夫妇：你总是很准时，今天也谢谢。" },
-      zhHant: { name: "山本夫婦", paper: "早報", clue: "藍色屋頂，白色小柵欄", thanks: "山本夫婦：你總是很準時，今天也謝謝。" },
-      ja: { name: "山本ご夫妻", paper: "朝刊", clue: "青い屋根と白い小さな柵", thanks: "山本ご夫妻：いつも時間どおりですね。今日もありがとう。" },
-      en: { name: "The Yamamotos", paper: "morning paper", clue: "blue roof and a small white fence", thanks: "The Yamamotos: You are always on time. Thank you again today." },
-    },
-  },
-  {
-    id: "kobayashi",
-    recipient: { gender: "male", avatar: "kobayashi" },
-    name: "小林医生",
-    x: -360,
-    y: -1740,
-    deliveryX: -360,
-    deliveryY: -2070,
-    roof: "#5aaa77",
-    wall: "#ddf4df",
-    trim: "#3f7651",
-    paper: "健康报",
-    clue: "绿色屋顶，靠近诊所牌子",
-    landmark: "clinic",
-    thanks: "小林医生：健康报到了，我也要提醒大家多喝水。",
-    l10n: {
-      zhHans: { name: "小林医生", paper: "健康报", clue: "绿色屋顶，靠近诊所牌子", thanks: "小林医生：健康报到了，我也要提醒大家多喝水。" },
-      zhHant: { name: "小林醫生", paper: "健康報", clue: "綠色屋頂，靠近診所牌子", thanks: "小林醫生：健康報到了，我也要提醒大家多喝水。" },
-      ja: { name: "小林先生", paper: "健康新聞", clue: "緑の屋根、診療所の看板の近く", thanks: "小林先生：健康新聞ですね。水分補給も忘れないように伝えます。" },
-      en: { name: "Dr. Kobayashi", paper: "health paper", clue: "green roof near the clinic sign", thanks: "Dr. Kobayashi: The health paper is here. I’ll remind everyone to drink water too." },
-    },
-  },
-  {
-    id: "sato",
-    recipient: { gender: "male", avatar: "sato" },
-    name: "佐藤先生",
-    x: 960,
-    y: -1740,
-    deliveryX: 960,
-    deliveryY: -2070,
-    roof: "#d59a34",
-    wall: "#fff0c8",
-    trim: "#8a6335",
-    paper: "社区通知",
-    clue: "黄色屋顶，门口有长椅",
-    landmark: "bench",
-    thanks: "佐藤先生：社区通知很重要，谢谢你记得我。",
-    l10n: {
-      zhHans: { name: "佐藤先生", paper: "社区通知", clue: "黄色屋顶，门口有长椅", thanks: "佐藤先生：社区通知很重要，谢谢你记得我。" },
-      zhHant: { name: "佐藤先生", paper: "社區通知", clue: "黃色屋頂，門口有長椅", thanks: "佐藤先生：社區通知很重要，謝謝你記得我。" },
-      ja: { name: "佐藤さん", paper: "町内のお知らせ", clue: "黄色い屋根、玄関にベンチ", thanks: "佐藤さん：町内のお知らせは大事だね。覚えていてくれてありがとう。" },
-      en: { name: "Mr. Sato", paper: "community notice", clue: "yellow roof with a bench by the door", thanks: "Mr. Sato: Community notices matter. Thank you for remembering me." },
-    },
-  },
-  {
-    id: "mori",
-    recipient: { gender: "female", avatar: "mori" },
-    name: "森女士",
-    x: 2150,
-    y: -660,
-    deliveryX: 2150,
-    deliveryY: -990,
-    roof: "#7b87c8",
-    wall: "#e9e8ff",
-    trim: "#52597b",
-    paper: "文化报",
-    clue: "紫色屋顶，靠近巴士站",
-    landmark: "bus",
-    thanks: "森女士：文化报到了，今晚有好节目看了。",
-    l10n: {
-      zhHans: { name: "森女士", paper: "文化报", clue: "紫色屋顶，靠近巴士站", thanks: "森女士：文化报到了，今晚有好节目看了。" },
-      zhHant: { name: "森女士", paper: "文化報", clue: "紫色屋頂，靠近巴士站", thanks: "森女士：文化報到了，今晚有好節目看了。" },
-      ja: { name: "森さん", paper: "文化新聞", clue: "紫の屋根、バス停の近く", thanks: "森さん：文化新聞ですね。今夜の番組が楽しみです。" },
-      en: { name: "Ms. Mori", paper: "culture paper", clue: "purple roof near the bus stop", thanks: "Ms. Mori: The culture paper is here. Tonight’s programs look fun." },
-    },
-  },
-  {
-    id: "ito",
-    recipient: { gender: "male", avatar: "ito" },
-    name: "伊藤先生",
-    x: 3450,
-    y: 420,
-    deliveryX: 3450,
-    deliveryY: 90,
-    roof: "#6fa66a",
-    wall: "#e7f4d6",
-    trim: "#4f7048",
-    paper: "钓鱼报",
-    clue: "绿屋顶，靠近小河",
-    landmark: "fish",
-    thanks: "伊藤先生：谢谢，今天也许适合去河边看看。",
-    l10n: {
-      zhHans: { name: "伊藤先生", paper: "钓鱼报", clue: "绿屋顶，靠近小河", thanks: "伊藤先生：谢谢，今天也许适合去河边看看。" },
-      zhHant: { name: "伊藤先生", paper: "釣魚報", clue: "綠屋頂，靠近小河", thanks: "伊藤先生：謝謝，今天也許適合去河邊看看。" },
-      ja: { name: "伊藤さん", paper: "釣り新聞", clue: "緑の屋根、小川の近く", thanks: "伊藤さん：ありがとう。今日は川を見に行くのもよさそうだね。" },
-      en: { name: "Mr. Ito", paper: "fishing paper", clue: "green roof near the little river", thanks: "Mr. Ito: Thank you. It may be a good day to visit the river." },
-    },
-  },
-  {
-    id: "watanabe",
-    recipient: { gender: "couple", avatar: "watanabe" },
-    name: "渡边夫妇",
-    x: 1250,
-    y: 1500,
-    deliveryX: 1250,
-    deliveryY: 1170,
-    roof: "#b77a42",
-    wall: "#ffefd8",
-    trim: "#79512f",
-    paper: "旅行报",
-    clue: "茶色屋顶，门口有旅行箱",
-    landmark: "bag",
-    thanks: "渡边夫妇：看到旅行专栏，就像又出门了一趟。",
-    l10n: {
-      zhHans: { name: "渡边夫妇", paper: "旅行报", clue: "茶色屋顶，门口有旅行箱", thanks: "渡边夫妇：看到旅行专栏，就像又出门了一趟。" },
-      zhHant: { name: "渡邊夫婦", paper: "旅行報", clue: "茶色屋頂，門口有旅行箱", thanks: "渡邊夫婦：看到旅行專欄，就像又出門了一趟。" },
-      ja: { name: "渡辺ご夫妻", paper: "旅行新聞", clue: "茶色の屋根、玄関に旅行かばん", thanks: "渡辺ご夫妻：旅行の記事を読むと、また出かけた気持ちになります。" },
-      en: { name: "The Watanabes", paper: "travel paper", clue: "brown roof with a suitcase by the door", thanks: "The Watanabes: Reading the travel column feels like taking a trip." },
-    },
-  },
-  {
-    id: "nakamura",
-    recipient: { gender: "female", avatar: "nakamura" },
-    name: "中村女士",
-    x: -1280,
-    y: 1500,
-    deliveryX: -1280,
-    deliveryY: 1170,
-    roof: "#da7c86",
-    wall: "#ffe8e5",
-    trim: "#80504f",
-    paper: "料理报",
-    clue: "粉红屋顶，旁边有小菜园",
-    landmark: "garden",
-    thanks: "中村女士：今天的料理栏看起来很好吃，谢谢你。",
-    l10n: {
-      zhHans: { name: "中村女士", paper: "料理报", clue: "粉红屋顶，旁边有小菜园", thanks: "中村女士：今天的料理栏看起来很好吃，谢谢你。" },
-      zhHant: { name: "中村女士", paper: "料理報", clue: "粉紅屋頂，旁邊有小菜園", thanks: "中村女士：今天的料理欄看起來很好吃，謝謝你。" },
-      ja: { name: "中村さん", paper: "料理新聞", clue: "桃色の屋根、そばに小さな菜園", thanks: "中村さん：今日の料理欄はおいしそうね。ありがとう。" },
-      en: { name: "Ms. Nakamura", paper: "cooking paper", clue: "pink roof with a small vegetable garden", thanks: "Ms. Nakamura: Today’s recipe column looks delicious. Thank you." },
-    },
-  },
-  {
-    id: "kato",
-    recipient: { gender: "male", avatar: "kato" },
-    name: "加藤先生",
-    x: -3300,
-    y: 420,
-    deliveryX: -3300,
-    deliveryY: 90,
-    roof: "#5c9ab5",
-    wall: "#e0f6fb",
-    trim: "#426a78",
-    paper: "町内通知",
-    clue: "青绿色屋顶，靠近町内会牌子",
-    landmark: "sign",
-    thanks: "加藤先生：町内通知收到了，辛苦你走这么远。",
-    l10n: {
-      zhHans: { name: "加藤先生", paper: "町内通知", clue: "青绿色屋顶，靠近町内会牌子", thanks: "加藤先生：町内通知收到了，辛苦你走这么远。" },
-      zhHant: { name: "加藤先生", paper: "町內通知", clue: "青綠色屋頂，靠近町內會牌子", thanks: "加藤先生：町內通知收到了，辛苦你走這麼遠。" },
-      ja: { name: "加藤さん", paper: "町内会のお知らせ", clue: "青緑の屋根、町内会の看板の近く", thanks: "加藤さん：町内会のお知らせ、受け取りました。遠くまでありがとう。" },
-      en: { name: "Mr. Kato", paper: "neighborhood notice", clue: "blue-green roof near the neighborhood sign", thanks: "Mr. Kato: I received the notice. Thank you for coming so far." },
-    },
-  },
+
+const ROOF = ["#5b4638", "#6f5338", "#4f5f6f", "#7a5542", "#8a6f48", "#5c6f59", "#7b5a3d", "#4d6684"];
+const WALL = ["#e9dcc8", "#f2e5cf", "#d8c3a5", "#eee7d8", "#e4d5bd", "#f1eadc", "#ddcfba", "#e8dfcf"];
+const TRIM = ["#5f422c", "#6b4d33", "#4d4036", "#76583f"];
+const VARIANTS = ["old-wood", "house-brown", "house-red", "modern-home", "house-blue", "flower", "bookstore", "bakery"];
+const LANDMARKS = ["basketball", "flowers", "fence", "clinic", "bench", "bus", "fish", "bag", "garden", "sign"];
+
+const SCENE_POSITIONS = [
+  [-108, -72, -1], [-80, -72, -1], [-48, -72, -1], [-16, -72, -1], [16, -72, -1], [48, -72, -1], [80, -72, -1], [108, -72, -1],
+  [-108, -48, 1], [-80, -48, 1], [-48, -48, 1], [-16, -48, 1], [16, -48, 1], [48, -48, 1], [80, -48, 1], [108, -48, 1],
+  [-108, -24, -1], [-80, -24, -1], [-48, -24, -1], [-16, -24, -1], [16, -24, -1], [48, -24, -1], [80, -24, -1], [108, -24, -1],
+  [-108, 24, 1], [-80, 24, 1], [-48, 24, 1], [-16, 24, 1], [16, 24, 1], [48, 24, 1], [80, 24, 1], [108, 24, 1],
 ];
+
+const PEOPLE = [
+  ["tanaka", "male", "田中先生", "田中先生", "田中さん", "Mr. Tanaka", "体育报", "體育報", "スポーツ新聞", "sports paper"],
+  ["suzuki", "female", "铃木女士", "鈴木女士", "鈴木さん", "Ms. Suzuki", "园艺报", "園藝報", "園芸新聞", "gardening paper"],
+  ["yamamoto", "couple", "山本夫妇", "山本夫婦", "山本ご夫妻", "The Yamamotos", "早报", "早報", "朝刊", "morning paper"],
+  ["kobayashi", "male", "小林医生", "小林醫生", "小林先生", "Dr. Kobayashi", "健康报", "健康報", "健康新聞", "health paper"],
+  ["sato", "male", "佐藤先生", "佐藤先生", "佐藤さん", "Mr. Sato", "社区通知", "社區通知", "町内のお知らせ", "community notice"],
+  ["mori", "female", "森女士", "森女士", "森さん", "Ms. Mori", "文化报", "文化報", "文化新聞", "culture paper"],
+  ["ito", "male", "伊藤先生", "伊藤先生", "伊藤さん", "Mr. Ito", "钓鱼报", "釣魚報", "釣り新聞", "fishing paper"],
+  ["watanabe", "couple", "渡边夫妇", "渡邊夫婦", "渡辺ご夫妻", "The Watanabes", "旅行报", "旅行報", "旅行新聞", "travel paper"],
+  ["nakamura", "female", "中村女士", "中村女士", "中村さん", "Ms. Nakamura", "料理报", "料理報", "料理新聞", "cooking paper"],
+  ["kato", "male", "加藤先生", "加藤先生", "加藤さん", "Mr. Kato", "町内通知", "町內通知", "町内会のお知らせ", "neighborhood notice"],
+  ["yoshida", "female", "吉田女士", "吉田女士", "吉田さん", "Ms. Yoshida", "音乐报", "音樂報", "音楽新聞", "music paper"],
+  ["yamada", "male", "山田先生", "山田先生", "山田さん", "Mr. Yamada", "将棋报", "將棋報", "将棋新聞", "shogi paper"],
+  ["sasaki", "female", "佐佐木女士", "佐佐木女士", "佐々木さん", "Ms. Sasaki", "手工报", "手工報", "手芸新聞", "craft paper"],
+  ["yamaguchi", "male", "山口先生", "山口先生", "山口さん", "Mr. Yamaguchi", "经济报", "經濟報", "経済新聞", "business paper"],
+  ["matsumoto", "couple", "松本夫妇", "松本夫婦", "松本ご夫妻", "The Matsumotos", "天气报", "天氣報", "天気新聞", "weather paper"],
+  ["inoue", "female", "井上女士", "井上女士", "井上さん", "Ms. Inoue", "俳句报", "俳句報", "俳句新聞", "haiku paper"],
+  ["kimura", "male", "木村先生", "木村先生", "木村さん", "Mr. Kimura", "棒球报", "棒球報", "野球新聞", "baseball paper"],
+  ["hayashi", "female", "林女士", "林女士", "林さん", "Ms. Hayashi", "健康专刊", "健康專刊", "健康特集", "health special"],
+  ["shimizu", "male", "清水先生", "清水先生", "清水さん", "Mr. Shimizu", "铁路报", "鐵路報", "鉄道新聞", "railway paper"],
+  ["saito", "female", "斋藤女士", "齋藤女士", "斎藤さん", "Ms. Saito", "猫咪报", "貓咪報", "猫の新聞", "cat paper"],
+  ["abe", "male", "阿部先生", "阿部先生", "阿部さん", "Mr. Abe", "历史报", "歷史報", "歴史新聞", "history paper"],
+  ["hashimoto", "female", "桥本女士", "橋本女士", "橋本さん", "Ms. Hashimoto", "电影报", "電影報", "映画新聞", "movie paper"],
+  ["ishikawa", "male", "石川先生", "石川先生", "石川さん", "Mr. Ishikawa", "围棋报", "圍棋報", "囲碁新聞", "go paper"],
+  ["maeda", "female", "前田女士", "前田女士", "前田さん", "Ms. Maeda", "花道报", "花道報", "華道新聞", "flower-arranging paper"],
+  ["ogawa", "male", "小川先生", "小川先生", "小川さん", "Mr. Ogawa", "河川报", "河川報", "川の新聞", "river paper"],
+  ["okada", "female", "冈田女士", "岡田女士", "岡田さん", "Ms. Okada", "茶道报", "茶道報", "茶道新聞", "tea paper"],
+  ["hasegawa", "male", "长谷川先生", "長谷川先生", "長谷川さん", "Mr. Hasegawa", "相扑报", "相撲報", "相撲新聞", "sumo paper"],
+  ["fujita", "female", "藤田女士", "藤田女士", "藤田さん", "Ms. Fujita", "散步报", "散步報", "散歩新聞", "walking paper"],
+  ["goto", "male", "后藤先生", "後藤先生", "後藤さん", "Mr. Goto", "商店街报", "商店街報", "商店街新聞", "shopping-street paper"],
+  ["murakami", "female", "村上女士", "村上女士", "村上さん", "Ms. Murakami", "读书报", "讀書報", "読書新聞", "reading paper"],
+  ["kondo", "couple", "近藤夫妇", "近藤夫婦", "近藤ご夫妻", "The Kondos", "防灾通知", "防災通知", "防災のお知らせ", "safety notice"],
+  ["endo", "female", "远藤女士", "遠藤女士", "遠藤さん", "Ms. Endo", "社区活动报", "社區活動報", "地域行事新聞", "community events paper"],
+];
+
+function sceneToWorld(x, z) {
+  return { x: Math.round(x * 45), y: Math.round(z * 45) };
+}
+
+function clue(index, paperZh, paperHant, paperJa, paperEn) {
+  const colors = ["深色瓦屋顶", "木质外墙", "门口有盆栽", "白色铝窗", "旧式邮筒", "小阳台", "门前有石板", "靠近电线杆"];
+  const colorsH = ["深色瓦屋頂", "木質外牆", "門口有盆栽", "白色鋁窗", "舊式郵筒", "小陽台", "門前有石板", "靠近電線桿"];
+  const colorsJ = ["黒っぽい瓦屋根", "木の外壁", "玄関に鉢植え", "白いアルミサッシ", "昔ながらの郵便受け", "小さなベランダ", "玄関前に飛び石", "電柱の近く"];
+  const colorsE = ["dark tile roof", "wooden siding", "potted plants by the door", "white aluminum windows", "old-style mailbox", "small balcony", "stepping stones by the entrance", "near a utility pole"];
+  return {
+    zhHans: `${colors[index % colors.length]}，需要「${paperZh}」`,
+    zhHant: `${colorsH[index % colorsH.length]}，需要「${paperHant}」`,
+    ja: `${colorsJ[index % colorsJ.length]}、「${paperJa}」を待っています`,
+    en: `${colorsE[index % colorsE.length]}, waiting for the ${paperEn}`,
+  };
+}
+
+function thanks(nameZh, nameHant, nameJa, nameEn, index) {
+  const zh = ["谢谢你今天也送来。", "辛苦你绕到这里来。", "收到报纸就安心了。", "你总是很细心，谢谢。"];
+  const hant = ["謝謝你今天也送來。", "辛苦你繞到這裡來。", "收到報紙就安心了。", "你總是很細心，謝謝。"];
+  const ja = ["今日も届けてくれてありがとう。", "ここまで来てくれて助かります。", "新聞が届くと安心します。", "いつも丁寧ですね。ありがとう。"];
+  const en = ["Thank you for bringing it today.", "Thank you for coming all the way here.", "It feels reassuring when the paper arrives.", "You are always so thoughtful. Thank you."];
+  const i = index % zh.length;
+  return {
+    zhHans: `${nameZh}：${zh[i]}`,
+    zhHant: `${nameHant}：${hant[i]}`,
+    ja: `${nameJa}：${ja[i]}`,
+    en: `${nameEn}: ${en[i]}`,
+  };
+}
+
+export const neighbors = PEOPLE.map((person, index) => {
+  const [id, gender, zh, hant, ja, en, paperZh, paperHant, paperJa, paperEn] = person;
+  const [sx, roadZ, side] = SCENE_POSITIONS[index];
+  const houseZ = roadZ + side * 14.9;
+  const deliveryZ = roadZ + side * 6.4;
+  const house = sceneToWorld(sx, houseZ);
+  const delivery = sceneToWorld(sx, deliveryZ);
+  const clueText = clue(index, paperZh, paperHant, paperJa, paperEn);
+  const thanksText = thanks(zh, hant, ja, en, index);
+  return {
+    id,
+    recipient: { gender, avatar: id },
+    name: zh,
+    x: house.x,
+    y: house.y,
+    deliveryX: delivery.x,
+    deliveryY: delivery.y,
+    roof: ROOF[index % ROOF.length],
+    wall: WALL[index % WALL.length],
+    trim: TRIM[index % TRIM.length],
+    paper: paperZh,
+    clue: clueText.zhHans,
+    landmark: LANDMARKS[index % LANDMARKS.length],
+    thanks: thanksText.zhHans,
+    variant: VARIANTS[index % VARIANTS.length],
+    osakaLot: true,
+    l10n: {
+      zhHans: { name: zh, paper: paperZh, clue: clueText.zhHans, thanks: thanksText.zhHans },
+      zhHant: { name: hant, paper: paperHant, clue: clueText.zhHant, thanks: thanksText.zhHant },
+      ja: { name: ja, paper: paperJa, clue: clueText.ja, thanks: thanksText.ja },
+      en: { name: en, paper: paperEn, clue: clueText.en, thanks: thanksText.en },
+    },
+  };
+});
 
 export const companion = {
   name: "阿铃",
