@@ -1983,7 +1983,8 @@ export class ThreeRenderer {
     const bikeMode = state.config?.moveMode === "bike"; this.bike.visible = bikeMode;
     const touchThrottle = state.touchThrottle || 0;
     const touchSteer = state.touchSteer || 0;
-    const forward = state.keys.has("arrowup") || state.keys.has("w") || touchThrottle > 0.05;
+    const autoMoving = Boolean(state.autoNavMoving);
+    const forward = state.keys.has("arrowup") || state.keys.has("w") || touchThrottle > 0.05 || autoMoving;
     const backward = state.keys.has("arrowdown") || state.keys.has("s") || touchThrottle < -0.05;
     const keyTurn = (state.keys.has("arrowright") || state.keys.has("d") ? 1 : 0) - (state.keys.has("arrowleft") || state.keys.has("a") ? 1 : 0);
     const turnInput = THREE.MathUtils.clamp(keyTurn + touchSteer, -1, 1);
@@ -1992,6 +1993,8 @@ export class ThreeRenderer {
       ? 1
       : state.keys.has("arrowdown") || state.keys.has("s")
         ? -0.42
+        : autoMoving
+          ? (state.easyMode ? 0.48 : 0.72)
         : touchThrottle > 0
           ? touchThrottle
           : touchThrottle * 0.42;

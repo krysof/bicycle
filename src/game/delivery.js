@@ -1,4 +1,4 @@
-import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS, WORLD_SCALE } from "../data/world.js";
+import { WORLD_BOUNDS, WORLD_OBSTACLES, PLAYER_RADIUS, WORLD_SCALE, ROAD_X, ROAD_Z } from "../data/world.js";
 import { currentTarget } from "../state/gameState.js";
 import { nt, t } from "../i18n.js";
 
@@ -7,6 +7,49 @@ import { nt, t } from "../i18n.js";
 // 2026-05-28 调整：可见光圈直径扩大 1 倍，隐形投递圈同比扩大。
 const VISIBLE_TARGET_RING_RADIUS_SCENE = 8.3;
 const INVISIBLE_DELIVERY_RADIUS_MULTIPLIER = 5;
+const ROAD_X_WORLD = ROAD_X.map((x) => x / WORLD_SCALE);
+const ROAD_Y_WORLD = ROAD_Z.map((z) => z / WORLD_SCALE);
+
+function nearestRoad(value, roads) {
+  return roads.reduce((best, item) => Math.abs(item - value) < Math.abs(best - value) ? item : best, roads[0]);
+}
+
+function normalizeAngle(angle) {
+  let result = angle;
+  while (result > Math.PI) result -= Math.PI * 2;
+  while (result < -Math.PI) result += Math.PI * 2;
+  return result;
+}
+
+function appendWaypoint(points, point) {
+  const last = points[points.length - 1];
+  if (!last || Math.hypot(last.x - point.x, last.y - point.y) > 70) points.push(point);
+}
+
+function buildAutoNavPath(state, target) {
+  const px = state.player.x;
+  const py = state.player.y;
+  const tx = target.deliveryX ?? target.x;
+  const ty = target.deliveryY ?? target.y;
+  const startRoadY = nearestRoad(py, ROAD_Y_WORLD);
+  const targetRoadY = nearestRoad(ty, ROAD_Y_WORLD);
+  const jointX = nearestRoad(tx, ROAD_X_WORLD);
+  const points = [];
+  appendWaypoint(points, { x: px, y: startRoadY });
+  appendWaypoint(points, { x: jointX, y: startRoadY });
+  appendWaypoint(points, { x: jointX, y: targetRoadY });
+  appendWaypoint(points, { x: tx, y: targetRoadY });
+  appendWaypoint(points, { x: tx, y: ty });
+  return points;
+}
+
+function nextAutoWaypoint(state, target) {
+  const path = buildAutoNavPath(state, target);
+  const px = state.player.x;
+  const py = state.player.y;
+  const threshold = state.config?.moveMode === "bike" ? 115 : 72;
+  return path.find((point) => Math.hypot(point.x - px, point.y - py) > threshold) || path[path.length - 1] || null;
+}
 
 export function deliveryDistance(state, target = currentTarget(state)) {
   if (!target) return Infinity;
@@ -104,24 +147,41 @@ export function updatePlayer(state, dt) {
   const turnRate = mode === "bike" ? 1.08 : 2.0;
   const speed = state.config.speed;
   const reverseFactor = mode === "bike" ? 0.36 : 0.55;
+  const target = currentTarget(state);
+  const autoNav = Boolean(state.autoForward && target && !state.delivery?.active);
+  state.autoNavMoving = false;
 
   let throttle = 0;
   if (state.touchThrottle) throttle += state.touchThrottle > 0 ? state.touchThrottle : state.touchThrottle * reverseFactor;
   if (state.keys.has("arrowup") || state.keys.has("w")) throttle = Math.max(throttle, 1);
   if (state.keys.has("arrowdown") || state.keys.has("s")) throttle = Math.min(throttle, -reverseFactor);
-  if (state.autoForward && throttle >= 0 && !state.delivery?.active) throttle = Math.max(throttle, state.easyMode ? 0.42 : 0.62);
 
   let turn = state.touchSteer || 0;
   // 第三人称“生化危机式”控制：左键向画面左侧转，右键向画面右侧转。
   if (state.keys.has("arrowleft") || state.keys.has("a")) turn -= 1;
   if (state.keys.has("arrowright") || state.keys.has("d")) turn += 1;
   turn = Math.max(-1, Math.min(1, turn));
-  if (mode === "bike") {
+
+  if (autoNav && throttle >= 0 && !canDeliverNow(state, target)) {
+    const waypoint = nextAutoWaypoint(state, target);
+    if (waypoint) {
+      const desiredAngle = Math.atan2(waypoint.y - state.player.y, waypoint.x - state.player.x);
+      const diff = normalizeAngle(desiredAngle - state.player.headingAngle);
+      const maxTurn = (mode === "bike" ? 1.22 : 2.45) * dt;
+      state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+      throttle = Math.max(throttle, state.easyMode ? 0.36 : 0.58);
+      state.autoNavMoving = true;
+      state.autoNavWaypoint = waypoint;
+    }
+  } else if (autoNav && canDeliverNow(state, target)) {
+    state.autoNavWaypoint = null;
+    throttle = 0;
+  } else if (mode === "bike") {
     // 自行车不应像原地旋转的角色；只有按住前进 / 后退移动时才逐渐改变朝向。
     const movementGrip = Math.min(1, Math.abs(throttle));
     turn *= movementGrip;
   }
-  if (turn) state.player.headingAngle += turn * turnRate * dt;
+  if (!autoNav && turn) state.player.headingAngle += turn * turnRate * dt;
 
   state.player.headingX = Math.cos(state.player.headingAngle);
   state.player.headingY = Math.sin(state.player.headingAngle);
