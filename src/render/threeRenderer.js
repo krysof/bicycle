@@ -1,15 +1,11 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
-import { createWorldLayout } from "../data/world.js";
+import { createWorldLayout, MAP_D, MAP_W, ROAD_X, ROAD_Z } from "../data/world.js";
 import { buildAutoNavPath, canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { locale, nt, t } from "../i18n.js";
 
 const WORLD_SCALE = 1 / 45;
-const MAP_W = 235;
-const MAP_D = 178;
-const ROAD_X = [-96, -64, -32, 0, 32, 64, 96];
-const ROAD_Z = [-72, -48, -24, 0, 24, 48, 72];
 const NAV_ARROW_COUNT = 10;
 const COLORS = {
   grass: 0xbfe6a6,
@@ -106,8 +102,16 @@ function makeCanvasLabel(text, color = "#2f5f49") {
   roundRect(ctx, 18, 34, 476, 92, 30); ctx.fill(); ctx.stroke();
   ctx.fillStyle = color; ctx.font = `700 48px ${labelFontFamily()}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(text, 256, 80);
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    fog: false,
+  });
+  const sprite = new THREE.Sprite(material);
   sprite.scale.set(3.8, 1.18, 1);
+  sprite.renderOrder = 80;
   return sprite;
 }
 function colorFromIndex(i, list) { return list[Math.abs(i) % list.length]; }
@@ -230,9 +234,9 @@ export class ThreeRenderer {
 
     this.scene = new THREE.Scene();
     this.scene.background = makeSkyTexture();
-    this.scene.fog = new THREE.Fog(0xdff2ff, 68, 190);
+    this.scene.fog = new THREE.Fog(0xdff2ff, 72, 420);
 
-    this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 260);
+    this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 620);
     this.camera.position.set(-100, 38, -65);
     this.camera.lookAt(-95, 1, -60);
 
@@ -365,7 +369,7 @@ export class ThreeRenderer {
     sun.position.set(dusk ? -58 : -35, dusk ? 34 : 55, dusk ? 44 : 30);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -120; sun.shadow.camera.right = 120; sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
+    sun.shadow.camera.left = -420; sun.shadow.camera.right = 420; sun.shadow.camera.top = 310; sun.shadow.camera.bottom = -310;
     this.scene.add(sun);
   }
 
@@ -482,14 +486,14 @@ export class ThreeRenderer {
       this.addPlane(0, 0.04, pos + 6.45, sideLen, sideWid, COLORS.sidewalk, 0);
       this.addPlane(0, 0.055, pos - 5.45, curbLen, curbWid, COLORS.curb, 0);
       this.addPlane(0, 0.055, pos + 5.45, curbLen, curbWid, COLORS.curb, 0);
-      for (let i = -52; i <= 52; i += 8) this.addPlane(i, 0.068, pos, 2.4, 0.09, COLORS.lane, 0);
+      for (let i = -Math.floor(MAP_W / 2) + 16; i <= Math.floor(MAP_W / 2) - 16; i += 8) this.addPlane(i, 0.068, pos, 2.4, 0.09, COLORS.lane, 0);
     } else {
       this.addPlane(pos, 0.033, 0, roadLen, roadWid, COLORS.asphalt, 0);
       this.addPlane(pos - 6.45, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
       this.addPlane(pos + 6.45, 0.041, 0, sideLen, sideWid, COLORS.sidewalk, 0);
       this.addPlane(pos - 5.45, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
       this.addPlane(pos + 5.45, 0.056, 0, curbLen, curbWid, COLORS.curb, 0);
-      for (let i = -68; i <= 68; i += 8) this.addPlane(pos, 0.069, i, 0.09, 2.4, COLORS.lane, 0);
+      for (let i = -Math.floor(MAP_D / 2) + 16; i <= Math.floor(MAP_D / 2) - 16; i += 8) this.addPlane(pos, 0.069, i, 0.09, 2.4, COLORS.lane, 0);
     }
   }
 
@@ -775,8 +779,10 @@ export class ThreeRenderer {
     group.add(roof);
 
     const sign = makeCanvasLabel(label, variant === "hospital" ? "#d94a4a" : "#24506d");
-    sign.position.set(0, h * 0.72, d / 2 + 0.08 * scale);
-    sign.scale.set(Math.min(4.2, w * 0.78), 1.0, 1);
+    // 商店 / 学校 / 医院的文字卡从墙面前移并略抬高，避免 sprite 与建筑墙面深度穿插。
+    sign.position.set(0, h + 0.50 * scale, d / 2 + 0.36 * scale);
+    sign.scale.set(Math.min(3.55, w * 0.62), 0.86, 1);
+    sign.renderOrder = 95;
     group.add(sign);
 
     const door = new THREE.Mesh(new THREE.BoxGeometry(0.42 * scale, 0.62 * scale, 0.04), mat(0x5d4a3a));
@@ -1211,8 +1217,8 @@ export class ThreeRenderer {
     for (let i = 0; i < 58; i += 1) {
       const matItem = i % 3 === 0 ? petalMat : leafMat;
       const bit = new THREE.Mesh(leafGeo, matItem.clone());
-      const x = -110 + ((i * 29) % 220);
-      const z = -80 + ((i * 47) % 160);
+      const x = -MAP_W / 2 + 20 + ((i * 83) % (MAP_W - 40));
+      const z = -MAP_D / 2 + 20 + ((i * 97) % (MAP_D - 40));
       bit.position.set(x, 1.15 + (i % 9) * 0.18, z);
       bit.rotation.set((i % 5) * 0.6, (i % 7) * 0.4, (i % 11) * 0.2);
       this.scene.add(bit);
@@ -1268,8 +1274,8 @@ export class ThreeRenderer {
         kind: "pedestrian",
         dir: horizontal ? "h" : "v",
         lane,
-        start: reverse ? 108 : -108,
-        end: reverse ? -108 : 108,
+        start: reverse ? (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12) : (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12),
+        end: reverse ? (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12) : (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12),
         offset: (i % 4 < 2 ? -6.4 : 6.4) + ((i % 3) - 1) * 0.35,
         speed: 1.45 + (i % 5) * 0.28,
         phase: (i * 0.137) % 1,
@@ -1283,8 +1289,8 @@ export class ThreeRenderer {
         kind: "cyclist",
         dir: horizontal ? "h" : "v",
         lane: horizontal ? horizontalLanes[(i * 2 + 1) % horizontalLanes.length] : verticalLanes[(i * 2 + 1) % verticalLanes.length],
-        start: i % 3 === 0 ? 112 : -112,
-        end: i % 3 === 0 ? -112 : 112,
+        start: i % 3 === 0 ? (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12) : (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12),
+        end: i % 3 === 0 ? (horizontal ? -MAP_W / 2 + 12 : -MAP_D / 2 + 12) : (horizontal ? MAP_W / 2 - 12 : MAP_D / 2 - 12),
         offset: i % 2 === 0 ? 2.4 : -2.4,
         speed: 4.0 + (i % 4) * 0.45,
         phase: (0.21 + i * 0.113) % 1,
@@ -2302,9 +2308,9 @@ export class ThreeRenderer {
     if (state.screen === "title") {
       const t = state.floatTime || 0;
       const desiredTitle = new THREE.Vector3(
-        Math.sin(t * 0.08) * 34,
-        42,
-        78 + Math.cos(t * 0.07) * 10
+        Math.sin(t * 0.08) * 92,
+        86,
+        184 + Math.cos(t * 0.07) * 22
       );
       this.camera.position.lerp(desiredTitle, 0.045);
       this.camera.lookAt(0, 0.5, 0);

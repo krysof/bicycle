@@ -1,10 +1,12 @@
 import { neighbors } from "./neighbors.js";
 
 export const WORLD_SCALE = 1 / 45;
-export const WORLD_BOUNDS = { minX: -5200, maxX: 5200, minY: -3600, maxY: 3900 };
+export const WORLD_BOUNDS = { minX: -16740, maxX: 16740, minY: -12675, maxY: 12675 };
 export const PLAYER_RADIUS = { walk: 52, bike: 72 };
-export const ROAD_X = [-96, -64, -32, 0, 32, 64, 96];
-export const ROAD_Z = [-72, -48, -24, 0, 24, 48, 72];
+export const MAP_W = 744;
+export const MAP_D = 563;
+export const ROAD_X = Array.from({ length: 21 }, (_, i) => -320 + i * 32);
+export const ROAD_Z = Array.from({ length: 16 }, (_, i) => -240 + i * 32);
 
 const BUILDING_VARIANTS = [
   "house-red", "house-blue", "house-green", "house-brown", "modern-home", "old-wood",
@@ -18,14 +20,14 @@ const ROOF_COLORS = [0xc85f4d, 0xd59a34, 0x4f91d5, 0x5aaa77, 0xb86695, 0x9c7556,
 const WALL_COLORS = [0xffe3c2, 0xe8f3ff, 0xe7f4d6, 0xffe8ef, 0xfff0c8, 0xe7f6f4, 0xf4f1e9];
 
 const SERVICE_LOTS = [
-  { id: "service-convenience", x: -50, z: 62, orientation: "h", variant: "convenience", scale: 1.08, roof: 0x3d79a8, wall: 0xfffbef, frontage: 8.4, depth: 6.2 },
-  { id: "service-supermarket", x: 50, z: 62, orientation: "h", variant: "supermarket", scale: 1.05, roof: 0xc9823d, wall: 0xf4e4c8, frontage: 10.2, depth: 7.0 },
-  { id: "service-hospital", x: -82, z: 62, orientation: "h", variant: "hospital", scale: 1.04, roof: 0xf8f8ff, wall: 0xe6f4ff, frontage: 10.0, depth: 7.0 },
-  { id: "service-school", x: 82, z: -62, orientation: "h", variant: "school", scale: 1.02, roof: 0xc78d4d, wall: 0xfff0d4, frontage: 11.0, depth: 7.4 },
-  { id: "service-post-office", x: 18, z: 62, orientation: "h", variant: "post-office", scale: 1.04, roof: 0xb84a42, wall: 0xfff0e8, frontage: 8.0, depth: 6.0 },
-  { id: "service-police", x: 104, z: -62, orientation: "h", variant: "police", scale: 1.02, roof: 0x4f91d5, wall: 0xffffff, frontage: 7.2, depth: 5.8 },
-  { id: "service-pharmacy", x: -18, z: -62, orientation: "h", variant: "pharmacy", scale: 1.03, roof: 0x3dbb70, wall: 0xf0fff2, frontage: 7.8, depth: 5.8 },
-  { id: "service-bathhouse", x: 106, z: 38, orientation: "h", variant: "bathhouse", scale: 1.02, roof: 0x4f91d5, wall: 0xe8f8ff, frontage: 8.2, depth: 6.2 },
+  { id: "service-convenience", x: -272, z: 230, orientation: "h", variant: "convenience", scale: 1.08, roof: 0x3d79a8, wall: 0xfffbef, frontage: 8.4, depth: 6.2 },
+  { id: "service-supermarket", x: -176, z: 230, orientation: "h", variant: "supermarket", scale: 1.05, roof: 0xc9823d, wall: 0xf4e4c8, frontage: 10.2, depth: 7.0 },
+  { id: "service-hospital", x: -80, z: 230, orientation: "h", variant: "hospital", scale: 1.04, roof: 0xf8f8ff, wall: 0xe6f4ff, frontage: 10.0, depth: 7.0 },
+  { id: "service-school", x: 80, z: -230, orientation: "h", variant: "school", scale: 1.02, roof: 0xc78d4d, wall: 0xfff0d4, frontage: 11.0, depth: 7.4 },
+  { id: "service-post-office", x: 176, z: 230, orientation: "h", variant: "post-office", scale: 1.04, roof: 0xb84a42, wall: 0xfff0e8, frontage: 8.0, depth: 6.0 },
+  { id: "service-police", x: 272, z: -230, orientation: "h", variant: "police", scale: 1.02, roof: 0x4f91d5, wall: 0xffffff, frontage: 7.2, depth: 5.8 },
+  { id: "service-pharmacy", x: -304, z: -230, orientation: "h", variant: "pharmacy", scale: 1.03, roof: 0x3dbb70, wall: 0xf0fff2, frontage: 7.8, depth: 5.8 },
+  { id: "service-bathhouse", x: 304, z: 134, orientation: "h", variant: "bathhouse", scale: 1.02, roof: 0x4f91d5, wall: 0xe8f8ff, frontage: 8.2, depth: 6.2 },
 ];
 
 function rect(id, x, y, w, h, kind = "solid") {
@@ -99,13 +101,13 @@ function makeLot(rand, id, x, z, orientation = "h") {
 function generateLots(rand) {
   const lots = [];
   let idx = 0;
-  const frontageXs = [-112, -98, -84, -70, -56, -42, -28, -14, 14, 28, 42, 56, 70, 84, 98, 112];
+  const frontageXs = Array.from({ length: 49 }, (_, i) => -336 + i * 14).filter((x) => Math.abs(x) > 10);
   for (const roadZ of ROAD_Z) {
     for (const side of [-1, 1]) {
       for (const baseX of frontageXs) {
         if (rand() < 0.16 || nearAny(baseX, ROAD_X, 5.2)) { idx += 1; continue; }
         const z = roadZ + side * (13.9 + rand() * 0.7);
-        if (z < -82 || z > 82) { idx += 1; continue; }
+        if (z < -270 || z > 270) { idx += 1; continue; }
         const lotX = baseX + (rand() - 0.5) * 1.2;
         if (isReservedSceneSpot(lotX, z, 12.2, 9.2)) { idx += 1; continue; }
         lots.push(makeLot(rand, `osaka-row-h-${idx}`, lotX, z, "h"));
@@ -117,10 +119,10 @@ function generateLots(rand) {
   // 少量转角店铺 / 竖向住宅，避免网格过空，但不再生成窄小怪路。
   for (const roadX of ROAD_X.filter((x) => x !== 0)) {
     for (const side of [-1, 1]) {
-      for (let z = -60; z <= 60; z += 24) {
+      for (let z = -224; z <= 224; z += 32) {
         if (rand() < 0.55 || nearAny(z, ROAD_Z, 7.2)) { idx += 1; continue; }
         const x = roadX + side * (13.8 + rand() * 0.8);
-        if (x < -110 || x > 110) { idx += 1; continue; }
+        if (x < -365 || x > 365) { idx += 1; continue; }
         const lotZ = z + (rand() - 0.5) * 1.4;
         if (isReservedSceneSpot(x, lotZ, 12.2, 9.2)) { idx += 1; continue; }
         lots.push(makeLot(rand, `osaka-corner-v-${idx}`, x, lotZ, "v"));
@@ -128,16 +130,16 @@ function generateLots(rand) {
       }
     }
   }
-  return lots.slice(0, 78).concat(SERVICE_LOTS.map((lot) => ({ ...lot, fixedService: true })));
+  return lots.slice(0, 420).concat(SERVICE_LOTS.map((lot) => ({ ...lot, fixedService: true })));
 }
 
 function generateTrees(rand, lots) {
   const trees = [];
   let attempts = 0;
-  while (trees.length < 55 && attempts < 280) {
+  while (trees.length < 260 && attempts < 1800) {
     attempts += 1;
-    const x = -108 + rand() * 216;
-    const z = -80 + rand() * 160;
+    const x = -350 + rand() * 700;
+    const z = -260 + rand() * 520;
     if (nearAny(x, ROAD_X, 8.6) || nearAny(z, ROAD_Z, 8.6) || isReservedSceneSpot(x, z, 9, 8)) continue;
     if (lots.some((lot) => Math.abs(lot.x - x) < 5.4 && Math.abs(lot.z - z) < 4.8)) continue;
     trees.push({ id: `tree-${trees.length}`, x, z, sakura: rand() < 0.28, scale: 0.68 + rand() * 0.36 });
@@ -146,35 +148,35 @@ function generateTrees(rand, lots) {
 }
 
 function generateLandmarks(rand) {
-  const parkCandidates = [[-78, 58], [-78, -36], [78, 58], [74, -36], [-14, 70]];
-  const shopCandidates = [[-78, -58], [78, -58], [-78, 58], [78, 58], [18, -58]];
-  const busCandidates = [[44, -70], [-44, -70], [44, 70], [-44, 70]];
-  const shrineCandidates = [[88, 58], [-88, 58], [88, -58]];
-  const fieldCandidates = [[86, -64], [100, -62], [-86, -64], [86, 34]];
+  const parkCandidates = [[-270, 198], [-174, -164], [270, 198], [238, -164], [-46, 230]];
+  const shopCandidates = [[-270, -198], [270, -198], [-270, 198], [270, 198], [50, -198]];
+  const busCandidates = [[142, -230], [-142, -230], [142, 230], [-142, 230]];
+  const shrineCandidates = [[296, 198], [-296, 198], [296, -198]];
+  const fieldCandidates = [[286, -214], [330, -206], [-286, -214], [286, 118]];
   return {
-    riverX: -102 + (rand() - 0.5) * 2.2,
+    riverX: -344 + (rand() - 0.5) * 2.2,
     park: pick(rand, parkCandidates),
     shop: pick(rand, shopCandidates),
     bus: pick(rand, busCandidates),
     shrine: pick(rand, shrineCandidates),
     fields: [pick(rand, fieldCandidates), pick(rand, fieldCandidates).map((v, i) => v + (i === 0 ? 14 : 2))],
-    sign: [-18 + (rand() - 0.5) * 28, 72],
+    sign: [-60 + (rand() - 0.5) * 48, 232],
     poles: Array.from({ length: 10 }, (_, i) => ({
       x: pick(rand, ROAD_X.filter((x) => x !== 0)) + (rand() < 0.5 ? -6.3 : 6.3),
-      z: -60 + i * 13 + (rand() - 0.5) * 5,
+      z: -228 + i * 50 + (rand() - 0.5) * 5,
     })),
     // 大阪市街地不应满屏是山；只保留极远处低矮绿影，不进入住宅地。
     hills: Array.from({ length: 2 }, (_, i) => ({
-      x: i === 0 ? -96 : 96,
-      z: -96,
+      x: i === 0 ? -320 : 320,
+      z: -288,
       h: 5 + rand() * 2,
       r: 13 + rand() * 3,
       color: 0x8fbf8a,
       rot: rand() * Math.PI,
     })),
     grassPatches: Array.from({ length: 9 }, (_, i) => ({
-      x: -92 + (i % 3) * 92 + (rand() - 0.5) * 16,
-      z: -54 + Math.floor(i / 3) * 54 + (rand() - 0.5) * 12,
+      x: -300 + (i % 3) * 300 + (rand() - 0.5) * 32,
+      z: -180 + Math.floor(i / 3) * 180 + (rand() - 0.5) * 24,
       w: 12 + rand() * 12,
       d: 8 + rand() * 10,
       color: rand() < 0.5 ? 0xa9d88e : 0xd7e9ad,
@@ -220,10 +222,8 @@ export function createWorldObstacles(layout = createWorldLayout(1)) {
   const riverX = layout.landmarks.riverX / WORLD_SCALE;
   const riverWidth = 4.2 / WORLD_SCALE;
   obstacles.push(
-    rect("river-north", riverX, -3188, riverWidth, 1275, "water"),
-    rect("river-upper-mid", riverX, -1080, riverWidth, 1380, "water"),
-    rect("river-lower-mid", riverX, 1080, riverWidth, 1380, "water"),
-    rect("river-south", riverX, 3188, riverWidth, 1275, "water"),
+    rect("river-north", riverX, -8550, riverWidth, 8100, "water"),
+    rect("river-south", riverX, 8550, riverWidth, 8100, "water"),
   );
 
   const [shopX, shopZ] = layout.landmarks.shop;

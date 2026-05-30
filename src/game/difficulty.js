@@ -4,16 +4,16 @@ const MODE_PROFILES = {
 };
 
 const START_POINTS = [
-  { x: -4320, y: -3240, angle: 0 },
-  { x: -2880, y: -2160, angle: 0 },
-  { x: 0, y: -3240, angle: 0 },
-  { x: 2880, y: -2160, angle: Math.PI },
-  { x: 4320, y: 0, angle: Math.PI },
-  { x: -4320, y: 0, angle: 0 },
-  { x: -2880, y: 2160, angle: 0 },
-  { x: 0, y: 3240, angle: Math.PI },
-  { x: 2880, y: 2160, angle: Math.PI },
-  { x: 4320, y: 3240, angle: Math.PI },
+  { x: -14400, y: -10800, angle: 0 },
+  { x: -10080, y: -7200, angle: 0 },
+  { x: 0, y: -10800, angle: 0 },
+  { x: 10080, y: -7200, angle: Math.PI },
+  { x: 14400, y: 0, angle: Math.PI },
+  { x: -14400, y: 0, angle: 0 },
+  { x: -10080, y: 7200, angle: 0 },
+  { x: 0, y: 10800, angle: Math.PI },
+  { x: 10080, y: 7200, angle: Math.PI },
+  { x: 14400, y: 10800, angle: Math.PI },
 ];
 
 function randInt(min, max) {
