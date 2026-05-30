@@ -28,6 +28,8 @@ const SERVICE_LOTS = [
   { id: "service-police", x: 272, z: -230, orientation: "h", variant: "police", scale: 1.02, roof: 0x4f91d5, wall: 0xffffff, frontage: 7.2, depth: 5.8 },
   { id: "service-pharmacy", x: -304, z: -230, orientation: "h", variant: "pharmacy", scale: 1.03, roof: 0x3dbb70, wall: 0xf0fff2, frontage: 7.8, depth: 5.8 },
   { id: "service-bathhouse", x: 304, z: 134, orientation: "h", variant: "bathhouse", scale: 1.02, roof: 0x4f91d5, wall: 0xe8f8ff, frontage: 8.2, depth: 6.2 },
+  { id: "service-danchi-north", x: -300, z: -190, orientation: "h", variant: "apartment", scale: 1.02, roof: 0x7890a8, wall: 0xe8edf2, frontage: 10.4, depth: 6.8 },
+  { id: "service-danchi-east", x: 300, z: 184, orientation: "h", variant: "apartment", scale: 1.02, roof: 0x7890a8, wall: 0xe8edf2, frontage: 10.4, depth: 6.8 },
 ];
 
 function rect(id, x, y, w, h, kind = "solid") {

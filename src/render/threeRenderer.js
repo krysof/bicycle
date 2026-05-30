@@ -249,6 +249,8 @@ export class ThreeRenderer {
     this.passers = [];
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
+    this.lodGroups = [];
+    this.lastLodUpdateAt = -99;
     this.occluderMeshes = [];
     this.fadedOccluders = new Set();
     this.raycaster = new THREE.Raycaster();
@@ -289,6 +291,7 @@ export class ThreeRenderer {
     this.updateHouseReaction(state);
     this.updateCamera(state);
     this.updateOccluders(state);
+    this.updateLod(state);
     this.updateAnimatedObjects(state.floatTime, state);
     this.renderer.render(this.scene, this.camera);
     return this.lastAmbientInfo;
@@ -304,6 +307,8 @@ export class ThreeRenderer {
     this.passers = [];
     this.lastAmbientInfo = null;
     this.houseMap = new Map();
+    this.lodGroups = [];
+    this.lastLodUpdateAt = -99;
     this.occluderMeshes = [];
     this.fadedOccluders = new Set();
     this.targetRing = null;
@@ -327,9 +332,41 @@ export class ThreeRenderer {
     items.forEach((item) => {
       if (!item) return;
       item.userData.eraDetail = true;
+      item.userData.detailVisible = true;
       this.eraDetailCount += 1;
     });
     return items;
+  }
+
+
+
+  markLodGroup(group, radius = 62, important = false) {
+    if (!group) return group;
+    group.userData.lodRadius = radius;
+    group.userData.lodImportant = important;
+    this.lodGroups.push(group);
+    return group;
+  }
+
+  updateLod(state) {
+    if (!state?.player || !this.lodGroups.length) return;
+    const now = state.floatTime || 0;
+    if (now - this.lastLodUpdateAt < 0.28) return;
+    this.lastLodUpdateAt = now;
+    const px = wx(state.player.x);
+    const pz = wz(state.player.y);
+    this.lodGroups.forEach((group) => {
+      const radius = group.userData.lodRadius || 62;
+      const important = Boolean(group.userData.lodImportant);
+      const d = Math.hypot(group.position.x - px, group.position.z - pz);
+      const high = important || d < radius;
+      if (group.userData.lodHigh === high) return;
+      group.userData.lodHigh = high;
+      group.traverse((child) => {
+        if (!child.userData?.eraDetail) return;
+        child.visible = high;
+      });
+    });
   }
 
   setWorldLayout(layout) {
@@ -446,10 +483,14 @@ export class ThreeRenderer {
   }
 
   addGround() {
-    const ground = new THREE.Mesh(new THREE.BoxGeometry(MAP_W, 0.28, MAP_D), mat(COLORS.grass));
+    const ground = new THREE.Mesh(new THREE.BoxGeometry(MAP_W, 0.28, MAP_D), mat(0xb9ddb0));
     ground.position.y = -0.16; ground.receiveShadow = true; this.scene.add(ground);
-    const border = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 2, 0.16, MAP_D + 2), mat(COLORS.grass2));
+    const border = new THREE.Mesh(new THREE.BoxGeometry(MAP_W + 2, 0.16, MAP_D + 2), mat(0xa7cfa0));
     border.position.y = -0.3; this.scene.add(border);
+    // 北江口 / 井高野周边是河川に囲まれた低平地：用浅色低地带和水路边界表现，而不是山地。
+    this.addPlane(0, 0.012, -MAP_D / 2 + 18, MAP_W - 28, 18, 0x9fc8d4, 0);
+    this.addPlane(-MAP_W / 2 + 18, 0.014, 0, 18, MAP_D - 34, 0xb6d4c0, 0);
+    this.addPlane(MAP_W / 2 - 18, 0.014, 0, 14, MAP_D - 42, 0xc4d8b5, 0);
 
     (this.worldLayout?.landmarks?.grassPatches || []).forEach((patch) => {
       this.addPlane(patch.x, 0.018, patch.z, patch.w, patch.d, patch.color, patch.rot);
@@ -534,6 +575,7 @@ export class ThreeRenderer {
     }
 
     this.addBuildingVariant(group, variant, roof, wall, (spec?.frontage ? 1.58 : 2.05) * scale);
+    this.markLodGroup(group, spec?.fixedService ? 112 : 58, Boolean(spec?.fixedService));
     this.registerOccluder(group);
     this.scene.add(group);
     return group;
@@ -548,6 +590,7 @@ export class ThreeRenderer {
     const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
     this.addDeliveryReactionObjects(group, n);
+    this.markLodGroup(group, 96, true);
     this.registerOccluder(group);
     this.scene.add(group); this.houseMap.set(n.id, group);
   }
@@ -2339,7 +2382,7 @@ export class ThreeRenderer {
   addTree(x, z, sakura = false, scale = 1) { const group = new THREE.Group(); group.position.set(x, 0, z); group.scale.setScalar(scale); const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.13,0.88,10), mat(COLORS.wood)); trunk.position.y=0.44; trunk.castShadow=true; group.add(trunk); const crownColor=sakura?0xffbdd0:0x6fb96e; for(let i=0;i<5;i++){ const c=new THREE.Mesh(new THREE.SphereGeometry(0.43,16,12), mat(crownColor)); c.position.set(Math.cos(i*1.3)*0.23,1.04+(i%2)*0.13,Math.sin(i*1.7)*0.23); c.castShadow=true; group.add(c); this.clockObjects.push(c);} this.scene.add(group); }
   addBench(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); const s=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.24),mat(COLORS.wood)); s.position.y=0.35; const b=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.2),mat(COLORS.wood)); b.position.set(0,0.58,-0.16); g.add(s,b); this.scene.add(g); }
   addVending(x,z){ const body=new THREE.Mesh(new THREE.BoxGeometry(0.65,1.3,0.42),mat(0xd94a4a)); body.position.set(x,0.67,z); body.castShadow=true; this.scene.add(body); const panel=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.025),mat(0xfff4e4)); panel.position.set(x,0.95,z+0.225); this.scene.add(panel); }
-  addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,3.0); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel(sceneLabel("shop"), "#345f86"); label.position.set(0,6.4,0.4); g.add(label); this.registerOccluder(g); this.scene.add(g); }
+  addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,3.0); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel(sceneLabel("shop"), "#345f86"); label.position.set(0,6.4,0.4); g.add(label); this.markLodGroup(g, 112, true); this.registerOccluder(g); this.scene.add(g); }
   addBusStop(x,z){ this.addSign(x,z,sceneLabel("bus")); const roof=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.09,0.55),mat(0x4e8fd6)); roof.position.set(x+0.62,0.95,z); this.scene.add(roof); }
   addField(x,z){ this.addPlane(x,0.055,z,12,8,0xb6d981,0.04); for(let i=0;i<8;i++) this.addPlane(x-5+i*1.4,0.08,z,0.12,7,0x8fbc66,0.04); }
   addTorii(x,z){
