@@ -37,10 +37,217 @@ function nearestPointOnSegment(point, seg) {
   return { point: { x: seg.x, z }, distance: Math.hypot(point.x - seg.x, point.z - z), seg };
 }
 
-function nearestSegmentPoint(point) {
-  return ROAD_SEGMENTS
+let cachedObstacleRef = null;
+let cachedLayoutRef = null;
+let cachedSceneHouses = [];
+
+function sceneHouseObstacles(state) {
+  const source = state?.worldObstacles || WORLD_OBSTACLES;
+  const layout = state?.worldLayout || null;
+  if (cachedObstacleRef === source && cachedLayoutRef === layout) return cachedSceneHouses;
+  cachedObstacleRef = source;
+  cachedLayoutRef = layout;
+  const collisionRects = (source || [])
+    .filter((obstacle) => obstacle.kind === "house" && obstacle.type === "rect")
+    .map((obstacle) => ({
+      id: obstacle.id,
+      minX: (obstacle.x - obstacle.halfW) * WORLD_SCALE - 0.85,
+      maxX: (obstacle.x + obstacle.halfW) * WORLD_SCALE + 0.85,
+      minZ: (obstacle.y - obstacle.halfH) * WORLD_SCALE - 0.85,
+      maxZ: (obstacle.y + obstacle.halfH) * WORLD_SCALE + 0.85,
+    }));
+  const visualRects = (layout?.lots || []).map((lot) => {
+    const scale = lot.scale || 1;
+    // 视觉房屋/招牌比碰撞核心大，导航也必须避开可见体量。
+    const halfX = Math.max(1.6, (lot.frontage || 6.4) * 0.34 * scale) + 0.55;
+    const halfZ = Math.max(1.6, (lot.depth || 6.4) * 0.34 * scale) + 0.55;
+    return {
+      id: `${lot.id}-visual`,
+      minX: lot.x - halfX,
+      maxX: lot.x + halfX,
+      minZ: lot.z - halfZ,
+      maxZ: lot.z + halfZ,
+    };
+  });
+  cachedSceneHouses = collisionRects.concat(visualRects);
+  return cachedSceneHouses;
+}
+
+function pointInsideHouseScene(point, state, margin = 0) {
+  return sceneHouseObstacles(state).some((rect) => (
+    point.x >= rect.minX - margin
+    && point.x <= rect.maxX + margin
+    && point.z >= rect.minZ - margin
+    && point.z <= rect.maxZ + margin
+  ));
+}
+
+function firstBlockingHouseScene(a, b, state) {
+  if (!state?.worldObstacles) return false;
+  const houses = sceneHouseObstacles(state);
+  if (!houses.length) return null;
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const len = Math.hypot(dx, dz);
+  if (len < 0.01) return null;
+  const steps = Math.max(2, Math.ceil(len / 1.8));
+  for (let i = 1; i < steps; i += 1) {
+    const u = i / steps;
+    const x = a.x + dx * u;
+    const z = a.z + dz * u;
+    for (const rect of houses) {
+      if (x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ) return rect;
+    }
+  }
+  return null;
+}
+
+function segmentBlockedByHouseScene(a, b, state) {
+  return Boolean(firstBlockingHouseScene(a, b, state));
+}
+
+function routeAroundRect(a, b, rect, state) {
+  const pad = 2.0;
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const candidates = [];
+  if (Math.abs(dx) >= Math.abs(dz)) {
+    for (const sideZ of [rect.minZ - pad, rect.maxZ + pad]) {
+      candidates.push([{ x: a.x, z: sideZ }, { x: b.x, z: sideZ }]);
+    }
+  } else {
+    for (const sideX of [rect.minX - pad, rect.maxX + pad]) {
+      candidates.push([{ x: sideX, z: a.z }, { x: sideX, z: b.z }]);
+    }
+  }
+  const scored = candidates.map((mid) => {
+    const route = [a, ...mid, b];
+    const blocked = route.some((p, i) => i > 0 && segmentBlockedByHouseScene(route[i - 1], p, state));
+    const length = route.reduce((sum, p, i) => i ? sum + Math.hypot(p.x - route[i - 1].x, p.z - route[i - 1].z) : 0, 0);
+    return { mid, blocked, length };
+  }).sort((x, y) => Number(x.blocked) - Number(y.blocked) || x.length - y.length);
+  return scored[0]?.mid || [];
+}
+
+function avoidHouseCrossingPath(points, state, passes = 2) {
+  let path = points;
+  for (let pass = 0; pass < passes; pass += 1) {
+    if (path.length < 2) return path;
+    const next = [path[0]];
+    let changed = false;
+    for (let i = 1; i < path.length; i += 1) {
+      const a = next[next.length - 1];
+      const b = path[i];
+      const rect = firstBlockingHouseScene(a, b, state);
+      if (rect) {
+        routeAroundRect(a, b, rect, state).forEach((p) => {
+          const last = next[next.length - 1];
+          if (!last || Math.hypot(last.x - p.x, last.z - p.z) > 0.4) next.push(p);
+        });
+        changed = true;
+      }
+      const last = next[next.length - 1];
+      if (!last || Math.hypot(last.x - b.x, last.z - b.z) > 0.4) next.push(b);
+    }
+    path = simplifyScenePath(next);
+    if (!changed) break;
+  }
+  return path;
+}
+
+function pathBlockedByHouse(points, state) {
+  return points.some((point, i) => i > 0 && segmentBlockedByHouseScene(points[i - 1], point, state));
+}
+
+function gridPathAroundHouses(start, goal, state) {
+  const step = 7.0;
+  const minX = WORLD_BOUNDS.minX * WORLD_SCALE;
+  const maxX = WORLD_BOUNDS.maxX * WORLD_SCALE;
+  const minZ = WORLD_BOUNDS.minY * WORLD_SCALE;
+  const maxZ = WORLD_BOUNDS.maxY * WORLD_SCALE;
+  const cols = Math.floor((maxX - minX) / step) + 1;
+  const rows = Math.floor((maxZ - minZ) / step) + 1;
+  const toIndex = (p) => ({
+    ix: Math.max(0, Math.min(cols - 1, Math.round((p.x - minX) / step))),
+    iz: Math.max(0, Math.min(rows - 1, Math.round((p.z - minZ) / step))),
+  });
+  const toPoint = ({ ix, iz }) => ({ x: minX + ix * step, z: minZ + iz * step });
+  const idxKey = (ix, iz) => `${ix},${iz}`;
+  const blocked = (ix, iz) => pointInsideHouseScene(toPoint({ ix, iz }), state, 0.65);
+  const freeNear = (idx) => {
+    if (!blocked(idx.ix, idx.iz)) return idx;
+    for (let r = 1; r <= 8; r += 1) {
+      for (let dx = -r; dx <= r; dx += 1) {
+        for (let dz = -r; dz <= r; dz += 1) {
+          if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+          const ix = idx.ix + dx;
+          const iz = idx.iz + dz;
+          if (ix >= 0 && iz >= 0 && ix < cols && iz < rows && !blocked(ix, iz)) return { ix, iz };
+        }
+      }
+    }
+    return idx;
+  };
+  const startIdx = freeNear(toIndex(start));
+  const goalIdx = freeNear(toIndex(goal));
+  const goalKey = idxKey(goalIdx.ix, goalIdx.iz);
+  const open = [startIdx];
+  const openKeys = new Set([idxKey(startIdx.ix, startIdx.iz)]);
+  const came = new Map();
+  const g = new Map([[idxKey(startIdx.ix, startIdx.iz), 0]]);
+  const h = (ix, iz) => Math.hypot(ix - goalIdx.ix, iz - goalIdx.iz);
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  let iterations = 0;
+  while (open.length && iterations < 9000) {
+    iterations += 1;
+    let bestIndex = 0;
+    let bestScore = Infinity;
+    for (let i = 0; i < open.length; i += 1) {
+      const item = open[i];
+      const k = idxKey(item.ix, item.iz);
+      const score = (g.get(k) ?? Infinity) + h(item.ix, item.iz);
+      if (score < bestScore) { bestScore = score; bestIndex = i; }
+    }
+    const current = open.splice(bestIndex, 1)[0];
+    const currentKey = idxKey(current.ix, current.iz);
+    openKeys.delete(currentKey);
+    if (currentKey === goalKey) {
+      const result = [goal];
+      let k = currentKey;
+      while (k) {
+        const [ix, iz] = k.split(",").map(Number);
+        result.push(toPoint({ ix, iz }));
+        k = came.get(k);
+      }
+      result.push(start);
+      return simplifyScenePath(result.reverse());
+    }
+    for (const [dx, dz] of dirs) {
+      const ix = current.ix + dx;
+      const iz = current.iz + dz;
+      if (ix < 0 || iz < 0 || ix >= cols || iz >= rows || blocked(ix, iz)) continue;
+      if (dx && dz && (blocked(current.ix + dx, current.iz) || blocked(current.ix, current.iz + dz))) continue;
+      const nk = idxKey(ix, iz);
+      const stepCost = dx && dz ? 1.42 : 1;
+      const ng = (g.get(currentKey) ?? Infinity) + stepCost;
+      if (ng >= (g.get(nk) ?? Infinity)) continue;
+      came.set(nk, currentKey);
+      g.set(nk, ng);
+      if (!openKeys.has(nk)) {
+        open.push({ ix, iz });
+        openKeys.add(nk);
+      }
+    }
+  }
+  return [];
+}
+
+function nearestSegmentPoint(point, state = null) {
+  const candidates = ROAD_SEGMENTS
     .map((seg) => nearestPointOnSegment(point, seg))
-    .sort((a, b) => a.distance - b.distance)[0];
+    .sort((a, b) => a.distance - b.distance);
+  if (!state) return candidates[0];
+  return candidates.find((item) => !pointInsideHouseScene(item.point, state, 0.2)) || candidates[0];
 }
 
 function addGraphNode(nodes, point) {
@@ -49,7 +256,7 @@ function addGraphNode(nodes, point) {
   return nodes.get(k);
 }
 
-function addGraphEdge(nodes, a, b) {
+function addGraphEdge(nodes, a, b, state = null) {
   const na = addGraphNode(nodes, a);
   const nb = addGraphNode(nodes, b);
   const dist = Math.hypot(na.x - nb.x, na.z - nb.z);
@@ -58,7 +265,7 @@ function addGraphEdge(nodes, a, b) {
   nb.links.set(na.key, dist);
 }
 
-function connectNearbyRoadNodes(nodes, radius = 3.2) {
+function connectNearbyRoadNodes(nodes, radius = 3.2, state = null) {
   // OSM 上有些小路口 / 桥下道路端点不是完全同一个 node。
   // 这里用很小半径把“几乎相接”的道路端点连起来，避免寻路失败后退化成穿房直线。
   const cell = radius;
@@ -87,7 +294,7 @@ function connectNearbyRoadNodes(nodes, radius = 3.2) {
   });
 }
 
-function buildRoadGraph(extraPoints = []) {
+function buildRoadGraph(extraPoints = [], state = null) {
   const nodes = new Map();
   const pointsBySegment = new Map();
   const collect = (seg, point) => {
@@ -137,9 +344,9 @@ function buildRoadGraph(extraPoints = []) {
       }
       return seg.dir === "h" ? a.x - b.x : a.z - b.z;
     });
-    for (let i = 0; i < sorted.length - 1; i += 1) addGraphEdge(nodes, sorted[i], sorted[i + 1]);
+    for (let i = 0; i < sorted.length - 1; i += 1) addGraphEdge(nodes, sorted[i], sorted[i + 1], state);
   });
-  connectNearbyRoadNodes(nodes);
+  connectNearbyRoadNodes(nodes, 3.2, state);
   return nodes;
 }
 
@@ -219,16 +426,19 @@ function isOnRoadCorridorWorld(x, y) {
 export function buildAutoNavPath(state, target) {
   const startScene = worldToScenePoint(state.player.x, state.player.y);
   const targetScene = worldToScenePoint(target.deliveryX ?? target.x, target.deliveryY ?? target.y);
-  const startSnap = nearestSegmentPoint(startScene);
-  const targetSnap = nearestSegmentPoint(targetScene);
-  const nodes = buildRoadGraph([startSnap, targetSnap]);
+  const startSnap = nearestSegmentPoint(startScene, state);
+  const targetSnap = nearestSegmentPoint(targetScene, state);
+  const nodes = buildRoadGraph([startSnap, targetSnap], state);
   let scenePath = simplifyScenePath(shortestPath(nodes, key(startSnap.point), key(targetSnap.point)));
-  // 如果仍然没有连通路径，不再直接画一条穿房子的直线；只引导到当前最近道路点，
-  // 下一帧会重新选择附近道路，至少保证箭头留在路面上。
-  if (scenePath.length < 2) scenePath = [startSnap.point];
+  if (scenePath.length < 2) scenePath = [startSnap.point, targetSnap.point];
+  scenePath = avoidHouseCrossingPath(scenePath, state, 2);
+  if (pathBlockedByHouse(scenePath, state)) {
+    const gridPath = gridPathAroundHouses(startSnap.point, targetSnap.point, state);
+    if (gridPath.length >= 2) scenePath = avoidHouseCrossingPath(gridPath, state, 1);
+  }
   const points = [];
   scenePath.forEach((point) => appendWaypoint(points, sceneToWorldPoint(point)));
-  appendWaypoint(points, sceneToWorldPoint(targetScene));
+  // 终点停在目标旁边的道路中心线。投递范围很大，自动导航不应该再从道路拐进房屋/院子里。
   return points;
 }
 
