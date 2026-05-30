@@ -50,28 +50,28 @@ const SCENE_LABELS = {
     apartment: "公寓", office: "大楼", bank: "银行", police: "交番", community: "町内会", school: "学校",
     library: "图书馆", cafe: "咖啡", restaurant: "食堂", bakery: "面包", barber: "理发", flower: "花店",
     bookstore: "书店", fishShop: "鱼店", bathhouse: "澡堂", parking: "P", park: "公园", shop: "商店",
-    bus: "巴士", clinicShort: "医", neighborhood: "町内会", town: "町",
+    bus: "巴士", clinicShort: "医", neighborhood: "町内会", town: "町", riverbed: "河川敷", levee: "河堤",
   },
   zhHant: {
     convenience: "便利店", supermarket: "超市", hospital: "醫院", clinic: "診所", pharmacy: "藥局", postOffice: "郵局",
     apartment: "公寓", office: "大樓", bank: "銀行", police: "交番", community: "町內會", school: "學校",
     library: "圖書館", cafe: "咖啡", restaurant: "食堂", bakery: "麵包", barber: "理髮", flower: "花店",
     bookstore: "書店", fishShop: "魚店", bathhouse: "澡堂", parking: "P", park: "公園", shop: "商店",
-    bus: "巴士", clinicShort: "醫", neighborhood: "町內會", town: "町",
+    bus: "巴士", clinicShort: "醫", neighborhood: "町內會", town: "町", riverbed: "河川敷", levee: "河堤",
   },
   ja: {
     convenience: "コンビニ", supermarket: "スーパー", hospital: "病院", clinic: "診療所", pharmacy: "薬", postOffice: "郵便",
     apartment: "アパート", office: "ビル", bank: "銀行", police: "交番", community: "町内会", school: "学校",
     library: "図書館", cafe: "喫茶", restaurant: "食堂", bakery: "パン", barber: "理容", flower: "花屋",
     bookstore: "本屋", fishShop: "魚屋", bathhouse: "湯", parking: "P", park: "公園", shop: "商店",
-    bus: "バス", clinicShort: "診", neighborhood: "町内会", town: "町",
+    bus: "バス", clinicShort: "診", neighborhood: "町内会", town: "町", riverbed: "河川敷", levee: "堤防",
   },
   en: {
     convenience: "Store", supermarket: "Market", hospital: "Hospital", clinic: "Clinic", pharmacy: "Pharmacy", postOffice: "Post",
     apartment: "Apt.", office: "Office", bank: "Bank", police: "Police", community: "Community", school: "School",
     library: "Library", cafe: "Cafe", restaurant: "Diner", bakery: "Bakery", barber: "Barber", flower: "Flowers",
     bookstore: "Books", fishShop: "Fish", bathhouse: "Bath", parking: "P", park: "Park", shop: "Shop",
-    bus: "Bus", clinicShort: "+", neighborhood: "Community", town: "Town",
+    bus: "Bus", clinicShort: "+", neighborhood: "Community", town: "Town", riverbed: "Riverbed", levee: "Levee",
   },
 };
 function sceneLabel(key) { return SCENE_LABELS[locale]?.[key] ?? SCENE_LABELS.zhHans[key] ?? key; }
@@ -1742,17 +1742,25 @@ export class ThreeRenderer {
   addYodogawaRiver() {
     const riverZ = 238;
     const waterW = 46;
-    const bankW = 82;
-    this.addPlane(0, 0.018, riverZ, MAP_W + 12, bankW, 0x8fbd9b, 0);
+    const bankW = 112;
+    // 河川敷：河道两侧宽阔、平坦的草地，不是普通城市空地。
+    this.addPlane(0, 0.014, riverZ, MAP_W + 12, bankW, 0x8fbd9b, 0);
+    this.addPlane(0, 0.021, riverZ - waterW / 2 - 24, MAP_W - 20, 20, 0x86c983, 0);
+    this.addPlane(0, 0.021, riverZ + waterW / 2 + 24, MAP_W - 20, 20, 0x91cf82, 0);
     this.addPlane(0, 0.026, riverZ, MAP_W + 4, waterW, 0x4aaed0, 0);
     this.addPlane(0, 0.032, riverZ - 7, MAP_W + 4, 7.2, 0x76c7dc, 0);
     this.addPlane(0, 0.033, riverZ + 8, MAP_W + 4, 4.8, 0x358fb2, 0);
+    this.addLeveeSlope(0, riverZ - waterW / 2 - 11.2, MAP_W - 10, 13, -1);
+    this.addLeveeSlope(0, riverZ + waterW / 2 + 11.2, MAP_W - 10, 13, 1);
     this.addPlane(0, 0.055, riverZ - waterW / 2 - 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
     this.addPlane(0, 0.055, riverZ + waterW / 2 + 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
-    this.addPlane(0, 0.083, riverZ - waterW / 2 - 7.2, MAP_W - 16, 1.0, 0xd8d0b6, 0);
-    this.addPlane(0, 0.083, riverZ + waterW / 2 + 7.2, MAP_W - 16, 1.0, 0xd8d0b6, 0);
-    this.addPlane(0, 0.090, riverZ - waterW / 2 - 12.0, MAP_W - 30, 4.2, COLORS.asphalt, 0);
-    this.addPlane(0, 0.090, riverZ + waterW / 2 + 12.0, MAP_W - 30, 4.2, COLORS.asphalt, 0);
+    // 河堤天端和自行车道 / 散步道。
+    this.addPlane(0, 0.118, riverZ - waterW / 2 - 13.2, MAP_W - 16, 3.8, 0xd8d0b6, 0);
+    this.addPlane(0, 0.118, riverZ + waterW / 2 + 13.2, MAP_W - 16, 3.8, 0xd8d0b6, 0);
+    this.addPlane(0, 0.138, riverZ - waterW / 2 - 20.0, MAP_W - 30, 4.4, COLORS.asphalt, 0);
+    this.addPlane(0, 0.138, riverZ + waterW / 2 + 20.0, MAP_W - 30, 4.4, COLORS.asphalt, 0);
+    this.addSign(-318, riverZ - waterW / 2 - 29, sceneLabel("riverbed"));
+    this.addSign(318, riverZ + waterW / 2 + 27, sceneLabel("levee"));
     [-1, 1].forEach((side) => {
       const railZ = riverZ + side * (waterW / 2 + 1.7);
       const rail = new THREE.Mesh(new THREE.BoxGeometry(MAP_W - 20, 0.08, 0.08), mat(0xdfe5df));
@@ -1766,14 +1774,18 @@ export class ThreeRenderer {
     });
     for (let x = -356; x <= 356; x += 18) {
       const odd = Math.floor((x + 400) / 18) % 2;
-      this.addTree(x + (odd ? 3.8 : -3.8), riverZ - waterW / 2 - 15.4, false, odd ? 1.16 : 1.0);
-      if (x % 36 === 0) this.addTree(x + 6, riverZ + waterW / 2 + 15.2, true, 1.06);
+      this.addTree(x + (odd ? 3.8 : -3.8), riverZ - waterW / 2 - 31.5, false, odd ? 1.05 : 0.95, odd ? "keyaki" : "willow");
+      if (x % 36 === 0) this.addTree(x + 6, riverZ + waterW / 2 + 31.2, true, 0.98, x % 72 === 0 ? "sakura" : "ginkgo");
       if (x % 54 === 0) {
         const shrub = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 8), mat(0x6fae68));
-        shrub.position.set(x - 5, 0.45, riverZ + waterW / 2 + 10.2);
+        shrub.position.set(x - 5, 0.45, riverZ + waterW / 2 + 20.2);
         shrub.scale.set(1.8, 0.56, 0.72);
         this.scene.add(shrub);
       }
+    }
+    for (let x = -320; x <= 320; x += 64) {
+      this.addBench(x, riverZ - waterW / 2 - 25.5);
+      if (x % 128 === 0) this.addTree(x + 18, riverZ + waterW / 2 + 25.5, false, 0.82, "pine");
     }
     [-252, -96, 112, 252].forEach((x) => {
       const bridge = new THREE.Mesh(new THREE.BoxGeometry(13.5, 0.20, bankW + 8), mat(0xb8b3a5));
@@ -2997,7 +3009,82 @@ export class ThreeRenderer {
   }
 
   addPlane(x, y, z, w, d, color, rot = 0) { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), mat(color)); mesh.position.set(x, y, z); mesh.rotation.y = rot; mesh.receiveShadow = true; this.scene.add(mesh); return mesh; }
-  addTree(x, z, sakura = false, scale = 1) { const group = new THREE.Group(); group.position.set(x, 0, z); group.scale.setScalar(scale); const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.13,0.88,10), mat(COLORS.wood)); trunk.position.y=0.44; trunk.castShadow=true; group.add(trunk); const crownColor=sakura?0xffbdd0:0x6fb96e; for(let i=0;i<5;i++){ const c=new THREE.Mesh(new THREE.SphereGeometry(0.43,16,12), mat(crownColor)); c.position.set(Math.cos(i*1.3)*0.23,1.04+(i%2)*0.13,Math.sin(i*1.7)*0.23); c.castShadow=true; group.add(c); this.clockObjects.push(c);} this.scene.add(group); }
+  addLeveeSlope(x, z, w, d, side = 1) {
+    const slope = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat(0x7fc078));
+    slope.rotation.x = -Math.PI / 2 + side * 0.12;
+    slope.position.set(x, 0.075, z);
+    slope.receiveShadow = true;
+    this.scene.add(slope);
+    return slope;
+  }
+
+  addTree(x, z, sakura = false, scale = 1, type = null) {
+    const hash = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453);
+    const inferred = type || (sakura ? "sakura" : ["keyaki", "ginkgo", "pine", "camellia"][Math.floor(hash) % 4]);
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    const baseScale = scale * (inferred === "pine" ? 1.18 : inferred === "keyaki" ? 1.28 : inferred === "willow" ? 1.18 : 1.08);
+    group.scale.setScalar(baseScale);
+
+    const trunkHeight = inferred === "pine" ? 1.75 : inferred === "keyaki" ? 2.05 : inferred === "willow" ? 1.95 : 1.62;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.15, trunkHeight, 10), mat(inferred === "sakura" ? 0x7b5a50 : COLORS.wood));
+    trunk.position.y = trunkHeight / 2;
+    trunk.castShadow = true;
+    group.add(trunk);
+
+    const addCrown = (geo, color, px, py, pz, sx = 1, sy = 1, sz = 1) => {
+      const c = new THREE.Mesh(geo, mat(color));
+      c.position.set(px, py, pz);
+      c.scale.set(sx, sy, sz);
+      c.castShadow = true;
+      group.add(c);
+      this.clockObjects.push(c);
+      return c;
+    };
+
+    if (inferred === "pine") {
+      [0, 1, 2].forEach((i) => {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.82 - i * 0.12, 0.82, 9), mat(i % 2 ? 0x2f6f4a : 0x3d7f52));
+        cone.position.y = trunkHeight + 0.20 + i * 0.42;
+        cone.castShadow = true;
+        group.add(cone);
+        this.clockObjects.push(cone);
+      });
+    } else if (inferred === "ginkgo") {
+      const color = 0xe0bf45;
+      addCrown(new THREE.SphereGeometry(0.68, 16, 10), color, 0, trunkHeight + 0.24, 0, 1.0, 1.08, 0.88);
+      addCrown(new THREE.SphereGeometry(0.50, 14, 9), 0xd4ad37, -0.34, trunkHeight + 0.08, 0.12, 0.85, 0.9, 0.75);
+      addCrown(new THREE.SphereGeometry(0.48, 14, 9), 0xefcf62, 0.32, trunkHeight + 0.06, -0.12, 0.85, 0.9, 0.75);
+    } else if (inferred === "willow") {
+      addCrown(new THREE.SphereGeometry(0.62, 16, 10), 0x75b86a, 0, trunkHeight + 0.24, 0, 1.15, 0.78, 1.05);
+      for (let i = 0; i < 7; i += 1) {
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.72, 0.08), mat(0x6aad66));
+        const a = i * 0.9;
+        leaf.position.set(Math.cos(a) * 0.38, trunkHeight - 0.10 + (i % 2) * 0.10, Math.sin(a) * 0.34);
+        leaf.rotation.z = Math.sin(a) * 0.28;
+        group.add(leaf);
+        this.clockObjects.push(leaf);
+      }
+    } else {
+      const crownColor = inferred === "sakura" ? 0xffbfd2 : inferred === "camellia" ? 0x4d9460 : 0x68ad66;
+      for (let i = 0; i < 7; i += 1) {
+        addCrown(
+          new THREE.SphereGeometry(0.46 + (i % 3) * 0.06, 16, 10),
+          i % 4 === 0 && inferred === "sakura" ? 0xffd8e4 : crownColor,
+          Math.cos(i * 1.18) * 0.34,
+          trunkHeight + 0.16 + (i % 3) * 0.16,
+          Math.sin(i * 1.42) * 0.30,
+          inferred === "keyaki" ? 1.12 : 1,
+          inferred === "keyaki" ? 1.05 : 0.92,
+          0.96
+        );
+      }
+      if (inferred === "camellia") {
+        for (let i = 0; i < 3; i += 1) addCrown(new THREE.SphereGeometry(0.08, 8, 6), 0xdb5a6c, -0.25 + i * 0.25, trunkHeight + 0.24, 0.36, 1, 1, 1);
+      }
+    }
+    this.scene.add(group);
+  }
   addBench(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); const s=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.24),mat(COLORS.wood)); s.position.y=0.35; const b=new THREE.Mesh(new THREE.BoxGeometry(1,0.12,0.2),mat(COLORS.wood)); b.position.set(0,0.58,-0.16); g.add(s,b); this.scene.add(g); }
   addVending(x,z){ const body=new THREE.Mesh(new THREE.BoxGeometry(0.65,1.3,0.42),mat(0xd94a4a)); body.position.set(x,0.67,z); body.castShadow=true; this.scene.add(body); const panel=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.025),mat(0xfff4e4)); panel.position.set(x,0.95,z+0.225); this.scene.add(panel); }
   addShop(x,z){ const g=new THREE.Group(); g.position.set(x,0,z); this.addHouseParts(g,0x516c9c,0xffefcf,0x6a523d,3.0); const curtain=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.24,0.05),mat(0x3d79b7)); curtain.position.set(0,1.15,0.88); g.add(curtain); const label=makeCanvasLabel(sceneLabel("shop"), "#345f86"); label.position.set(0,6.4,0.4); g.add(label); this.markLodGroup(g, 112, true); this.registerOccluder(g); this.scene.add(g); }
