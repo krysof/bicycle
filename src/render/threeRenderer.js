@@ -1,6 +1,6 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
-import { createWorldLayout, MAP_D, MAP_W, RAIL_SEGMENTS, ROAD_INTERSECTIONS, ROAD_SEGMENTS, ROAD_X, ROAD_Z, WATER_SEGMENTS } from "../data/world.js";
+import { createWorldLayout, MAP_D, MAP_W, RAIL_SEGMENTS, ROAD_INTERSECTIONS, ROAD_SEGMENTS, ROAD_X, ROAD_Z } from "../data/world.js";
 import { buildAutoNavPath, canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
 import { locale, nt, t } from "../i18n.js";
@@ -630,7 +630,8 @@ export class ThreeRenderer {
   }
 
   addRailAndWater() {
-    WATER_SEGMENTS.filter((_, i) => i % 6 === 0).forEach((seg) => this.addRiverSegment(seg));
+    // OSM 的细碎水渠在游戏视角下会变成很多蓝色小线，和主河道混在一起很乱。
+    // 视觉层只保留 addLandmarks() 里统一样式的主河道。
     RAIL_SEGMENTS.filter((_, i) => i % 8 === 0).forEach((seg) => {
       this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, 3.2, 0x647078, 0.076);
       this.addStripBetween(seg.x1, seg.z1, seg.x2, seg.z2, 0.6, 0xf6f1d7, 0.094);
@@ -909,9 +910,7 @@ export class ThreeRenderer {
     });
     ROAD_INTERSECTIONS.slice(18, 24).filter((_, i) => i % 2 === 0).forEach(([x, z], i) => (i % 2 ? this.addNoticeBoard(x, z) : this.addGarbageStation(x, z)));
     ROAD_INTERSECTIONS.slice(26, 28).forEach(([x, z]) => this.addPhoneBooth(x, z));
-    if (this.worldLayout?.atmosphere?.weather === "afterRain") {
-      [[-42, -24], [12, 0], [58, 48], [-86, 72], [80, -48], [-12, 24]].forEach(([x, z], i) => this.addPuddle(x, z, i));
-    }
+    // 清爽画面优先：不再随机生成蓝色水洼，避免和河道 / 导航箭头混淆。
   }
 
   addPuddle(x, z, i = 0) {
@@ -1537,9 +1536,8 @@ export class ThreeRenderer {
   }
 
   addLandmarks() {
-    // 北江口参考：南侧神崎川/水路、斜向铁路/主线、中央纵向道路、北侧学校グラウンド。
+    // 北江口参考：南侧神崎川/水路、中央街区、北侧学校グラウンド。
     const landmarks = this.worldLayout?.landmarks || {};
-    const riverX = landmarks.riverX ?? -102;
     const [parkX, parkZ] = landmarks.park || [-78, 58];
     const [shopX, shopZ] = landmarks.shop || [-70, -68];
     const [busX, busZ] = landmarks.bus || [44, -70];
@@ -1563,19 +1561,7 @@ export class ThreeRenderer {
     this.addPlane(0, 0.067, MAP_D / 2 - 62, MAP_W - 30, 7.2, COLORS.asphalt, 0);
     for (let x = -330; x <= 330; x += 110) this.addPlane(x, 0.075, MAP_D / 2 - 62, 2.6, 0.09, COLORS.lane, 0);
 
-    // 北江口截图中明显的斜向铁路 / 主线：用灰色轨道和蓝色线穿过市街地。
-    this.addStripBetween(-232, MAP_D / 2 - 8, 228, -MAP_D / 2 + 18, 6.0, 0x647078, 0.075);
-    this.addStripBetween(-232, MAP_D / 2 - 8, 228, -MAP_D / 2 + 18, 1.0, 0x5ec4df, 0.092);
-    this.addStripBetween(-232, MAP_D / 2 - 8, 228, -MAP_D / 2 + 18, 0.18, 0xf6f1d7, 0.105);
-
-    // 桥梁/跨线部位。
-    [[-214, 216], [-56, 94], [88, -22]].forEach(([x, z]) => {
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(16, 0.22, 4.0), mat(0xb8875b));
-      bridge.position.set(x, 0.18, z);
-      bridge.rotation.y = -0.83;
-      bridge.castShadow = true;
-      this.scene.add(bridge);
-    });
+    // 不再添加额外蓝色斜线/水渠，避免画面出现两种蓝色水体。
     this.addPlane(parkX, 0.05, parkZ, 18, 12, 0x71bb70, -0.03); this.addSign(parkX, parkZ - 8, sceneLabel("park")); this.addBench(parkX - 4, parkZ); this.addBench(parkX + 4, parkZ + 3); this.addTree(parkX - 8, parkZ - 6, true, 1.3); this.addTree(parkX + 8, parkZ - 3, false, 1.2);
     // 大阪経済大学グラウンドのような大きい緑地 / グラウンドを北側に配置。
     this.addPlane(-40, 0.052, -196, 62, 42, 0x7bbf74, 0.02);
