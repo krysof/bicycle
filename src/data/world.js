@@ -268,14 +268,89 @@ function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
 }
 
 function varyLot(rand, lot, index) {
-  const yawJitter = (rand() - 0.5) * 0.025;
   return {
     ...lot,
-    // 建筑物位置来自真实 OSM；只随机颜色细节和轻微偏转，不改变街区格局。
+    // 当前道路已经整理成 90 度街区，建筑也必须吸附 90 度，不能再斜摆。
     id: `${lot.id}-${index}`,
-    angle: (lot.angle || 0) + yawJitter,
+    angle: Math.round((lot.angle || 0) / (Math.PI / 2)) * (Math.PI / 2),
     scale: lot.scale * (0.96 + rand() * 0.08),
   };
+}
+
+function generateInfillLots(rand, existingLots) {
+  const variants = ["old-wood", "house-brown", "house-red", "modern-home", "house-blue", "flower", "bookstore", "bakery"];
+  const roofs = [0x5b4638, 0x6f5338, 0x4f5f6f, 0x7a5542, 0x8a6f48, 0x5c6f59];
+  const walls = [0xe9dcc8, 0xf2e5cf, 0xd8c3a5, 0xeee7d8, 0xe4d5bd, 0xf1eadc];
+  const lots = [];
+  const occupied = (x, z, margin = 5.8) => existingLots.concat(lots).some((lot) => Math.abs(lot.x - x) < ((lot.frontage || 6) + margin) * 0.50 && Math.abs(lot.z - z) < ((lot.depth || 6) + margin) * 0.50);
+  ROAD_SEGMENTS.forEach((seg, si) => {
+    const dx = seg.x2 - seg.x1;
+    const dz = seg.z2 - seg.z1;
+    const len = Math.hypot(dx, dz);
+    if (len < 70) return;
+    const horizontal = Math.abs(dx) >= Math.abs(dz);
+    const nx = horizontal ? 0 : 1;
+    const nz = horizontal ? 1 : 0;
+    const step = 28;
+    const start = 18 + ((si % 3) * 4);
+    for (let d = start; d < len - 18; d += step) {
+      [-1, 1].forEach((side) => {
+        if (rand() < 0.18) return;
+        const t = d / len;
+        const x = seg.x1 + dx * t + nx * side * (15.8 + rand() * 4.8);
+        const z = seg.z1 + dz * t + nz * side * (15.8 + rand() * 4.8);
+        if (Math.abs(x) > MAP_W / 2 - 28 || Math.abs(z) > MAP_D / 2 - 34) return;
+        if (Math.abs(z - 238) < 42) return; // 淀川河道和河堤区域留空
+        if (isReservedSceneSpot(x, z, 11, 9) || nearAnyRoad(x, z, 6.3) || occupied(x, z)) return;
+        const i = lots.length + si;
+        lots.push({
+          id: `infill-${si}-${Math.round(d)}-${side}`,
+          x,
+          z,
+          angle: horizontal ? 0 : Math.PI / 2,
+          variant: variants[i % variants.length],
+          scale: 1.12 + rand() * 0.18,
+          roof: roofs[i % roofs.length],
+          wall: walls[i % walls.length],
+          frontage: 8.0 + rand() * 2.6,
+          depth: 7.0 + rand() * 2.2,
+          fixedService: false,
+        });
+      });
+      if (lots.length >= 300) return;
+    }
+  });
+  // 道路之间仍然可能留下较大的空地；再补一批“街区内侧建筑”，但仍然避开道路、河堤和目标住户。
+  let attempts = 0;
+  while (lots.length < 330 && attempts < 1800) {
+    attempts += 1;
+    const x = -MAP_W / 2 + 34 + rand() * (MAP_W - 68);
+    const z = -MAP_D / 2 + 36 + rand() * (MAP_D - 78);
+    if (Math.abs(z - 238) < 44) continue;
+    const roadDistance = ROAD_SEGMENTS.reduce((best, seg) => Math.min(best, distancePointToSegment({ x, z }, seg)), Infinity);
+    if (roadDistance < 10.5 || roadDistance > 32.0) continue;
+    if (isReservedSceneSpot(x, z, 12, 10) || occupied(x, z, 4.8)) continue;
+    const nearSeg = ROAD_SEGMENTS.reduce((best, seg) => {
+      const d = distancePointToSegment({ x, z }, seg);
+      return d < best.d ? { seg, d } : best;
+    }, { seg: ROAD_SEGMENTS[0], d: Infinity }).seg;
+    const horizontal = Math.abs(nearSeg.x2 - nearSeg.x1) >= Math.abs(nearSeg.z2 - nearSeg.z1);
+    const i = lots.length + attempts;
+    lots.push({
+      id: `block-fill-${attempts}`,
+      x,
+      z,
+      angle: horizontal ? 0 : Math.PI / 2,
+      variant: variants[i % variants.length],
+      scale: 1.04 + rand() * 0.22,
+      roof: roofs[i % roofs.length],
+      wall: walls[i % walls.length],
+      frontage: 7.4 + rand() * 2.8,
+      depth: 6.8 + rand() * 2.4,
+      fixedService: false,
+    });
+  }
+  return lots.slice(0, 330);
 }
 
 function generateLots(rand) {
@@ -290,7 +365,9 @@ function generateLots(rand) {
   const service = reserved.filter((lot) => lot.fixedService);
   const homes = reserved.filter((lot) => !lot.fixedService);
   const rotated = homes.map((lot, i) => ({ lot, score: ((i * 37) % 101) + (rand() * 0.2) })).sort((a, b) => a.score - b.score).map((x) => x.lot);
-  return service.concat(rotated).slice(0, 690).map((lot, i) => varyLot(rand, lot, i));
+  const base = service.concat(rotated).slice(0, 520);
+  const infill = generateInfillLots(rand, base);
+  return base.concat(infill).slice(0, 860).map((lot, i) => varyLot(rand, lot, i));
 }
 
 function generateTrees(rand, lots) {
@@ -377,6 +454,23 @@ export function createWorldObstacles(layout = createWorldLayout(1)) {
   layout.trees.forEach((tree) => {
     const p = sceneToWorld(tree.x, tree.z);
     obstacles.push(circle(tree.id, p.x, p.y, 16 + tree.scale * 7, "tree"));
+  });
+
+  // 可见的淀川水面本身也阻挡玩家；桥的位置留出通道，避免再出现“看不见的空气墙”。
+  const riverZ = 238;
+  const waterW = 28;
+  const bridgeCenters = [-252, -96, 112, 252];
+  const gaps = bridgeCenters.map((x) => [x - 8.8, x + 8.8]);
+  let cursor = -MAP_W / 2;
+  gaps.concat([[MAP_W / 2, MAP_W / 2]]).forEach(([gapMin, gapMax], i) => {
+    const segMin = cursor;
+    const segMax = Math.min(gapMin, MAP_W / 2);
+    if (segMax - segMin > 4) {
+      const center = (segMin + segMax) / 2;
+      const p = sceneToWorld(center, riverZ);
+      obstacles.push(rect(`yodogawa-water-${i}`, p.x, p.y, (segMax - segMin) / WORLD_SCALE, waterW / WORLD_SCALE, "water"));
+    }
+    cursor = Math.max(cursor, gapMax);
   });
 
   return obstacles;

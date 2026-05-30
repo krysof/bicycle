@@ -286,6 +286,7 @@ export class ThreeRenderer {
     this.clockObjects = [];
     this.clouds = [];
     this.birds = [];
+    this.crows = [];
     this.floatingBits = [];
     this.animals = [];
     this.insects = [];
@@ -344,6 +345,7 @@ export class ThreeRenderer {
     this.clockObjects = [];
     this.clouds = [];
     this.birds = [];
+    this.crows = [];
     this.floatingBits = [];
     this.animals = [];
     this.insects = [];
@@ -514,6 +516,18 @@ export class ThreeRenderer {
       this.scene.add(bird);
       this.birds.push({ bird, baseX: bird.position.x, phase: i * 0.8, speed: 0.16 + i * 0.015 });
     }
+    const skyKinds = [
+      ["pigeon", 0x7b858f], ["pigeon", 0x6f7884], ["seagull", 0xf4f4ee], ["seagull", 0xffffff],
+      ["crow", 0x1f2428], ["crow", 0x111417], ["pigeon", 0x87909a], ["seagull", 0xf7f7f0],
+    ];
+    skyKinds.forEach(([kind, color], i) => {
+      const bird = this.createSkyBird(kind, color);
+      bird.position.set(-150 + i * 44, 34 + (i % 4) * 4, -118 + (i % 3) * 38);
+      const scale = kind === "seagull" ? 1.25 : kind === "crow" ? 1.12 : 0.95;
+      bird.scale.setScalar(scale);
+      this.scene.add(bird);
+      this.birds.push({ group: bird, kind, baseX: bird.position.x, baseY: bird.position.y, baseZ: bird.position.z, phase: i * 1.17, speed: 0.10 + i * 0.012, amplitude: 18 + i * 2 });
+    });
   }
 
   addGround() {
@@ -965,6 +979,26 @@ export class ThreeRenderer {
     net.position.set(x, 0.26, z);
     const bins = [-0.35, 0.2].map((dx, i) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.28), mat(i ? 0x4f91d5 : 0xd59a34)); b.position.set(x + dx, 0.25, z); return b; });
     this.scene.add(base, net, ...bins);
+    // 日本住宅区常见的防鸟垃圾网：乌鸦会停在旁边翻找，增加生活感。
+    if ((Math.round(Math.abs(x + z)) % 2) === 0) this.addCrowAtGarbage(x + 0.82, z - 0.18);
+  }
+
+  addCrowAtGarbage(x, z) {
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    const bag = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 7), mat(0x242526));
+    bag.position.set(-0.10, 0.15, 0.10);
+    bag.scale.set(1.25, 0.72, 0.9);
+    const wrapper = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.025, 0.22), transparentMat(0xf0f0e8, 0.52));
+    wrapper.position.set(0.18, 0.08, -0.04);
+    wrapper.rotation.y = 0.35;
+    const crow = this.createAnimal("crow", 0x16191c);
+    crow.position.set(0.24, 0.02, 0.03);
+    crow.rotation.y = -0.45;
+    crow.scale.setScalar(1.08);
+    group.add(bag, wrapper, crow);
+    this.scene.add(group);
+    this.crows.push({ group, crow, bag, baseY: crow.position.y, phase: this.crows.length * 0.9 });
   }
 
   addPhoneBooth(x, z) {
@@ -1531,21 +1565,8 @@ export class ThreeRenderer {
     const fields = landmarks.fields || [[86, -64], [100, -62]];
     const [signX, signZ] = landmarks.sign || [-18, 72];
 
-    // 南侧宽河川和堤防道路（神崎川 / 河川敷感）：下凹水面 + 护岸 + 围栏。
-    this.addPlane(0, 0.018, MAP_D / 2 - 25, MAP_W - 22, 26, 0x87b7a2, 0);
-    this.addPlane(0, 0.026, MAP_D / 2 - 25, MAP_W - 34, 18, 0x63b7c9, 0);
-    this.addPlane(0, 0.072, MAP_D / 2 - 39, MAP_W - 28, 0.58, 0xd8d0b6, 0);
-    this.addPlane(0, 0.072, MAP_D / 2 - 11, MAP_W - 28, 0.58, 0xd8d0b6, 0);
-    for (let x = -340; x <= 340; x += 18) {
-      const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.72, 8), mat(0x8b928a));
-      p1.position.set(x, 0.42, MAP_D / 2 - 38.3);
-      const p2 = p1.clone(); p2.position.z = MAP_D / 2 - 11.7;
-      this.scene.add(p1, p2);
-    }
-    this.addPlane(0, 0.84, MAP_D / 2 - 38.3, MAP_W - 28, 0.12, 0xf0efe4, 0);
-    this.addPlane(0, 0.84, MAP_D / 2 - 11.7, MAP_W - 28, 0.12, 0xf0efe4, 0);
-    this.addPlane(0, 0.067, MAP_D / 2 - 62, MAP_W - 30, 7.2, COLORS.asphalt, 0);
-    for (let x = -330; x <= 330; x += 110) this.addPlane(x, 0.075, MAP_D / 2 - 62, 2.6, 0.09, COLORS.lane, 0);
+    // 淀川风格的大河：贯穿整个区域，有河堤、河边树、鸭子和桥。
+    this.addYodogawaRiver();
 
     // 不再添加额外蓝色斜线/水渠，避免画面出现两种蓝色水体。
     this.addPlane(parkX, 0.05, parkZ, 18, 12, 0x71bb70, -0.03); this.addSign(parkX, parkZ - 8, sceneLabel("park")); this.addBench(parkX - 4, parkZ); this.addBench(parkX + 4, parkZ + 3); this.addTree(parkX - 8, parkZ - 6, true, 1.3); this.addTree(parkX + 8, parkZ - 3, false, 1.2);
@@ -1557,6 +1578,50 @@ export class ThreeRenderer {
     this.addTorii(shrineX, shrineZ); this.addStoneLantern(shrineX - 6, shrineZ - 4); this.addStoneLantern(shrineX + 6, shrineZ - 4);
     fields.forEach(([x, z]) => this.addField(x, z)); this.addSign(signX, signZ, sceneLabel("neighborhood"));
     (landmarks.poles || []).forEach(({ x, z }) => this.addUtilityPole(x, z));
+  }
+
+  addYodogawaRiver() {
+    const riverZ = 238;
+    const waterW = 28;
+    const bankW = 54;
+    this.addPlane(0, 0.018, riverZ, MAP_W + 12, bankW, 0x87b7a2, 0);
+    this.addPlane(0, 0.026, riverZ, MAP_W + 4, waterW, 0x63b7c9, 0);
+    this.addPlane(0, 0.055, riverZ - waterW / 2 - 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
+    this.addPlane(0, 0.055, riverZ + waterW / 2 + 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
+    this.addPlane(0, 0.083, riverZ - waterW / 2 - 7.2, MAP_W - 16, 1.0, 0xd8d0b6, 0);
+    this.addPlane(0, 0.083, riverZ + waterW / 2 + 7.2, MAP_W - 16, 1.0, 0xd8d0b6, 0);
+    this.addPlane(0, 0.090, riverZ - waterW / 2 - 12.0, MAP_W - 30, 4.2, COLORS.asphalt, 0);
+    this.addPlane(0, 0.090, riverZ + waterW / 2 + 12.0, MAP_W - 30, 4.2, COLORS.asphalt, 0);
+    [-1, 1].forEach((side) => {
+      const railZ = riverZ + side * (waterW / 2 + 1.7);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(MAP_W - 20, 0.08, 0.08), mat(0xdfe5df));
+      rail.position.set(0, 0.46, railZ);
+      this.scene.add(rail);
+      for (let x = -350; x <= 350; x += 16) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.56, 0.08), mat(0xc8d0c8));
+        post.position.set(x, 0.28, railZ);
+        this.scene.add(post);
+      }
+    });
+    for (let x = -348; x <= 348; x += 28) {
+      this.addTree(x + ((Math.floor((x + 400) / 28) % 2) ? 5 : -5), riverZ - waterW / 2 - 15.4, false, 0.78);
+      if ((x / 28) % 2 === 0) this.addTree(x + 8, riverZ + waterW / 2 + 15.2, true, 0.72);
+    }
+    [-252, -96, 112, 252].forEach((x) => {
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(13.5, 0.20, bankW + 8), mat(0xb8b3a5));
+      bridge.position.set(x, 0.18, riverZ);
+      this.scene.add(bridge);
+      const road = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.05, bankW + 11), mat(COLORS.asphalt));
+      road.position.set(x, 0.235, riverZ);
+      this.scene.add(road);
+    });
+    for (let i = 0; i < 9; i += 1) {
+      const duck = this.createAnimal("duck", i % 2 ? 0xf2e2a0 : 0xf0d56f);
+      duck.position.set(-250 + i * 58, 0.045, riverZ - 8 + (i % 3) * 6);
+      duck.scale.setScalar(1.2);
+      this.scene.add(duck);
+      this.animals.push({ group: duck, kind: "duck", x: duck.position.x, z: duck.position.z, range: 4.0, speed: 0.12 + i * 0.006, phase: i * 0.7, water: true });
+    }
   }
 
   addAmbientLife() {
@@ -1780,7 +1845,7 @@ export class ThreeRenderer {
     const animalMat = mat(color);
     const dark = mat(0x2f2b28);
     const beakMat = mat(0xe7a93b);
-    const isBird = kind === "sparrow" || kind === "duck";
+    const isBird = kind === "sparrow" || kind === "duck" || kind === "crow";
     const isRabbit = kind === "rabbit";
     const body = new THREE.Mesh(new THREE.SphereGeometry(kind === "dog" ? 0.24 : isBird ? 0.14 : 0.19, 14, 9), animalMat);
     body.scale.set(kind === "dog" ? 1.35 : isBird ? 1.16 : 1.18, isBird ? 0.82 : 0.72, 0.72);
@@ -1819,17 +1884,54 @@ export class ThreeRenderer {
       group.add(ear1, ear2);
     }
     if (isBird) {
-      const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.018, 0.055), mat(kind === "duck" ? 0xf5f1d0 : 0x6e573b));
+      const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.018, 0.055), mat(kind === "duck" ? 0xf5f1d0 : kind === "crow" ? 0x0e1012 : 0x6e573b));
       const wing2 = wing1.clone();
       wing1.position.set(-0.02, 0.29, -0.105);
       wing2.position.set(-0.02, 0.29, 0.105);
-      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.10, 8), beakMat);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.10, 8), kind === "crow" ? mat(0x242424) : beakMat);
       beak.rotation.z = -Math.PI / 2;
       beak.position.set(0.305, head.position.y, 0);
       group.add(wing1, wing2, beak);
       group.userData.wings = [wing1, wing2];
     }
     group.userData.legs = legs;
+    return group;
+  }
+
+  createSkyBird(kind, color) {
+    const group = new THREE.Group();
+    const bodyMat = mat(color);
+    const dark = mat(kind === "crow" ? 0x08090a : 0x4f5963);
+    const tipMat = mat(kind === "seagull" ? 0x8d969d : kind === "crow" ? 0x0a0b0c : 0x6a7078);
+    const beakMat = mat(kind === "crow" ? 0x252525 : 0xe0a03b);
+
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 8), bodyMat);
+    body.scale.set(kind === "seagull" ? 1.32 : 1.12, 0.58, 0.52);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 7), bodyMat);
+    head.position.set(0.22, 0.02, 0);
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.10, 8), beakMat);
+    beak.rotation.z = -Math.PI / 2;
+    beak.position.set(0.31, 0.02, 0);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.22, 8), dark);
+    tail.rotation.z = Math.PI / 2;
+    tail.position.set(-0.25, -0.01, 0);
+
+    const wingGeo = new THREE.BoxGeometry(kind === "seagull" ? 0.56 : 0.46, 0.018, 0.13);
+    const wingL = new THREE.Mesh(wingGeo, kind === "pigeon" ? tipMat : bodyMat);
+    const wingR = wingL.clone();
+    wingL.position.set(-0.03, 0.01, -0.24);
+    wingR.position.set(-0.03, 0.01, 0.24);
+    wingL.rotation.z = 0.30;
+    wingR.rotation.z = -0.30;
+    if (kind === "seagull") {
+      const tipL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, 0.08), tipMat);
+      const tipR = tipL.clone();
+      tipL.position.set(-0.26, 0, -0.31);
+      tipR.position.set(-0.26, 0, 0.31);
+      group.add(tipL, tipR);
+    }
+    group.add(body, head, beak, tail, wingL, wingR);
+    group.userData.wings = [wingL, wingR];
     return group;
   }
 
@@ -2694,7 +2796,28 @@ export class ThreeRenderer {
     if (this.targetRing?.visible) { const pulse = 1 + Math.sin(t * 3) * 0.045; this.targetRing.scale.multiplyScalar(pulse / this.lastTargetScale); this.lastTargetScale = pulse; this.targetBeam.material.opacity = 0.24 + Math.sin(t * 2.4) * 0.06; } else this.lastTargetScale = 1;
     this.clockObjects.forEach((obj, i) => { obj.rotation.y = Math.sin(t * 0.35 + i) * 0.045; });
     this.clouds.forEach((item) => { item.group.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * item.amplitude; });
-    this.birds.forEach((item) => { item.bird.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * 5.5; item.bird.position.y += Math.sin(t * 0.8 + item.phase) * 0.002; });
+    this.birds.forEach((item) => {
+      const bird = item.group || item.bird;
+      if (!bird) return;
+      bird.position.x = item.baseX + Math.sin(t * item.speed + item.phase) * (item.amplitude || 5.5);
+      if (Number.isFinite(item.baseY)) {
+        bird.position.y = item.baseY + Math.sin(t * 0.8 + item.phase) * 1.0;
+        bird.position.z = item.baseZ + Math.cos(t * item.speed * 0.75 + item.phase) * 4.5;
+        bird.rotation.y = Math.sin(t * item.speed + item.phase) * 0.24;
+        (bird.userData?.wings || []).forEach((wing, wi) => { wing.rotation.z = (wi ? -1 : 1) * (0.18 + Math.sin(t * 7.2 + item.phase) * 0.34); });
+      } else {
+        bird.position.y += Math.sin(t * 0.8 + item.phase) * 0.002;
+      }
+    });
+    this.crows.forEach((item) => {
+      const p = t * 2.5 + item.phase;
+      item.crow.rotation.z = Math.sin(p) * 0.08;
+      item.crow.rotation.y = -0.45 + Math.sin(p * 0.7) * 0.18;
+      item.crow.position.y = item.baseY + Math.max(0, Math.sin(p)) * 0.05;
+      const head = item.crow.children?.[1];
+      if (head) head.rotation.z = -0.35 + Math.sin(p * 1.5) * 0.32;
+      item.bag.rotation.y = Math.sin(p * 1.1) * 0.12;
+    });
   }
 
   addPlane(x, y, z, w, d, color, rot = 0) { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), mat(color)); mesh.position.set(x, y, z); mesh.rotation.y = rot; mesh.receiveShadow = true; this.scene.add(mesh); return mesh; }

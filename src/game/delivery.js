@@ -490,6 +490,11 @@ export function requestDelivery(state) {
     const dx = targetX - state.player.x;
     const dy = targetY - state.player.y;
     const len = Math.max(1, Math.hypot(dx, dy));
+    const faceAngle = Math.atan2(dy, dx);
+    state.player.headingAngle = faceAngle;
+    state.player.headingX = Math.cos(faceAngle);
+    state.player.headingY = Math.sin(faceAngle);
+    state.player.facing = state.player.headingX >= 0 ? 1 : -1;
     state.delivery = {
       active: true,
       t: 0,
@@ -559,6 +564,7 @@ export function updatePlayer(state, dt) {
   const reverseFactor = mode === "bike" ? 0.36 : 0.55;
   const target = currentTarget(state);
   const autoNav = Boolean(state.autoForward && target && !state.delivery?.active);
+  const deliverReady = Boolean(target && canDeliverNow(state, target));
   state.autoNavMoving = false;
   state.autoAvoiding = false;
   state.autoAvoidCooldown = Math.max(0, (state.autoAvoidCooldown || 0) - dt);
@@ -581,7 +587,14 @@ export function updatePlayer(state, dt) {
     && nearInfo.ahead !== false
     && (state.autoAvoidCooldown || 0) <= 0;
 
-  if (autoNav && shouldYield) {
+  if (deliverReady) {
+    // 进入可投递范围后自动面向被投递的房子；老人只要按投递即可，不必再微调朝向。
+    const faceAngle = Math.atan2(target.y - state.player.y, target.x - state.player.x);
+    const diff = normalizeAngle(faceAngle - state.player.headingAngle);
+    const maxTurn = (mode === "bike" ? 3.4 : 4.8) * dt;
+    state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+    throttle = 0;
+  } else if (autoNav && shouldYield) {
     throttle = 0;
     state.autoAvoiding = true;
     state.autoNavMoving = false;
