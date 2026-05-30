@@ -148,9 +148,50 @@ function makeCleanIntersections(segments) {
   return points;
 }
 
+function makeSegment(id, x1, z1, x2, z2, highway = "residential", main = false) {
+  return { id, x1, z1, x2, z2, highway, main, name: "", dir: "line" };
+}
+
+function makeCuratedKitaeguchiRoads() {
+  // 手工整理的“北江口参考”街区骨架：横平竖直、间距清楚、没有断头小黑块。
+  // 不再把 OSM 折线逐条转换；OSM 只作为区域/建筑/水路参考，游戏道路使用干净街区版。
+  const roads = [];
+  [
+    ["h-main-north", -244, -348, 326, "tertiary", true],
+    ["h-school", -212, -338, 318, "residential", false],
+    ["h-west-south", -178, -326, 228, "residential", false],
+    ["h-market", -142, -286, 312, "tertiary", true],
+    ["h-center-a", -104, -326, 306, "residential", false],
+    ["h-center-b", -50, -334, 324, "residential", false],
+    ["h-community", 18, -312, 316, "tertiary", true],
+    ["h-east-park", 96, -304, 326, "residential", false],
+    ["h-south-a", 204, -318, 316, "residential", false],
+    ["h-south-b", 232, -302, 286, "residential", false],
+    ["h-river-side", 256, -252, 242, "residential", false],
+  ].forEach(([id, z, x1, x2, highway, main]) => roads.push(makeSegment(id, x1, z, x2, z, highway, main)));
+
+  [
+    ["v-west-edge", -316, -252, 26, "residential", false],
+    ["v-west-town", -252, -246, 238, "tertiary", true],
+    ["v-west-mid", -210, -228, 222, "residential", false],
+    ["v-old-street", -172, -214, 210, "residential", false],
+    ["v-shop-street", -96, -246, 254, "tertiary", true],
+    ["v-center-west", -22, -218, 210, "residential", false],
+    ["v-center", 56, -244, 232, "residential", false],
+    ["v-east-center", 112, -160, 216, "tertiary", true],
+    ["v-east-home", 160, -208, 222, "residential", false],
+    ["v-east-school", 180, -244, -92, "residential", false],
+    ["v-river-approach", 224, -198, 256, "residential", false],
+    ["v-east-main", 252, -246, 236, "tertiary", true],
+    ["v-far-east", 312, -244, 64, "residential", false],
+  ].forEach(([id, x, z1, z2, highway, main]) => roads.push(makeSegment(id, x, z1, x, z2, highway, main)));
+
+  return roads;
+}
+
 export const RAW_ROAD_SEGMENTS = ROAD_SEGMENTS_OSM.map((seg) => ({ ...seg, dir: "line" }));
-// 北江口周边真实路网的“干净游戏版”：保留区域结构，但风格化成横平竖直的 90 度道路。
-export const ROAD_SEGMENTS = makeCleanRoadSegments(ROAD_SEGMENTS_OSM);
+// 北江口周边真实路网的“干净游戏版”：手工整理成 90 度道路骨架，避免奇怪的大块路口。
+export const ROAD_SEGMENTS = makeCuratedKitaeguchiRoads();
 export const RAIL_SEGMENTS = RAIL_SEGMENTS_OSM;
 export const WATER_SEGMENTS = WATER_SEGMENTS_OSM;
 export const ROAD_INTERSECTIONS = makeCleanIntersections(ROAD_SEGMENTS);
