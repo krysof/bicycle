@@ -227,7 +227,7 @@ export class ThreeRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1214,7 +1214,7 @@ export class ThreeRenderer {
     const leafMat = new THREE.MeshBasicMaterial({ color: 0xe8b65c, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false });
     const petalMat = new THREE.MeshBasicMaterial({ color: 0xffb7cc, transparent: true, opacity: 0.78, side: THREE.DoubleSide, depthWrite: false });
     const leafGeo = new THREE.PlaneGeometry(0.22, 0.09);
-    for (let i = 0; i < 58; i += 1) {
+    for (let i = 0; i < 42; i += 1) {
       const matItem = i % 3 === 0 ? petalMat : leafMat;
       const bit = new THREE.Mesh(leafGeo, matItem.clone());
       const x = -MAP_W / 2 + 20 + ((i * 83) % (MAP_W - 40));

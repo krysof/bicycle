@@ -5,8 +5,8 @@ export const WORLD_BOUNDS = { minX: -16740, maxX: 16740, minY: -12675, maxY: 126
 export const PLAYER_RADIUS = { walk: 52, bike: 72 };
 export const MAP_W = 744;
 export const MAP_D = 563;
-export const ROAD_X = Array.from({ length: 21 }, (_, i) => -320 + i * 32);
-export const ROAD_Z = Array.from({ length: 16 }, (_, i) => -240 + i * 32);
+export const ROAD_X = [-328, -276, -218, -162, -96, -38, 24, 88, 156, 236, 316];
+export const ROAD_Z = [-232, -172, -116, -64, -18, 44, 112, 188, 244];
 
 const BUILDING_VARIANTS = [
   "house-red", "house-blue", "house-green", "house-brown", "modern-home", "old-wood",
@@ -82,7 +82,7 @@ function isReservedSceneSpot(x, z, marginX = 10.5, marginZ = 8.5) {
 function makeLot(rand, id, x, z, orientation = "h") {
   // 大阪旧住宅区参考：小间口、深进深、木造二层 / 长屋感，整体沿道路整齐退让。
   const scale = 0.88 + rand() * 0.18;
-  const osakaVariants = ["old-wood", "old-wood", "house-brown", "house-red", "house-blue", "modern-home", "bakery", "bookstore", "barber", "fish-shop"];
+  const osakaVariants = ["old-wood", "old-wood", "old-wood", "house-brown", "house-red", "house-blue", "modern-home", "house-brown", "house-blue", "fish-shop"];
   return {
     id,
     x,
@@ -101,7 +101,7 @@ function makeLot(rand, id, x, z, orientation = "h") {
 function generateLots(rand) {
   const lots = [];
   let idx = 0;
-  const frontageXs = Array.from({ length: 49 }, (_, i) => -336 + i * 14).filter((x) => Math.abs(x) > 10);
+  const frontageXs = [-346, -332, -304, -290, -250, -236, -204, -190, -148, -134, -108, -84, -58, -24, 42, 70, 104, 132, 170, 198, 250, 278, 330, 346];
   for (const roadZ of ROAD_Z) {
     for (const side of [-1, 1]) {
       for (const baseX of frontageXs) {
@@ -119,7 +119,7 @@ function generateLots(rand) {
   // 少量转角店铺 / 竖向住宅，避免网格过空，但不再生成窄小怪路。
   for (const roadX of ROAD_X.filter((x) => x !== 0)) {
     for (const side of [-1, 1]) {
-      for (let z = -224; z <= 224; z += 32) {
+      for (const z of [-224, -176, -128, -76, -24, 52, 120, 190, 236]) {
         if (rand() < 0.55 || nearAny(z, ROAD_Z, 7.2)) { idx += 1; continue; }
         const x = roadX + side * (13.8 + rand() * 0.8);
         if (x < -365 || x > 365) { idx += 1; continue; }
@@ -130,13 +130,13 @@ function generateLots(rand) {
       }
     }
   }
-  return lots.slice(0, 420).concat(SERVICE_LOTS.map((lot) => ({ ...lot, fixedService: true })));
+  return lots.slice(0, 96).concat(SERVICE_LOTS.map((lot) => ({ ...lot, fixedService: true })));
 }
 
 function generateTrees(rand, lots) {
   const trees = [];
   let attempts = 0;
-  while (trees.length < 260 && attempts < 1800) {
+  while (trees.length < 70 && attempts < 650) {
     attempts += 1;
     const x = -350 + rand() * 700;
     const z = -260 + rand() * 520;
