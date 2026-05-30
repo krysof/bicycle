@@ -333,6 +333,16 @@ function snapRightAngle(angle = 0) {
   return Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
 }
 
+function stableHash(value = "") {
+  let h = 2166136261;
+  const text = String(value);
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
 export class ThreeRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -899,38 +909,107 @@ export class ThreeRenderer {
   addSimpleResidentialLot(group, roof, wall, scale = 1, spec = null) {
     const yardW = spec?.frontage || 6.0;
     const yardD = spec?.depth || 6.8;
-    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.016, yardD), mat(0xb9ddb0));
+    const seed = stableHash(spec?.id || `${spec?.x || 0},${spec?.z || 0}`);
+    const houseStyle = seed % 10;
+    const detachedWallPalette = [wall, 0xe8dac4, 0xf2eadb, 0xd9cfb9, 0xe5e1d2, 0xd0d7cf, 0xf0dfcf, 0xd7c4a7];
+    const wallColor = detachedWallPalette[seed % detachedWallPalette.length];
+    const yard = new THREE.Mesh(new THREE.BoxGeometry(yardW, 0.016, yardD), mat(houseStyle % 3 === 0 ? 0xc9dfba : 0xb9ddb0));
     yard.position.set(0, 0.055, 0);
     yard.receiveShadow = true;
     group.add(yard);
 
-    const w = Math.max(2.1, yardW * 0.62) * scale;
-    const d = Math.max(2.3, yardD * 0.56) * scale;
-    // 人物约 1.5 场景单位高，住宅至少要有两层量感；主要增加高度，不扩大占地，避免压路。
-    const h = Math.max(2.15, Math.min(3.35, 2.35 * scale + ((spec?.depth || 6) - 5) * 0.07));
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(wall));
+    const w = Math.max(2.0, yardW * (0.52 + (seed % 5) * 0.035)) * scale;
+    const d = Math.max(2.1, yardD * (0.46 + ((seed >> 4) % 5) * 0.035)) * scale;
+    // “一户建”不是统一平房：多数为二层，部分有错层 / 附属体 / 车库。
+    const h = Math.max(2.35, Math.min(3.85, (2.52 + (houseStyle % 4) * 0.18) * scale + ((spec?.depth || 6) - 5) * 0.06));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(wallColor));
     body.position.y = h / 2 + 0.09;
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
 
-    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.78, 4), mat(roof));
+    if (houseStyle === 2 || houseStyle === 6 || houseStyle === 9) {
+      const upperW = w * (houseStyle === 9 ? 0.62 : 0.76);
+      const upperD = d * (houseStyle === 6 ? 0.62 : 0.74);
+      const upper = new THREE.Mesh(new THREE.BoxGeometry(upperW, h * 0.42, upperD), mat(detachedWallPalette[(seed + 3) % detachedWallPalette.length]));
+      upper.position.set(houseStyle === 9 ? -w * 0.14 : 0, h + h * 0.20 - 0.08, houseStyle === 6 ? -d * 0.10 : 0);
+      upper.castShadow = true;
+      upper.receiveShadow = true;
+      group.add(upper);
+      this.markEraDetail(upper);
+    }
+
+    this.addDetachedRoof(group, { w, d, h, roof, scale, style: houseStyle, seed });
+
+    if (houseStyle === 1 || houseStyle === 5 || houseStyle === 8) {
+      const annexW = Math.min(1.35 * scale, w * 0.46);
+      const annexD = Math.min(1.55 * scale, d * 0.52);
+      const annex = new THREE.Mesh(new THREE.BoxGeometry(annexW, h * 0.52, annexD), mat(detachedWallPalette[(seed + 5) % detachedWallPalette.length]));
+      annex.position.set(-w * 0.46, h * 0.26 + 0.09, d * 0.18);
+      annex.castShadow = true;
+      annex.receiveShadow = true;
+      group.add(annex);
+      const annexRoof = new THREE.Mesh(new THREE.BoxGeometry(annexW * 1.10, 0.10, annexD * 1.12), mat(roof));
+      annexRoof.position.set(annex.position.x, h * 0.53 + 0.20, annex.position.z);
+      annexRoof.rotation.z = houseStyle === 8 ? 0.05 : -0.05;
+      group.add(annexRoof);
+      this.markEraDetail(annex, annexRoof);
+    }
+
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.82, 0.035), mat(0x6b4d33));
+    const doorX = houseStyle % 2 ? -w * 0.22 : w * 0.25;
+    door.position.set(doorX, 0.52, d / 2 + 0.025);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.36, 0.032), mat(0xdff3ff));
+    win.position.set(houseStyle % 2 ? w * 0.20 : -w * 0.22, 1.05, d / 2 + 0.028);
+    group.add(door, win);
+    this.addSimpleResidentialDetails(group, { w, d, h, scale, roof, wall: wallColor, spec, style: houseStyle, seed, doorX });
+  }
+
+  addDetachedRoof(group, cfg) {
+    const { w, d, h, roof, scale, style, seed } = cfg;
+    const roofMat = mat(roof);
+    const roofType = style % 5;
+    if (roofType === 1) {
+      const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(w * 1.14, 0.18 * scale, d * 1.14), roofMat);
+      roofMesh.position.y = h + 0.18;
+      roofMesh.rotation.z = ((seed % 2) ? 0.07 : -0.07);
+      group.add(roofMesh);
+      const parapet = new THREE.Mesh(new THREE.BoxGeometry(w * 1.02, 0.16 * scale, 0.09 * scale), mat(0x6f7f82));
+      parapet.position.set(0, h + 0.33, d * 0.55);
+      group.add(parapet);
+      this.markEraDetail(roofMesh, parapet);
+      return;
+    }
+    if (roofType === 2) {
+      const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.62 * scale, 4), roofMat);
+      roofMesh.position.y = h + 0.47;
+      roofMesh.rotation.y = Math.PI / 4;
+      roofMesh.scale.set(1.04, 1, Math.max(0.74, d / Math.max(w, 0.1)));
+      roofMesh.castShadow = true;
+      group.add(roofMesh);
+      return;
+    }
+    if (roofType === 3) {
+      const roofA = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, 0.12 * scale, d * 0.62), roofMat);
+      roofA.position.set(0, h + 0.34, d * 0.16);
+      roofA.rotation.x = 0.18;
+      const roofB = roofA.clone();
+      roofB.position.z = -d * 0.16;
+      roofB.rotation.x = -0.18;
+      group.add(roofA, roofB);
+      this.markEraDetail(roofA, roofB);
+      return;
+    }
+    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * (roofType === 4 ? 0.60 : 0.72), 0.78 * scale, 4), roofMat);
     roofMesh.position.y = h + 0.55;
-    roofMesh.rotation.y = Math.PI / 4;
+    roofMesh.rotation.y = roofType === 4 ? 0 : Math.PI / 4;
     roofMesh.scale.z = Math.max(0.72, d / Math.max(w, 0.1));
     roofMesh.castShadow = true;
     group.add(roofMesh);
-
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.82, 0.035), mat(0x6b4d33));
-    door.position.set(w * 0.25, 0.52, d / 2 + 0.025);
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.36, 0.032), mat(0xdff3ff));
-    win.position.set(-w * 0.22, 1.05, d / 2 + 0.028);
-    group.add(door, win);
-    this.addSimpleResidentialDetails(group, { w, d, h, scale, roof, wall, spec });
   }
 
   addSimpleResidentialDetails(group, cfg) {
-    const { w, d, h, scale, roof, spec } = cfg;
+    const { w, d, h, scale, roof, spec, style = 0, seed = 0, doorX = w * 0.25 } = cfg;
     const trim = mat(0x6f7f82);
     const wood = mat(0x76583f);
     const glass = mat(0xe9f7ff, 0.42);
@@ -953,18 +1032,18 @@ export class ThreeRenderer {
     }
 
     const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.43 * scale, 0.82 * scale, 0.026), mat(0xf8efdc));
-    doorFrame.position.set(w * 0.25, 0.53, d / 2 + 0.038);
+    doorFrame.position.set(doorX, 0.53, d / 2 + 0.038);
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.032 * scale, 8, 6), mat(0xf3c35a));
-    knob.position.set(w * 0.35, 0.48, d / 2 + 0.068);
+    knob.position.set(doorX + 0.10 * scale, 0.48, d / 2 + 0.068);
     group.add(doorFrame, knob);
 
     const windowSpecs = [
-      [-w * 0.24, 0.92, d / 2 + 0.052, 0.50, 0.36, 0],
-      [w * 0.08, 1.34, d / 2 + 0.052, 0.42, 0.30, 0],
+      [doorX > 0 ? -w * 0.24 : w * 0.24, 0.92, d / 2 + 0.052, 0.44 + (seed % 3) * 0.06, 0.32 + (seed % 2) * 0.04, 0],
+      [style % 3 === 0 ? w * 0.08 : -w * 0.05, 1.34 + (style % 2) * 0.12, d / 2 + 0.052, 0.38 + (seed % 4) * 0.03, 0.28, 0],
       [-w / 2 - 0.025, 0.92, -d * 0.12, 0.34, 0.28, Math.PI / 2],
       [w / 2 + 0.025, 1.04, -d * 0.18, 0.34, 0.28, Math.PI / 2],
-      [-w * 0.16, 1.18, -d / 2 - 0.025, 0.42, 0.30, 0],
-      [w * 0.20, 0.86, -d / 2 - 0.025, 0.38, 0.26, 0],
+      [-w * 0.16, 1.18, -d / 2 - 0.025, style % 4 === 0 ? 0.62 : 0.42, 0.30, 0],
+      [w * 0.20, 0.86, -d / 2 - 0.025, style % 5 === 0 ? 0.24 : 0.38, 0.26, 0],
     ];
     windowSpecs.forEach(([x, y, z, ww, hh, rot]) => {
       const pane = new THREE.Mesh(new THREE.BoxGeometry(ww * scale, hh * scale, 0.025), glass);
@@ -1016,9 +1095,9 @@ export class ThreeRenderer {
     }
 
     const mailbox = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.18, 0.14), mat(0xdc604c));
-    mailbox.position.set(w * 0.52, 0.26, d / 2 + 0.25);
+    mailbox.position.set(doorX + (doorX > 0 ? 0.34 : -0.34), 0.26, d / 2 + 0.25);
     const namePlate = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.11, 0.025), mat(0xf7efd8));
-    namePlate.position.set(w * 0.52, 0.56, d / 2 + 0.075);
+    namePlate.position.set(doorX + (doorX > 0 ? 0.24 : -0.24), 0.56, d / 2 + 0.075);
     group.add(mailbox, namePlate);
 
     for (let i = 0; i < 3; i += 1) {
@@ -1030,7 +1109,80 @@ export class ThreeRenderer {
       this.markEraDetail(pot, leaf);
     }
 
+    this.addDetachedHouseAccessories(group, { w, d, h, scale, style, seed, doorX, roof });
     this.markEraDetail(eaveF, eaveB, ridge, doorFrame, knob, gutter, pipe, ac, mailbox, namePlate);
+  }
+
+  addDetachedHouseAccessories(group, cfg) {
+    const { w, d, h, scale, style, seed, doorX, roof } = cfg;
+    const stone = mat(0xbdb5a0);
+    const metal = mat(0x87939a, 0.55, 0.08);
+    const wood = mat(0x7a5d43);
+    const frontZ = d / 2 + 0.36;
+
+    const genkan = new THREE.Mesh(new THREE.BoxGeometry(0.78 * scale, 0.08, 0.46 * scale), stone);
+    genkan.position.set(doorX, 0.12, frontZ);
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.88 * scale, 0.08, 0.42 * scale), mat(roof));
+    canopy.position.set(doorX, 0.98, d / 2 + 0.18);
+    canopy.rotation.x = style % 2 ? -0.10 : 0.04;
+    group.add(genkan, canopy);
+    this.markEraDetail(genkan, canopy);
+
+    if (style === 0 || style === 4 || style === 7) {
+      const carport = new THREE.Group();
+      const carX = doorX > 0 ? -w * 0.50 : w * 0.50;
+      const roofPanel = new THREE.Mesh(new THREE.BoxGeometry(1.15 * scale, 0.055, 1.05 * scale), transparentMat(0xdfeaf0, 0.48));
+      roofPanel.position.set(carX, 0.98, d / 2 + 0.28);
+      const posts = [-0.44, 0.44].map((ox) => {
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.86, 8), metal);
+        p.position.set(carX + ox * scale, 0.48, d / 2 + 0.72);
+        return p;
+      });
+      const kei = new THREE.Mesh(new THREE.BoxGeometry(0.72 * scale, 0.32 * scale, 0.56 * scale), mat(seed % 2 ? 0xb8d7e7 : 0xf2f0df));
+      kei.position.set(carX, 0.24, d / 2 + 0.46);
+      carport.add(roofPanel, ...posts, kei);
+      group.add(carport);
+      this.markEraDetail(roofPanel, ...posts, kei);
+    }
+
+    if (style === 3 || style === 8) {
+      const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, d * 0.54), wood);
+      sideWall.position.set(w / 2 + 0.22, 0.38, 0.05);
+      const slatCount = 4;
+      group.add(sideWall);
+      this.markEraDetail(sideWall);
+      for (let i = 0; i < slatCount; i += 1) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.58, 0.06), wood);
+        slat.position.set(w / 2 + 0.30, 0.34, -d * 0.20 + i * d * 0.13);
+        group.add(slat);
+        this.markEraDetail(slat);
+      }
+    }
+
+    if (style === 2 || style === 6 || style === 9) {
+      const laundryPole = new THREE.Mesh(new THREE.BoxGeometry(1.05 * scale, 0.035, 0.035), metal);
+      laundryPole.position.set(-w * 0.10, h * 0.78, d / 2 + 0.34);
+      group.add(laundryPole);
+      this.markEraDetail(laundryPole);
+      for (let i = 0; i < 3; i += 1) {
+        const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.26, 0.025), mat([0xfff1b8, 0xb8d7ff, 0xffc4d8][i]));
+        cloth.position.set(-w * 0.38 + i * 0.28, h * 0.68, d / 2 + 0.35);
+        group.add(cloth);
+        this.markEraDetail(cloth);
+      }
+    }
+
+    if (style === 5 && seed % 3 === 0) {
+      const bikeShed = new THREE.Mesh(new THREE.BoxGeometry(0.82 * scale, 0.06, 0.34 * scale), metal);
+      bikeShed.position.set(doorX > 0 ? -w * 0.50 : w * 0.50, 0.52, d / 2 + 0.48);
+      bikeShed.rotation.x = -0.10;
+      const miniBike = this.createBike();
+      miniBike.scale.setScalar(0.30 * scale);
+      miniBike.position.set(bikeShed.position.x, 0.07, d / 2 + 0.58);
+      miniBike.rotation.y = Math.PI / 2;
+      group.add(bikeShed, miniBike);
+      this.markEraDetail(bikeShed, miniBike);
+    }
   }
 
   addHouse(n) {
