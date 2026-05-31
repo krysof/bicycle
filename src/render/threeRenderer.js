@@ -905,14 +905,14 @@ export class ThreeRenderer {
     const allLots = this.worldLayout?.lots || [];
     // 之前一次性渲染 800+ 户且每户都有大量门窗/小物件，浏览器会变成个位数 FPS。
     // 保留全部碰撞与地面纹理的“城市密度”，3D 实体只渲染重要设施 + 足够多的一户建。
-    const serviceLots = allLots.filter((lot) => lot.fixedService).slice(0, 30);
-    const homeLots = allLots.filter((lot) => !lot.fixedService).slice(0, 135);
+    const serviceLots = allLots.filter((lot) => lot.fixedService).slice(0, 20);
+    const homeLots = allLots.filter((lot) => !lot.fixedService).slice(0, 80);
     serviceLots.concat(homeLots).forEach((lot) => {
       const group = this.addResidentialLot(lot.x, lot.z, lot.roof, lot.wall, lot.scale, lot.variant, lot);
       group.rotation.y = snapRightAngle(Number.isFinite(lot.angle) ? lot.angle : (lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0)));
     });
 
-    (this.worldLayout?.trees || []).slice(0, 62).forEach((tree) => {
+    (this.worldLayout?.trees || []).slice(0, 44).forEach((tree) => {
       this.addTree(tree.x, tree.z, tree.sakura, tree.scale);
     });
   }
@@ -952,41 +952,21 @@ export class ThreeRenderer {
 
   addLiteResidentialLot(group, roof, wallColor, scale = 1, spec = null) {
     const seed = stableHash(spec?.id || `${spec?.x || 0},${spec?.z || 0}`);
-    const isService = Boolean(spec?.fixedService);
     const w = Math.max(1.65, (spec?.frontage || 6.4) * 0.25 * scale);
     const d = Math.max(1.55, (spec?.depth || 6.2) * 0.24 * scale);
-    const h = (isService ? 1.55 : 1.20) * scale + (seed % 5) * 0.08 * scale;
-    const bodyColor = isService
-      ? [0xf4efd9, 0xe6ecf2, 0xf0e1cf, 0xe8efe0][seed % 4]
-      : wallColor;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(bodyColor));
+    const h = (1.20 + (seed % 5) * 0.08) * scale;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(wallColor));
     body.position.y = h / 2 + 0.07;
     body.castShadow = true;
     body.receiveShadow = true;
-    const roofMesh = new THREE.Mesh(
-      seed % 3 === 0 || isService
-        ? new THREE.BoxGeometry(w * 1.10, 0.20 * scale, d * 1.08)
-        : new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.55 * scale, 4),
-      mat(roof)
-    );
-    roofMesh.position.y = isService ? h + 0.18 * scale : h + 0.45 * scale;
-    if (!isService) roofMesh.rotation.y = seed % 2 ? Math.PI / 4 : 0;
+    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.55 * scale, 4), mat(roof));
+    roofMesh.position.y = h + 0.45 * scale;
+    roofMesh.rotation.y = seed % 2 ? Math.PI / 4 : 0;
     const door = new THREE.Mesh(new THREE.BoxGeometry(0.25 * scale, 0.56 * scale, 0.03), mat(0x6b4d33));
     door.position.set(seed % 2 ? -w * 0.20 : w * 0.20, 0.42 * scale, d / 2 + 0.025);
     const win = new THREE.Mesh(new THREE.BoxGeometry(0.36 * scale, 0.25 * scale, 0.028), mat(0xe9f7ff, 0.46));
     win.position.set(seed % 2 ? w * 0.22 : -w * 0.22, 0.88 * scale, d / 2 + 0.03);
-    const win2 = win.clone();
-    win2.position.set(-win.position.x, Math.min(h - 0.18 * scale, 1.28 * scale), d / 2 + 0.032);
-    const awning = new THREE.Mesh(new THREE.BoxGeometry(Math.min(w * 0.72, 1.05 * scale), 0.07 * scale, 0.18 * scale), mat(isService ? 0x3d79b7 : 0x8f9aa0));
-    awning.position.set(0, 0.96 * scale, d / 2 + 0.12 * scale);
-    const mailbox = new THREE.Mesh(new THREE.BoxGeometry(0.16 * scale, 0.13 * scale, 0.10 * scale), mat(0xdc604c));
-    mailbox.position.set(door.position.x + (door.position.x > 0 ? 0.28 : -0.28) * scale, 0.25 * scale, d / 2 + 0.13 * scale);
-    group.add(body, roofMesh, door, win, win2, awning, mailbox);
-    if (seed % 4 === 0 && !isService) {
-      const balcony = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.92 * scale, w * 0.58), 0.08 * scale, 0.18 * scale), mat(0xb8c0c8));
-      balcony.position.set(0, 1.35 * scale, d / 2 + 0.14 * scale);
-      group.add(balcony);
-    }
+    group.add(body, roofMesh, door, win);
   }
 
   addSimpleResidentialLot(group, roof, wall, scale = 1, spec = null) {
