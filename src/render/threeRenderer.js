@@ -79,16 +79,11 @@ function sceneLabel(key) { return SCENE_LABELS[locale]?.[key] ?? SCENE_LABELS.zh
 
 function wx(x) { return x * WORLD_SCALE; }
 function wz(y) { return y * WORLD_SCALE; }
-const MATERIAL_CACHE = new Map();
 function mat(color, roughness = 0.82, metalness = 0.02) {
-  const key = `std:${color}:${roughness}:${metalness}`;
-  if (!MATERIAL_CACHE.has(key)) MATERIAL_CACHE.set(key, new THREE.MeshStandardMaterial({ color, roughness, metalness }));
-  return MATERIAL_CACHE.get(key);
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
 function transparentMat(color, opacity) {
-  const key = `basic:${color}:${opacity}`;
-  if (!MATERIAL_CACHE.has(key)) MATERIAL_CACHE.set(key, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
-  return MATERIAL_CACHE.get(key);
+  return new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
 }
 
 function makeRoadMapTexture(segments) {
@@ -376,8 +371,8 @@ function stableHash(value = "") {
 export class ThreeRenderer {
   constructor(canvas) {
     this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.05));
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
     // 关闭实时阴影。之前高楼和道路在低角度视角下会把大片阴影压到地面，
     // 看起来像破碎的褐色地形块；本项目优先要干净、老人容易辨认的街区画面。
     this.renderer.shadowMap.enabled = false;
@@ -493,6 +488,7 @@ export class ThreeRenderer {
     items.forEach((item) => {
       if (!item) return;
       item.userData.eraDetail = true;
+      item.userData.alwaysDetail = true;
       item.userData.detailVisible = true;
       this.eraDetailCount += 1;
     });
@@ -902,17 +898,12 @@ export class ThreeRenderer {
 
   addProceduralTown() {
     // 每局从共享 layout 生成不同住宅、商店、树木；碰撞体也使用同一份 layout，避免空气墙。
-    const allLots = this.worldLayout?.lots || [];
-    // 之前一次性渲染 800+ 户且每户都有大量门窗/小物件，浏览器会变成个位数 FPS。
-    // 保留全部碰撞与地面纹理的“城市密度”，3D 实体只渲染重要设施 + 足够多的一户建。
-    const serviceLots = allLots.filter((lot) => lot.fixedService).slice(0, 20);
-    const homeLots = allLots.filter((lot) => !lot.fixedService).slice(0, 80);
-    serviceLots.concat(homeLots).forEach((lot) => {
+    (this.worldLayout?.lots || []).forEach((lot) => {
       const group = this.addResidentialLot(lot.x, lot.z, lot.roof, lot.wall, lot.scale, lot.variant, lot);
       group.rotation.y = snapRightAngle(Number.isFinite(lot.angle) ? lot.angle : (lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0)));
     });
 
-    (this.worldLayout?.trees || []).slice(0, 44).forEach((tree) => {
+    (this.worldLayout?.trees || []).forEach((tree) => {
       this.addTree(tree.x, tree.z, tree.sakura, tree.scale);
     });
   }
@@ -922,15 +913,12 @@ export class ThreeRenderer {
     group.position.set(x, 0, z);
     group.rotation.y = 0;
 
-    if (spec) {
-      this.addLiteResidentialLot(group, roof, wall, (spec.fixedService ? 1.35 : 1) * scale, spec);
-      if (spec.fixedService) {
-        const label = makeCanvasLabel(sceneLabel(spec.variant || "shop"), "#345f86");
-        label.position.set(0, 3.25, 0.35);
-        label.scale.set(2.6, 0.82, 1);
-        group.add(label);
-      }
-      this.markLodGroup(group, spec.fixedService ? 112 : 96, Boolean(spec.fixedService));
+    if (spec && !spec.fixedService) {
+      this.addSimpleResidentialLot(group, roof, wall, scale, spec);
+      // 普通住宅也不能一直是低清盒子：近处自动显示门窗、瓦片、空调、阳台等细节，
+      // 只有远处才退回低细节外形以保证性能。
+      this.markLodGroup(group, 118, false);
+      this.registerOccluder(group);
       this.scene.add(group);
       return group;
     }
@@ -946,27 +934,9 @@ export class ThreeRenderer {
 
     this.addBuildingVariant(group, variant, roof, wall, (spec?.frontage ? 1.58 : 2.05) * scale);
     this.markLodGroup(group, spec?.fixedService ? 112 : 58, Boolean(spec?.fixedService));
+    this.registerOccluder(group);
     this.scene.add(group);
     return group;
-  }
-
-  addLiteResidentialLot(group, roof, wallColor, scale = 1, spec = null) {
-    const seed = stableHash(spec?.id || `${spec?.x || 0},${spec?.z || 0}`);
-    const w = Math.max(1.65, (spec?.frontage || 6.4) * 0.25 * scale);
-    const d = Math.max(1.55, (spec?.depth || 6.2) * 0.24 * scale);
-    const h = (1.20 + (seed % 5) * 0.08) * scale;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(wallColor));
-    body.position.y = h / 2 + 0.07;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 0.55 * scale, 4), mat(roof));
-    roofMesh.position.y = h + 0.45 * scale;
-    roofMesh.rotation.y = seed % 2 ? Math.PI / 4 : 0;
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.25 * scale, 0.56 * scale, 0.03), mat(0x6b4d33));
-    door.position.set(seed % 2 ? -w * 0.20 : w * 0.20, 0.42 * scale, d / 2 + 0.025);
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.36 * scale, 0.25 * scale, 0.028), mat(0xe9f7ff, 0.46));
-    win.position.set(seed % 2 ? w * 0.22 : -w * 0.22, 0.88 * scale, d / 2 + 0.03);
-    group.add(body, roofMesh, door, win);
   }
 
   addSimpleResidentialLot(group, roof, wall, scale = 1, spec = null) {
@@ -1257,17 +1227,11 @@ export class ThreeRenderer {
       const dz = wz(n.deliveryY ?? n.y) - wz(n.y);
       group.rotation.y = snapRightAngle(Math.atan2(dx, dz));
     }
-    this.addLiteResidentialLot(
-      group,
-      Number.parseInt(n.roof.slice(1), 16),
-      Number.parseInt(n.wall.slice(1), 16),
-      n.osakaLot ? 2.05 : 2.25,
-      { id: n.id, frontage: 9.4, depth: 8.2 }
-    );
+    this.addTargetLot(group, Number.parseInt(n.roof.slice(1), 16), Number.parseInt(n.wall.slice(1), 16), Number.parseInt(n.trim.slice(1), 16), n.osakaLot ? 2.34 : 2.65, n.variant || TARGET_VARIANTS[n.id] || "house-red");
     const label = makeCanvasLabel(nt(n, "name"), "#2e6650"); label.position.set(0, 5.6, 0.48); group.add(label);
     this.addLandmark(group, n.landmark);
     this.addDeliveryReactionObjects(group, n);
-    this.markLodGroup(group, 96, false);
+    this.markLodGroup(group, 96, true);
     this.registerOccluder(group);
     this.scene.add(group); this.houseMap.set(n.id, group);
   }
@@ -2029,7 +1993,7 @@ export class ThreeRenderer {
     const leafMat = new THREE.MeshBasicMaterial({ color: 0xe8b65c, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false });
     const petalMat = new THREE.MeshBasicMaterial({ color: 0xffb7cc, transparent: true, opacity: 0.78, side: THREE.DoubleSide, depthWrite: false });
     const leafGeo = new THREE.PlaneGeometry(0.22, 0.09);
-    for (let i = 0; i < 16; i += 1) {
+    for (let i = 0; i < 42; i += 1) {
       const matItem = i % 3 === 0 ? petalMat : leafMat;
       const bit = new THREE.Mesh(leafGeo, matItem.clone());
       const x = -MAP_W / 2 + 20 + ((i * 83) % (MAP_W - 40));
@@ -2059,7 +2023,7 @@ export class ThreeRenderer {
     });
 
     const insectColors = [0xffcc66, 0x8bd3ff, 0xff9ecb, 0xc3ee7f, 0xb79cff];
-    for (let i = 0; i < 6; i += 1) {
+    for (let i = 0; i < 18; i += 1) {
       const insect = this.createInsect(i % 3 === 0 ? "dragonfly" : "butterfly", insectColors[i % insectColors.length]);
       const baseX = -96 + ((i * 23) % 192);
       const baseZ = -70 + ((i * 31) % 140);
@@ -2075,7 +2039,7 @@ export class ThreeRenderer {
       .map((seg) => ({ ...seg, len: Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) }))
       .filter((seg) => seg.len > 38)
       .sort((a, b) => b.len - a.len);
-    for (let i = 0; i < 30; i += 1) {
+    for (let i = 0; i < 68; i += 1) {
       const seg = lanes[(i * 5 + Math.floor(i / 3)) % lanes.length];
       const reverse = i % 4 === 0;
       const hasDog = i % 9 === 2 || i % 13 === 5;
@@ -2096,7 +2060,7 @@ export class ThreeRenderer {
         style: i,
       });
     }
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < 24; i += 1) {
       const seg = lanes[(i * 7 + 3) % lanes.length];
       const reverse = i % 3 === 0;
       passerConfigs.push({
@@ -3236,37 +3200,15 @@ export class ThreeRenderer {
   }
 
   registerOccluder(group) {
-    group.updateWorldMatrix(true, true);
-    const box = new THREE.Box3().setFromObject(group);
-    const size = new THREE.Vector3();
-    const center = new THREE.Vector3();
-    box.getSize(size);
-    box.getCenter(center);
-    if (!Number.isFinite(size.x) || size.x <= 0 || size.y <= 0 || size.z <= 0) return;
-    const proxy = new THREE.Mesh(
-      new THREE.BoxGeometry(Math.max(0.4, size.x), Math.max(0.4, size.y), Math.max(0.4, size.z)),
-      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false })
-    );
-    proxy.position.copy(center);
-    proxy.userData.occluderProxy = true;
-    proxy.userData.fadeGroup = group;
-    this.scene.add(proxy);
-    this.occluderMeshes.push(proxy);
+    group.traverse((child) => {
+      if (!child.isMesh) return;
+      if (child.material) child.material = Array.isArray(child.material) ? child.material.map((m) => m.clone()) : child.material.clone();
+      child.userData.occluder = true;
+      this.occluderMeshes.push(child);
+    });
   }
 
-  setOccluderOpacity(meshOrGroup, opacity) {
-    if (!meshOrGroup) return;
-    if (!meshOrGroup.isMesh) {
-      meshOrGroup.traverse?.((child) => {
-        if (child.isMesh && !child.userData?.occluderProxy) this.setOccluderOpacity(child, opacity);
-      });
-      return;
-    }
-    const mesh = meshOrGroup;
-    if (!mesh.userData.occluderMaterialCloned && opacity < 0.99 && mesh.material) {
-      mesh.material = Array.isArray(mesh.material) ? mesh.material.map((m) => m.clone()) : mesh.material.clone();
-      mesh.userData.occluderMaterialCloned = true;
-    }
+  setOccluderOpacity(mesh, opacity) {
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     materials.forEach((material) => {
       if (!material) return;
@@ -3282,9 +3224,6 @@ export class ThreeRenderer {
   }
 
   updateOccluders() {
-    const now = this.clock?.getElapsedTime?.() || 0;
-    if (now - (this.lastOccluderUpdateAt || -99) < 0.12) return;
-    this.lastOccluderUpdateAt = now;
     this.fadedOccluders.forEach((mesh) => this.setOccluderOpacity(mesh, 1));
     this.fadedOccluders.clear();
     if (!this.player || !this.occluderMeshes.length) return;
@@ -3302,9 +3241,8 @@ export class ThreeRenderer {
 
     const hits = this.raycaster.intersectObjects(this.occluderMeshes, false);
     hits.forEach((hit) => {
-      const fadeTarget = hit.object.userData?.fadeGroup || hit.object;
-      this.fadedOccluders.add(fadeTarget);
-      this.setOccluderOpacity(fadeTarget, 0.34);
+      this.fadedOccluders.add(hit.object);
+      this.setOccluderOpacity(hit.object, 0.34);
     });
   }
 
