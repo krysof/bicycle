@@ -376,14 +376,56 @@ function generateLots(rand) {
 function generateTrees(rand, lots) {
   const trees = [];
   let attempts = 0;
-  while (trees.length < 96 && attempts < 1200) {
+  const lotBlocked = (x, z, scale = 0.72) => lots.some((lot) => Math.abs(lot.x - x) < (lot.frontage || 6) * scale && Math.abs(lot.z - z) < (lot.depth || 6) * scale);
+  while (trees.length < 112 && attempts < 1500) {
     attempts += 1;
     const x = -MAP_W / 2 + 20 + rand() * (MAP_W - 40);
     const z = -MAP_D / 2 + 20 + rand() * (MAP_D - 40);
     if (nearAnyRoad(x, z, 7.4) || isReservedSceneSpot(x, z, 9, 8)) continue;
-    if (lots.some((lot) => Math.abs(lot.x - x) < (lot.frontage || 6) * 0.72 && Math.abs(lot.z - z) < (lot.depth || 6) * 0.72)) continue;
-    trees.push({ id: `tree-${trees.length}`, x, z, sakura: rand() < 0.24, scale: 0.62 + rand() * 0.42 });
+    if (lotBlocked(x, z)) continue;
+    trees.push({ id: `tree-${trees.length}`, x, z, sakura: rand() < 0.24, scale: 0.62 + rand() * 0.42, type: pick(rand, ["keyaki", "ginkgo", "pine", "camellia", "sakura"]) });
   }
+
+  // 路边绿化：沿道路两侧增加大量小乔木、灌木和花木，但标记为 decorative，
+  // 不加入碰撞体，避免再次造成看不见的空气墙或把窄路堵死。
+  const roadsideTypes = ["keyaki", "ginkgo", "camellia", "sakura", "pine"];
+  ROAD_SEGMENTS
+    .map((seg) => ({ ...seg, len: Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) }))
+    .filter((seg) => seg.len > 46)
+    .forEach((seg, si) => {
+      if (trees.length > 330) return;
+      const dx = seg.x2 - seg.x1;
+      const dz = seg.z2 - seg.z1;
+      const len = seg.len || 1;
+      const nx = -dz / len;
+      const nz = dx / len;
+      const step = 30 + rand() * 10;
+      const count = Math.max(1, Math.floor(len / step));
+      for (let i = 1; i <= count && trees.length < 330; i += 1) {
+        if (rand() < 0.22) continue;
+        const u = (i - 0.35 + rand() * 0.7) / (count + 0.35);
+        const sides = rand() < 0.32 ? [-1, 1] : [((i + si) % 2 === 0 ? -1 : 1)];
+        sides.forEach((side) => {
+          if (trees.length >= 330) return;
+          const offset = side * (8.8 + rand() * 4.2);
+          const x = seg.x1 + dx * u + nx * offset + (rand() - 0.5) * 1.8;
+          const z = seg.z1 + dz * u + nz * offset + (rand() - 0.5) * 1.8;
+          if (Math.abs(z - 238) < 55) return;
+          if (x < -MAP_W / 2 + 16 || x > MAP_W / 2 - 16 || z < -MAP_D / 2 + 16 || z > MAP_D / 2 - 16) return;
+          if (isReservedSceneSpot(x, z, 9, 8) || lotBlocked(x, z, 0.56)) return;
+          const type = pick(rand, roadsideTypes);
+          trees.push({
+            id: `roadside-green-${trees.length}`,
+            x,
+            z,
+            sakura: type === "sakura",
+            scale: type === "camellia" ? 0.42 + rand() * 0.20 : 0.50 + rand() * 0.34,
+            type,
+            decorative: true,
+          });
+        });
+      }
+    });
   return trees;
 }
 
@@ -455,6 +497,7 @@ export function createWorldObstacles(layout = createWorldLayout(1)) {
   });
 
   layout.trees.forEach((tree) => {
+    if (tree.decorative) return;
     const p = sceneToWorld(tree.x, tree.z);
     obstacles.push(circle(tree.id, p.x, p.y, 16 + tree.scale * 7, "tree"));
   });

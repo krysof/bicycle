@@ -1,5 +1,6 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
 import { neighbors } from "../data/neighbors.js";
+import { playerAvatarById } from "../data/playerAvatars.js";
 import { createWorldLayout, MAP_D, MAP_W, RAIL_SEGMENTS, ROAD_INTERSECTIONS, ROAD_SEGMENTS, ROAD_X, ROAD_Z } from "../data/world.js";
 import { buildAutoNavPath, canDeliverNow } from "../game/delivery.js";
 import { currentTarget } from "../state/gameState.js";
@@ -1007,7 +1008,7 @@ export class ThreeRenderer {
     });
 
     (this.worldLayout?.trees || []).forEach((tree) => {
-      this.addTree(tree.x, tree.z, tree.sakura, tree.scale);
+      this.addTree(tree.x, tree.z, tree.sakura, tree.scale, tree.type);
     });
   }
 
@@ -2849,6 +2850,12 @@ export class ThreeRenderer {
     this.hair.visible = false;
     group.add(this.hair);
 
+    this.hairBun = new THREE.Mesh(sphereGeo(0.095, 14, 8), mat(0x4a3a32));
+    this.hairBun.position.set(-0.18, 1.46, 0);
+    this.hairBun.scale.set(1.0, 0.92, 1.0);
+    this.hairBun.visible = false;
+    group.add(this.hairBun);
+
     this.mustache = new THREE.Group();
     const mustacheMat = mat(0x5a5148);
     const mustacheLeft = new THREE.Mesh(boxGeo(0.11, 0.025, 0.035), mustacheMat);
@@ -2877,6 +2884,11 @@ export class ThreeRenderer {
     collarRight.rotation.z = 0.18;
     this.collar.add(collarLeft, collarRight);
     group.add(this.collar);
+
+    this.scarf = new THREE.Mesh(boxGeo(0.36, 0.06, 0.24), mat(0xf0d37a));
+    this.scarf.position.set(0.04, 1.10, 0);
+    this.scarf.castShadow = true;
+    group.add(this.scarf);
 
     this.walkParts.leftLeg = this.limb(0x3f5f73, 0, 0.38, -0.11);
     this.walkParts.rightLeg = this.limb(0x3f5f73, 0, 0.38, 0.11);
@@ -2912,31 +2924,62 @@ export class ThreeRenderer {
     group.add(this.paperReadyIcon);
     // 与两层住宅比例对齐：人略小一点，房屋更有真实体量。
     group.scale.setScalar(0.9);
+    group.traverse((child) => {
+      if (child.isMesh && child.material) child.material = child.material.clone();
+    });
     this.player = group;
     this.scene.add(group);
   }
 
-  applyPlayerStyle(style = "male") {
-    if (this.currentPlayerStyle === style) return;
-    this.currentPlayerStyle = style;
-    const female = style === "female";
-    this.body.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
-    this.hat.material.color.setHex(female ? 0x8a6fb0 : 0x716a63);
-    this.bag.material.color.setHex(female ? 0x8b5e3c : 0x7a5a3b);
-    this.skirt.visible = female;
-    this.hair.visible = female;
-    this.mustache.visible = !female;
-    this.walkParts.leftLeg.material.color.setHex(female ? 0x5d6380 : 0x3f5f73);
-    this.walkParts.rightLeg.material.color.setHex(female ? 0x5d6380 : 0x3f5f73);
-    this.walkParts.leftArm.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
-    this.walkParts.rightArm.material.color.setHex(female ? 0xb86695 : 0x2f7d5c);
-    this.walkParts.leftHand.material.color.setHex(female ? 0xf2c7a2 : 0xf0c08d);
-    this.walkParts.rightHand.material.color.setHex(female ? 0xf2c7a2 : 0xf0c08d);
-    this.leftEar.material.color.setHex(female ? 0xf2c7a2 : 0xe0a77b);
-    this.rightEar.material.color.setHex(female ? 0xf2c7a2 : 0xe0a77b);
-    this.leftBrow.visible = !female;
-    this.rightBrow.visible = !female;
-    this.glasses.visible = !female || style === "female";
+  applyPlayerStyle(style = "m01") {
+    const legacy = style === "female" ? "f01" : style === "male" ? "m01" : style;
+    if (this.currentPlayerStyle === legacy) return;
+    this.currentPlayerStyle = legacy;
+    const avatar = playerAvatarById(legacy);
+    const female = avatar.gender === "female";
+    const [sx = 1, sy = 1, sz = 1] = avatar.bodyScale || [];
+    const skin = avatar.skin || (female ? 0xf2c7a2 : 0xf0c08d);
+    this.player?.scale.setScalar(0.9 * (avatar.height || 1));
+    this.body.material.color.setHex(avatar.body);
+    this.body.scale.set(sx, sy, sz);
+    this.hat.material.color.setHex(avatar.hat);
+    this.hat.visible = avatar.hatVisible !== false;
+    this.hat.scale.set(female ? 0.94 : 1.0, female ? 0.82 : 1.0, female ? 1.02 : 1.0);
+    this.bag.material.color.setHex(avatar.bag);
+    this.scarf.material.color.setHex(avatar.scarf || 0xf0d37a);
+    this.skirt.visible = Boolean(avatar.skirt);
+    this.skirt.material.color.setHex(avatar.body);
+    this.hair.visible = avatar.hairMode !== "none";
+    this.hair.material.color.setHex(avatar.hair);
+    this.hairBun.visible = Boolean(avatar.hairBun);
+    this.hairBun.material.color.setHex(avatar.hair);
+    if (avatar.hairMode === "long") {
+      this.hair.scale.set(0.88, 1.12, 1.06);
+      this.hair.position.set(-0.065, 1.40, 0);
+    } else if (avatar.hairMode === "bun") {
+      this.hair.scale.set(0.74, 0.82, 1.0);
+      this.hair.position.set(-0.06, 1.45, 0);
+    } else if (avatar.hairMode === "bob") {
+      this.hair.scale.set(0.82, 0.98, 1.08);
+      this.hair.position.set(-0.055, 1.42, 0);
+    } else {
+      this.hair.scale.set(0.66, 0.58, 0.92);
+      this.hair.position.set(-0.065, 1.52, 0);
+    }
+    this.mustache.visible = Boolean(avatar.mustache);
+    this.glasses.visible = Boolean(avatar.glasses);
+    this.head.material.color.setHex(skin);
+    this.nose.material.color.setHex(skin);
+    this.leftEar.material.color.setHex(skin);
+    this.rightEar.material.color.setHex(skin);
+    this.walkParts.leftLeg.material.color.setHex(avatar.pants);
+    this.walkParts.rightLeg.material.color.setHex(avatar.pants);
+    this.walkParts.leftArm.material.color.setHex(avatar.body);
+    this.walkParts.rightArm.material.color.setHex(avatar.body);
+    this.walkParts.leftHand.material.color.setHex(skin);
+    this.walkParts.rightHand.material.color.setHex(skin);
+    this.leftBrow.visible = !female || Boolean(avatar.glasses);
+    this.rightBrow.visible = !female || Boolean(avatar.glasses);
   }
 
   createHeldPaper() {
@@ -3300,7 +3343,9 @@ export class ThreeRenderer {
       this.head.position.set(0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
       this.nose.position.set(0.26, 1.47 + Math.abs(legSwing) * 0.012, 0);
       this.hair.position.set(-0.08, 1.47 + Math.abs(legSwing) * 0.012, 0);
+      this.hairBun.position.set(-0.19, 1.48 + Math.abs(legSwing) * 0.012, 0);
       this.hat.position.set(0.08, 1.60 + Math.abs(legSwing) * 0.012, 0);
+      this.scarf.position.set(0.09, 1.14 + Math.abs(legSwing) * 0.010, 0);
       this.bag.position.set(-0.50, 0.88, 0.24);
       this.bag.rotation.z = 0.08 + armSettle;
 
@@ -3353,7 +3398,9 @@ export class ThreeRenderer {
       this.head.position.set(0, 1.42, 0);
       this.nose.position.set(0.18, 1.42, 0);
       this.hair.position.set(-0.05, 1.43, 0);
+      this.hairBun.position.set(-0.18, 1.46, 0);
       this.hat.position.set(0, 1.55, 0);
+      this.scarf.position.set(0.04, 1.10, 0);
       this.bag.position.set(-0.18, 0.9, 0.26);
       this.bag.rotation.z = 0;
       this.walkParts.leftLeg.position.set(0, 0.38, -0.11);

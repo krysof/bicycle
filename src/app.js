@@ -1,5 +1,6 @@
 import { neighbors } from "./data/neighbors.js";
 import { familyMessageCount, pickFamilyMessage } from "./data/familyMessages.js";
+import { randomPlayerAvatarId } from "./data/playerAvatars.js";
 import { createWorldLayout, createWorldObstacles } from "./data/world.js";
 import { answersFromMode, buildConfig, pickRoute, pickStartNearTarget } from "./game/difficulty.js";
 import { buildAutoNavPath, requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
@@ -82,7 +83,7 @@ export class App {
     this.playerNameIsRandom = true;
     this.refreshCompanionName();
     this.state.playerName = this.randomDefaultName();
-    this.state.playerStyle = this.playerNameIndex % 2 === 1 ? "female" : "male";
+    this.state.playerStyle = randomPlayerAvatarId();
   }
 
   refreshCompanionName() {
