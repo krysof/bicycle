@@ -1,4 +1,5 @@
 import { neighbors } from "./data/neighbors.js";
+import { familyMessageCount, pickFamilyMessage } from "./data/familyMessages.js";
 import { createWorldLayout, createWorldObstacles } from "./data/world.js";
 import { answersFromMode, buildConfig, pickRoute, pickStartNearTarget } from "./game/difficulty.js";
 import { buildAutoNavPath, requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
@@ -21,6 +22,7 @@ export class App {
     this.audio = new AudioEngine();
     this.playerNameIndex = this.randomIndex(getLocalizedList("defaultPlayerNames").length);
     this.companionNameIndex = this.randomIndex(getLocalizedList("companionNames").length);
+    this.familyMessageIndex = this.randomIndex(familyMessageCount(locale));
     this.playerNameIsRandom = true;
     this.refreshCompanionName();
     this.screens = new Screens(document.getElementById("ui"));
@@ -41,6 +43,17 @@ export class App {
 
   randomThoughtDelay() {
     return 16 + Math.random() * 12;
+  }
+
+  autoFamilyMessage(offset = 0) {
+    return pickFamilyMessage(locale, `${todayKey()}|${this.state.worldSeed}|${this.familyMessageIndex + offset}`);
+  }
+
+  familyMessageForHome(record = {}) {
+    const isToday = record.familyMessageDate === todayKey();
+    const sameLocale = record.familyMessageLocale === locale;
+    if (record.familyMessage && isToday && (!record.familyMessageAuto || sameLocale)) return record.familyMessage;
+    return this.autoFamilyMessage();
   }
 
   answersForMode(mode) {
@@ -185,7 +198,9 @@ export class App {
     if (this.state.screen === "title") {
       this.screens.title();
     } else if (this.state.screen === "home") {
-      this.screens.home(loadRecord(), currentName, this.state.todayStatus);
+      const record = loadRecord();
+      const autoMessage = this.familyMessageForHome(record);
+      this.screens.home(record, currentName, this.state.todayStatus, autoMessage, familyMessageCount(locale));
     } else if (this.state.screen === "summary") {
       this.screens.summary(this.state, this.state.summaryEarly);
     } else if (this.state.screen === "game") {
@@ -226,6 +241,17 @@ export class App {
       }
       if (button.dataset.action === "share-card") {
         this.copyShareCard();
+        return;
+      }
+      if (button.dataset.action === "random-family-message") {
+        this.familyMessageIndex = (this.familyMessageIndex + 1 + this.randomIndex(97)) % familyMessageCount(locale);
+        const input = document.getElementById("familyMessageInput");
+        if (input) {
+          input.value = this.autoFamilyMessage();
+          input.dataset.autoMessage = input.value;
+          input.focus();
+          input.select();
+        }
         return;
       }
       if (button.dataset.mode) this.startWithMode(button.dataset.mode);
@@ -327,6 +353,10 @@ export class App {
     this.state.familyMessage = message;
     const record = loadRecord();
     record.familyMessage = message;
+    record.familyMessageDate = todayKey();
+    record.familyMessageLocale = locale;
+    const input = document.getElementById("familyMessageInput");
+    record.familyMessageAuto = Boolean(input?.dataset?.autoMessage && input.value.trim() === input.dataset.autoMessage.trim());
     saveRecord(record);
     return message;
   }
@@ -371,7 +401,8 @@ export class App {
     this.hideTouchControls();
     this.updateComic();
     const record = loadRecord();
-    this.screens.home(record, this.state.playerName, this.state.todayStatus);
+    const autoMessage = this.familyMessageForHome(record);
+    this.screens.home(record, this.state.playerName, this.state.todayStatus, autoMessage, familyMessageCount(locale));
   }
 
   startWithMode(mode) {

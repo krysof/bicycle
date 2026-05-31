@@ -32,12 +32,12 @@ export class Screens {
       </section>`;
   }
 
-  home(record, playerName = "", todayStatus = "normal") {
+  home(record, playerName = "", todayStatus = "normal", autoFamilyMessage = "", familyMessageCount = 0) {
     const last = record.lastSummary;
     const yesterday = last
       ? t("greetingLast", last.count)
       : t("greetingFirst");
-    const familyMessage = record.familyMessage || "";
+    const familyMessage = autoFamilyMessage || record.familyMessage || "";
 
     this.root.innerHTML = `
       <section class="screen narrow home-screen simple-home">
@@ -52,8 +52,11 @@ export class Screens {
         </label>
         <label class="name-field family-field">
           <span>${t("familyMessageLabel")}</span>
-          <input id="familyMessageInput" type="text" maxlength="80" value="${esc(familyMessage)}" placeholder="${esc(t("familyMessagePlaceholder"))}" />
-          <em>${t("familyMessageHelp")}</em>
+          <div class="family-message-row">
+            <input id="familyMessageInput" type="text" maxlength="120" value="${esc(familyMessage)}" placeholder="${esc(t("familyMessagePlaceholder"))}" data-auto-message="${esc(autoFamilyMessage)}" />
+            <button type="button" class="small-inline-btn" data-action="random-family-message">${t("familyMessageShuffle")}</button>
+          </div>
+          <em>${t("familyMessageHelp", familyMessageCount)}</em>
         </label>
         <div class="status-panel" aria-label="${t("statusQuestion")}">
           <p class="status-title">${t("statusQuestion")}</p>

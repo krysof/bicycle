@@ -452,6 +452,31 @@ button:disabled {
   font-size: clamp(15px, 1.6vw, 19px);
 }
 
+.family-message-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.small-inline-btn {
+  min-width: 96px;
+  border: 0;
+  border-radius: 16px;
+  padding: 0 16px;
+  background: #2f7d5c;
+  color: #fffdf5;
+  font: inherit;
+  font-size: clamp(16px, 1.6vw, 20px);
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgba(36, 79, 59, 0.25);
+}
+
+.small-inline-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(36, 79, 59, 0.25);
+}
+
 body.high-contrast #gameCanvas {
   filter: contrast(1.18) saturate(1.08);
 }
@@ -1495,6 +1520,18 @@ kbd {
     border-radius: 13px;
     font-size: 18px;
     padding: 6px 10px;
+  }
+
+  .family-message-row {
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+  }
+
+  .small-inline-btn {
+    min-width: 72px;
+    border-radius: 12px;
+    padding: 0 10px;
+    font-size: 14px;
   }
 
   .simple-home .name-field em {
