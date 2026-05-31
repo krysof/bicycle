@@ -167,21 +167,22 @@ function makeCuratedKitaeguchiRoads() {
     ["h-east-park", 96, -304, 326, "residential", false],
     ["h-south-a", 204, -318, 316, "residential", false],
     ["h-south-b", 232, -302, 286, "residential", false],
-    ["h-river-side", 256, -252, 242, "residential", false],
+    // 河边道路放在水面外侧；之前 z=256 落在可见水面内，导航箭头会看起来穿过河。
+    ["h-river-side", 198, -252, 242, "residential", false],
   ].forEach(([id, z, x1, x2, highway, main]) => roads.push(makeSegment(id, x1, z, x2, z, highway, main)));
 
   [
     ["v-west-edge", -316, -252, 26, "residential", false],
     ["v-west-town", -252, -246, 238, "tertiary", true],
-    ["v-west-mid", -210, -228, 222, "residential", false],
+    ["v-west-mid", -210, -228, 210, "residential", false],
     ["v-old-street", -172, -214, 210, "residential", false],
     ["v-shop-street", -96, -246, 254, "tertiary", true],
     ["v-center-west", -22, -218, 210, "residential", false],
-    ["v-center", 56, -244, 232, "residential", false],
+    ["v-center", 56, -244, 210, "residential", false],
     ["v-east-center", 112, -160, 216, "tertiary", true],
-    ["v-east-home", 160, -208, 222, "residential", false],
+    ["v-east-home", 160, -208, 210, "residential", false],
     ["v-east-school", 180, -244, -92, "residential", false],
-    ["v-river-approach", 224, -198, 256, "residential", false],
+    ["v-river-approach", 224, -198, 210, "residential", false],
     ["v-east-main", 252, -246, 236, "tertiary", true],
     ["v-far-east", 312, -244, 64, "residential", false],
   ].forEach(([id, x, z1, z2, highway, main]) => roads.push(makeSegment(id, x, z1, x, z2, highway, main)));

@@ -40,6 +40,9 @@ function nearestPointOnSegment(point, seg) {
 let cachedObstacleRef = null;
 let cachedLayoutRef = null;
 let cachedSceneHouses = [];
+let cachedSceneBlocked = [];
+let cachedBlockedObstacleRef = null;
+let cachedBlockedLayoutRef = null;
 
 function sceneHouseObstacles(state) {
   const source = state?.worldObstacles || WORLD_OBSTACLES;
@@ -73,8 +76,38 @@ function sceneHouseObstacles(state) {
   return cachedSceneHouses;
 }
 
+function sceneBlockedObstacles(state) {
+  const source = state?.worldObstacles || WORLD_OBSTACLES;
+  const layout = state?.worldLayout || null;
+  if (cachedBlockedObstacleRef === source && cachedBlockedLayoutRef === layout && cachedSceneBlocked.length) return cachedSceneBlocked;
+  sceneHouseObstacles(state);
+  cachedBlockedObstacleRef = source;
+  cachedBlockedLayoutRef = layout;
+  const waterRects = (source || [])
+    .filter((obstacle) => obstacle.kind === "water" && obstacle.type === "rect")
+    .map((obstacle) => ({
+      id: obstacle.id,
+      minX: (obstacle.x - obstacle.halfW) * WORLD_SCALE - 0.45,
+      maxX: (obstacle.x + obstacle.halfW) * WORLD_SCALE + 0.45,
+      minZ: (obstacle.y - obstacle.halfH) * WORLD_SCALE - 0.45,
+      maxZ: (obstacle.y + obstacle.halfH) * WORLD_SCALE + 0.45,
+      kind: "water",
+    }));
+  cachedSceneBlocked = cachedSceneHouses.concat(waterRects);
+  return cachedSceneBlocked;
+}
+
 function pointInsideHouseScene(point, state, margin = 0) {
   return sceneHouseObstacles(state).some((rect) => (
+    point.x >= rect.minX - margin
+    && point.x <= rect.maxX + margin
+    && point.z >= rect.minZ - margin
+    && point.z <= rect.maxZ + margin
+  ));
+}
+
+function pointInsideBlockedScene(point, state, margin = 0) {
+  return sceneBlockedObstacles(state).some((rect) => (
     point.x >= rect.minX - margin
     && point.x <= rect.maxX + margin
     && point.z >= rect.minZ - margin
@@ -104,6 +137,29 @@ function firstBlockingHouseScene(a, b, state) {
 
 function segmentBlockedByHouseScene(a, b, state) {
   return Boolean(firstBlockingHouseScene(a, b, state));
+}
+
+function firstBlockingScene(a, b, state) {
+  const obstacles = sceneBlockedObstacles(state);
+  if (!obstacles.length) return null;
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const len = Math.hypot(dx, dz);
+  if (len < 0.01) return null;
+  const steps = Math.max(2, Math.ceil(len / 1.4));
+  for (let i = 1; i < steps; i += 1) {
+    const u = i / steps;
+    const x = a.x + dx * u;
+    const z = a.z + dz * u;
+    for (const rect of obstacles) {
+      if (x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ) return rect;
+    }
+  }
+  return null;
+}
+
+function segmentBlockedScene(a, b, state) {
+  return Boolean(firstBlockingScene(a, b, state));
 }
 
 function routeAroundRect(a, b, rect, state) {
@@ -173,7 +229,7 @@ function gridPathAroundHouses(start, goal, state) {
   });
   const toPoint = ({ ix, iz }) => ({ x: minX + ix * step, z: minZ + iz * step });
   const idxKey = (ix, iz) => `${ix},${iz}`;
-  const blocked = (ix, iz) => pointInsideHouseScene(toPoint({ ix, iz }), state, 0.65);
+  const blocked = (ix, iz) => pointInsideBlockedScene(toPoint({ ix, iz }), state, 0.65);
   const freeNear = (idx) => {
     if (!blocked(idx.ix, idx.iz)) return idx;
     for (let r = 1; r <= 8; r += 1) {
@@ -247,7 +303,7 @@ function nearestSegmentPoint(point, state = null) {
     .map((seg) => nearestPointOnSegment(point, seg))
     .sort((a, b) => a.distance - b.distance);
   if (!state) return candidates[0];
-  return candidates.find((item) => !pointInsideHouseScene(item.point, state, 0.2)) || candidates[0];
+  return candidates.find((item) => !pointInsideBlockedScene(item.point, state, 0.2)) || candidates[0];
 }
 
 function addGraphNode(nodes, point) {
@@ -257,6 +313,7 @@ function addGraphNode(nodes, point) {
 }
 
 function addGraphEdge(nodes, a, b, state = null) {
+  if (state && segmentBlockedScene(a, b, state)) return;
   const na = addGraphNode(nodes, a);
   const nb = addGraphNode(nodes, b);
   const dist = Math.hypot(na.x - nb.x, na.z - nb.z);
