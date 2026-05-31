@@ -43,6 +43,25 @@ body {
   pointer-events: none;
 }
 
+.version-badge {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 13;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 251, 238, 0.68);
+  border: 1px solid rgba(89, 72, 49, 0.18);
+  color: rgba(73, 57, 39, 0.78);
+  box-shadow: 0 4px 14px rgba(68, 47, 22, 0.10);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
 .screen {
   width: min(920px, 100%);
   max-height: calc(100vh - 48px);
