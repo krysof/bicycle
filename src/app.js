@@ -393,6 +393,9 @@ export class App {
     this.state.houseReaction = null;
     this.state.memoryPrompt = null;
     this.state.autoForward = false;
+    this.state.autoNavWaitUntil = 0;
+    this.state.autoNavMoving = false;
+    this.state.autoAvoiding = false;
     this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
     this.state.lastThoughtDeliveryIndex = -1;
     this.startGame();
@@ -684,13 +687,20 @@ export class App {
   }
 
   loop(now) {
-    const dt = Math.min(0.05, (now - this.state.lastTime) / 1000);
+    // 低帧率时不能直接把 dt 截成 0.05 后只模拟一次，否则画面一卡，
+    // 游戏时间也会跟着变慢，玩家会觉得“车真的变慢了”。
+    // 改成多个小步进追上真实时间：碰撞仍稳定，速度也不会因 FPS 下降而缩水。
+    const elapsed = Math.min(0.22, Math.max(0, (now - this.state.lastTime) / 1000));
     this.state.lastTime = now;
-    this.state.floatTime += dt;
-    updatePlayer(this.state, dt);
-    const deliveryResult = updateDelivery(this.state, dt);
-    if (deliveryResult.delivered) this.addGratitudeCard();
-    if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 2600);
+    const steps = Math.max(1, Math.ceil(elapsed / 0.05));
+    const dt = elapsed / steps;
+    for (let i = 0; i < steps; i += 1) {
+      this.state.floatTime += dt;
+      updatePlayer(this.state, dt);
+      const deliveryResult = updateDelivery(this.state, dt);
+      if (deliveryResult.delivered) this.addGratitudeCard();
+      if (deliveryResult.completed) window.setTimeout(() => this.showSummary(false), 2600);
+    }
     this.updateTimedCompanionPrompts();
     this.updateMemoryPrompt();
     this.updateThoughtHint();

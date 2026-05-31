@@ -552,7 +552,17 @@ export function updateDelivery(state, dt) {
   };
   state.message = thanks;
   state.delivery = null;
-  return { completed: !currentTarget(state), delivered: true };
+  const completed = !currentTarget(state);
+  if (state.autoForward && !completed) {
+    // 自动驾驶时，送达后不要立刻掉头离开；先等收件人的漫画气泡说完，
+    // 再重新规划下一户路线并转向出发，节奏更像“礼貌地等对方回应”。
+    state.autoNavWaitUntil = (state.floatTime || 0) + Math.max(2.35, state.comic.time || 2.8);
+    state.autoNavPath = null;
+    state.autoNavTargetId = null;
+    state.autoNavIndex = 0;
+    state.autoNavWaypoint = null;
+  }
+  return { completed, delivered: true };
 }
 
 export function updatePlayer(state, dt) {
@@ -563,7 +573,8 @@ export function updatePlayer(state, dt) {
   const speed = state.config.speed;
   const reverseFactor = mode === "bike" ? 0.36 : 0.55;
   const target = currentTarget(state);
-  const autoNav = Boolean(state.autoForward && target && !state.delivery?.active);
+  const autoWaiting = Boolean(state.autoForward && target && (state.floatTime || 0) < (state.autoNavWaitUntil || 0));
+  const autoNav = Boolean(state.autoForward && target && !state.delivery?.active && !autoWaiting);
   const deliverReady = Boolean(target && canDeliverNow(state, target));
   state.autoNavMoving = false;
   state.autoAvoiding = false;
@@ -587,7 +598,11 @@ export function updatePlayer(state, dt) {
     && nearInfo.ahead !== false
     && (state.autoAvoidCooldown || 0) <= 0;
 
-  if (deliverReady) {
+  if (autoWaiting) {
+    throttle = 0;
+    state.autoNavMoving = false;
+    state.autoNavWaypoint = null;
+  } else if (deliverReady) {
     // 进入可投递范围后自动面向被投递的房子；老人只要按投递即可，不必再微调朝向。
     const faceAngle = Math.atan2(target.y - state.player.y, target.x - state.player.x);
     const diff = normalizeAngle(faceAngle - state.player.headingAngle);
@@ -612,8 +627,8 @@ export function updatePlayer(state, dt) {
       const absDiff = Math.abs(diff);
       const maxTurn = (mode === "bike" ? 2.15 : 3.6) * dt;
       state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
-      const turnSlowdown = absDiff > 1.05 ? 0.18 : absDiff > 0.55 ? 0.38 : 1;
-      throttle = Math.max(throttle, (state.easyMode ? 0.34 : 0.56) * turnSlowdown);
+      const turnSlowdown = absDiff > 1.05 ? 0.26 : absDiff > 0.55 ? 0.48 : 1;
+      throttle = Math.max(throttle, (state.easyMode ? 0.44 : 0.70) * turnSlowdown);
       state.autoNavMoving = throttle > 0.05;
       state.autoNavWaypoint = waypoint;
     }
@@ -636,7 +651,7 @@ export function updatePlayer(state, dt) {
     const diff = normalizeAngle(desiredAngle - state.player.headingAngle);
     const maxTurn = (mode === "bike" ? 1.9 : 3.1) * dt;
     state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
-    throttle = Math.max(throttle, mode === "bike" ? 0.22 : 0.38);
+    throttle = Math.max(throttle, mode === "bike" ? 0.30 : 0.44);
     state.autoNavMoving = true;
     state.autoNavWaypoint = waypoint;
   }
