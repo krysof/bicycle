@@ -1,7 +1,7 @@
 import { neighbors } from "./data/neighbors.js";
 import { createWorldLayout, createWorldObstacles } from "./data/world.js";
 import { answersFromMode, buildConfig, pickRoute, pickStartNearTarget } from "./game/difficulty.js";
-import { requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
+import { buildAutoNavPath, requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
 import { bindKeyboard, bindTouchControls } from "./input/keyboard.js";
 import { ThreeRenderer } from "./render/threeRenderer.js";
 import { AudioEngine } from "./audio/audioEngine.js";
@@ -261,8 +261,44 @@ export class App {
       const firstSeed = previewRoute[0] || neighbors[Math.floor(Math.random() * neighbors.length)];
       const player = pickStartNearTarget(firstSeed, mode);
       const route = pickRoute(neighbors, config, player, firstSeed);
-      this.state.preparedRuns[mode] = { answers, config, player, route };
+      this.state.preparedRuns[mode] = { answers, config, player: this.playerFacingRoute(player, route), route };
     });
+  }
+
+  playerFacingRoute(player, route) {
+    if (!player || !route?.length) return player;
+    const mockState = {
+      ...this.state,
+      player: { ...player },
+      route: [...route],
+      delivered: [],
+      autoNavPath: null,
+      autoNavTargetId: null,
+      autoNavIndex: 0,
+    };
+    const target = route[0];
+    const path = buildAutoNavPath(mockState, target);
+    const current = { x: player.x, y: player.y };
+    const next = (path || []).find((p) => Math.hypot(p.x - current.x, p.y - current.y) > 90)
+      || { x: target.deliveryX ?? target.x, y: target.deliveryY ?? target.y };
+    const angle = Math.atan2(next.y - current.y, next.x - current.x);
+    return {
+      ...player,
+      headingAngle: angle,
+      headingX: Math.cos(angle),
+      headingY: Math.sin(angle),
+      facing: Math.cos(angle) >= 0 ? 1 : -1,
+    };
+  }
+
+  alignPlayerToFirstRoute() {
+    if (!this.state.player || !this.state.route?.length) return;
+    this.state.player = this.playerFacingRoute(this.state.player, this.state.route);
+    this.state.autoNavPath = null;
+    this.state.autoNavTargetId = null;
+    this.state.autoNavIndex = 0;
+    this.state.__navSceneTailCacheKey = "";
+    this.state.__navSceneTailCache = null;
   }
 
   setTodayStatus(status) {
@@ -277,6 +313,7 @@ export class App {
       this.state.player = { ...preview.player };
       this.state.route = [...preview.route];
       this.state.delivered = [];
+      this.alignPlayerToFirstRoute();
     }
     this.screens.home(loadRecord(), this.state.playerName, this.state.todayStatus);
   }
@@ -321,6 +358,7 @@ export class App {
       this.state.player = { ...preview.player };
       this.state.route = [...preview.route];
       this.state.delivered = [];
+      this.alignPlayerToFirstRoute();
     }
     this.state.screen = "home";
     this.state.isPlaying = false;
@@ -347,6 +385,7 @@ export class App {
     if (!this.state.worldLayout || !this.state.worldObstacles) this.prepareRandomWorld();
     this.state.player = { ...prepared.player };
     this.state.route = [...prepared.route];
+    this.alignPlayerToFirstRoute();
     this.state.delivered = [];
     this.state.gratitudeCards = [];
     this.state.delivery = null;
@@ -447,9 +486,11 @@ export class App {
   locateTarget() {
     const target = currentTarget(this.state);
     if (!target) return;
-    const tx = target.deliveryX ?? target.x;
-    const ty = target.deliveryY ?? target.y;
-    const angle = Math.atan2(ty - this.state.player.y, tx - this.state.player.x);
+    const path = buildAutoNavPath(this.state, target);
+    const current = { x: this.state.player.x, y: this.state.player.y };
+    const next = (path || []).find((p) => Math.hypot(p.x - current.x, p.y - current.y) > 90)
+      || { x: target.deliveryX ?? target.x, y: target.deliveryY ?? target.y };
+    const angle = Math.atan2(next.y - current.y, next.x - current.x);
     this.state.player.headingAngle = angle;
     this.state.player.headingX = Math.cos(angle);
     this.state.player.headingY = Math.sin(angle);
