@@ -79,11 +79,20 @@ function sceneLabel(key) { return SCENE_LABELS[locale]?.[key] ?? SCENE_LABELS.zh
 
 function wx(x) { return x * WORLD_SCALE; }
 function wz(y) { return y * WORLD_SCALE; }
+const MATERIAL_CACHE = new Map();
 function mat(color, roughness = 0.82, metalness = 0.02) {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+  const key = `std:${color}:${roughness}:${metalness}`;
+  if (!MATERIAL_CACHE.has(key)) {
+    MATERIAL_CACHE.set(key, new THREE.MeshStandardMaterial({ color, roughness, metalness }));
+  }
+  return MATERIAL_CACHE.get(key);
 }
 function transparentMat(color, opacity) {
-  return new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+  const key = `basic:${color}:${opacity}`;
+  if (!MATERIAL_CACHE.has(key)) {
+    MATERIAL_CACHE.set(key, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
+  }
+  return MATERIAL_CACHE.get(key);
 }
 
 function makeRoadMapTexture(segments) {
@@ -3200,16 +3209,50 @@ export class ThreeRenderer {
   }
 
   registerOccluder(group) {
-    group.traverse((child) => {
-      if (!child.isMesh) return;
-      if (child.material) child.material = Array.isArray(child.material) ? child.material.map((m) => m.clone()) : child.material.clone();
-      child.userData.occluder = true;
-      this.occluderMeshes.push(child);
-    });
+    // 只用一个“不可见包围盒”做镜头遮挡检测。
+    // 旧做法把一栋房子的每个窗户/门牌/屋顶都放进 raycaster，
+    // 大场景下会形成几万个检测对象和几万份克隆材质。
+    group.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(group);
+    if (box.isEmpty()) return;
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    if (size.x < 0.08 || size.y < 0.08 || size.z < 0.08) return;
+
+    const proxy = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(size.x, 0.08), Math.max(size.y, 0.08), Math.max(size.z, 0.08)),
+      transparentMat(0xffffff, 0)
+    );
+    proxy.position.copy(center);
+    proxy.visible = false;
+    proxy.userData.occluderProxy = true;
+    proxy.userData.fadeGroup = group;
+    group.userData.occluderProxy = proxy;
+    this.occluderMeshes.push(proxy);
+    this.scene.add(proxy);
   }
 
-  setOccluderOpacity(mesh, opacity) {
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  setOccluderOpacity(target, opacity) {
+    if (!target) return;
+    if (!target.isMesh) {
+      target.traverse((child) => {
+        if (child.isMesh && !child.userData.occluderProxy) this.setOccluderOpacity(child, opacity);
+      });
+      return;
+    }
+    if (target.userData.occluderProxy) return;
+    if (!target.material) return;
+    // mat() 现在会复用材质；真正需要半透明时才为该 mesh 克隆，
+    // 避免一栋房子透明时同色房子一起变透明。
+    if (opacity < 0.99 && !target.userData.occluderMaterialCloned) {
+      target.material = Array.isArray(target.material)
+        ? target.material.map((m) => (m ? m.clone() : m))
+        : target.material.clone();
+      target.userData.occluderMaterialCloned = true;
+    }
+    const materials = Array.isArray(target.material) ? target.material : [target.material];
     materials.forEach((material) => {
       if (!material) return;
       if (material.userData.baseOpacity === undefined) {
@@ -3224,6 +3267,9 @@ export class ThreeRenderer {
   }
 
   updateOccluders() {
+    const now = this.clock?.getElapsedTime?.() ?? performance.now() / 1000;
+    if (this.lastOccluderUpdateAt !== undefined && now - this.lastOccluderUpdateAt < 0.12) return;
+    this.lastOccluderUpdateAt = now;
     this.fadedOccluders.forEach((mesh) => this.setOccluderOpacity(mesh, 1));
     this.fadedOccluders.clear();
     if (!this.player || !this.occluderMeshes.length) return;
@@ -3241,8 +3287,9 @@ export class ThreeRenderer {
 
     const hits = this.raycaster.intersectObjects(this.occluderMeshes, false);
     hits.forEach((hit) => {
-      this.fadedOccluders.add(hit.object);
-      this.setOccluderOpacity(hit.object, 0.34);
+      const fadeTarget = hit.object.userData.fadeGroup || hit.object;
+      this.fadedOccluders.add(fadeTarget);
+      this.setOccluderOpacity(fadeTarget, 0.34);
     });
   }
 
