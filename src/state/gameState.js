@@ -27,6 +27,7 @@ export function createInitialState() {
     autoAvoidCooldown: 0,
     autoStuckTime: 0,
     autoNavWaitUntil: 0,
+    autoNavBlockedUntil: 0,
     easyMode: false,
     highContrast: false,
     familyMessage: "",

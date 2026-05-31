@@ -394,6 +394,7 @@ export class App {
     this.state.memoryPrompt = null;
     this.state.autoForward = false;
     this.state.autoNavWaitUntil = 0;
+    this.state.autoNavBlockedUntil = 0;
     this.state.autoNavMoving = false;
     this.state.autoAvoiding = false;
     this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();

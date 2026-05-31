@@ -574,7 +574,8 @@ export function updatePlayer(state, dt) {
   const reverseFactor = mode === "bike" ? 0.36 : 0.55;
   const target = currentTarget(state);
   const autoWaiting = Boolean(state.autoForward && target && (state.floatTime || 0) < (state.autoNavWaitUntil || 0));
-  const autoNav = Boolean(state.autoForward && target && !state.delivery?.active && !autoWaiting);
+  const obstacleWaiting = Boolean(state.autoForward && target && (state.floatTime || 0) < (state.autoNavBlockedUntil || 0));
+  const autoNav = Boolean(state.autoForward && target && !state.delivery?.active && !autoWaiting && !obstacleWaiting);
   const deliverReady = Boolean(target && canDeliverNow(state, target));
   state.autoNavMoving = false;
   state.autoAvoiding = false;
@@ -595,13 +596,13 @@ export function updatePlayer(state, dt) {
   const shouldYield = autoNav
     && nearInfo
     && nearInfo.distance < (nearInfo.kind === "cyclist" ? 8.5 : 6.7)
-    && nearInfo.ahead !== false
-    && (state.autoAvoidCooldown || 0) <= 0;
+    && nearInfo.ahead !== false;
 
-  if (autoWaiting) {
+  if (autoWaiting || obstacleWaiting) {
     throttle = 0;
     state.autoNavMoving = false;
     state.autoNavWaypoint = null;
+    state.autoStuckTime = 0;
   } else if (deliverReady) {
     // 进入可投递范围后自动面向被投递的房子；老人只要按投递即可，不必再微调朝向。
     const faceAngle = Math.atan2(target.y - state.player.y, target.x - state.player.x);
@@ -613,11 +614,8 @@ export function updatePlayer(state, dt) {
     throttle = 0;
     state.autoAvoiding = true;
     state.autoNavMoving = false;
-    state.autoAvoidTimer = (state.autoAvoidTimer || 0) + dt;
-    if (state.autoAvoidTimer > 0.9) {
-      state.autoAvoidCooldown = 1.8;
-      state.autoAvoidTimer = 0;
-    }
+    state.autoAvoidTimer = 0;
+    state.autoStuckTime = 0;
   } else if (autoNav && throttle >= 0 && !canDeliverNow(state, target)) {
     state.autoAvoidTimer = 0;
     const waypoint = nextAutoWaypoint(state, target);
@@ -644,17 +642,7 @@ export function updatePlayer(state, dt) {
     turn *= movementGrip;
   }
 
-  // 兜底：真实 OSM 路网若遇到断路/桥梁连通问题，也不要让“自动导航”原地不动。
-  if (autoNav && !state.autoNavMoving && !state.autoAvoiding && !canDeliverNow(state, target)) {
-    const waypoint = nextAutoWaypoint(state, target) || { x: target.deliveryX ?? target.x, y: target.deliveryY ?? target.y };
-    const desiredAngle = Math.atan2(waypoint.y - state.player.y, waypoint.x - state.player.x);
-    const diff = normalizeAngle(desiredAngle - state.player.headingAngle);
-    const maxTurn = (mode === "bike" ? 1.9 : 3.1) * dt;
-    state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
-    throttle = Math.max(throttle, mode === "bike" ? 0.30 : 0.44);
-    state.autoNavMoving = true;
-    state.autoNavWaypoint = waypoint;
-  }
+  // 自动导航遇到障碍只停车等待，不再强行兜圈或重新走回头路。
   if (!autoNav && turn) state.player.headingAngle += turn * turnRate * dt;
 
   state.player.headingX = Math.cos(state.player.headingAngle);
@@ -667,17 +655,25 @@ export function updatePlayer(state, dt) {
     const nextY = state.player.y + state.player.headingY * step;
     const beforeX = state.player.x;
     const beforeY = state.player.y;
-    moveWithCollision(state, nextX, nextY);
-    if (autoNav && Math.hypot(state.player.x - beforeX, state.player.y - beforeY) < Math.max(1, Math.abs(step) * 0.12)) {
+    const collision = moveWithCollision(state, nextX, nextY);
+    const moved = Math.hypot(state.player.x - beforeX, state.player.y - beforeY);
+    if (autoNav && (collision.hit || moved < Math.max(1, Math.abs(step) * 0.12))) {
       state.autoStuckTime = (state.autoStuckTime || 0) + dt;
-      if (state.autoStuckTime > 0.55) {
-        state.autoNavPath = null;
-        state.autoNavTargetId = null;
-        state.autoNavIndex = 0;
+      state.autoNavMoving = false;
+      if (state.autoStuckTime > 0.22 || collision.hit) {
+        state.autoNavBlockedUntil = (state.floatTime || 0) + 0.95;
         state.autoStuckTime = 0;
+        state.autoAvoiding = true;
+        if ((state.floatTime || 0) - (state.lastAutoObstacleHintAt ?? -99) > 2.4) {
+          const line = t("autoObstacleStop");
+          state.lastAutoObstacleHintAt = state.floatTime || 0;
+          state.message = line;
+          state.comic = { text: line, tone: "hint safety", time: 2.0, speaker: "companion" };
+        }
       }
     } else if (autoNav) {
       state.autoStuckTime = 0;
+      state.autoNavBlockedUntil = 0;
     }
   }
 }
@@ -698,6 +694,7 @@ function moveWithCollision(state, nextX, nextY) {
 
   state.player.x = current.x;
   state.player.y = current.y;
+  return { hit: hitX || hitY || null };
 }
 
 function clampPoint(point, radius) {
