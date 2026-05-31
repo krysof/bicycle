@@ -2012,8 +2012,8 @@ export class ThreeRenderer {
     const fields = landmarks.fields || [[86, -64], [100, -62]];
     const [signX, signZ] = landmarks.sign || [-18, 72];
 
-    // 淀川风格的大河：贯穿整个区域，有河堤、河边树、鸭子和桥。
-    this.addYodogawaRiver();
+    // 北江口南侧神崎川风格：低一层水道、河川敷、河堤天端路、护栏、斜坡入口。
+    this.addKanzakiRiverTerrain();
 
     // 不再添加额外蓝色斜线/水渠，避免画面出现两种蓝色水体。
     this.addPlane(parkX, 0.05, parkZ, 18, 12, 0x71bb70, -0.03); this.addSign(parkX, parkZ - 8, sceneLabel("park")); this.addBench(parkX - 4, parkZ); this.addBench(parkX + 4, parkZ + 3); this.addTree(parkX - 8, parkZ - 6, true, 1.3); this.addTree(parkX + 8, parkZ - 3, false, 1.2);
@@ -2027,68 +2027,169 @@ export class ThreeRenderer {
     (landmarks.poles || []).forEach(({ x, z }) => this.addUtilityPole(x, z));
   }
 
-  addYodogawaRiver() {
+  addKanzakiRiverTerrain() {
     const riverZ = 238;
     const waterW = 46;
-    const bankW = 112;
-    // 河川敷：河道两侧宽阔、平坦的草地，不是普通城市空地。
-    this.addPlane(0, 0.014, riverZ, MAP_W + 12, bankW, 0x8fbd9b, 0);
-    this.addPlane(0, 0.021, riverZ - waterW / 2 - 24, MAP_W - 20, 20, 0x86c983, 0);
-    this.addPlane(0, 0.021, riverZ + waterW / 2 + 24, MAP_W - 20, 20, 0x91cf82, 0);
-    this.addPlane(0, 0.026, riverZ, MAP_W + 4, waterW, 0x4aaed0, 0);
-    this.addPlane(0, 0.032, riverZ - 7, MAP_W + 4, 7.2, 0x76c7dc, 0);
-    this.addPlane(0, 0.033, riverZ + 8, MAP_W + 4, 4.8, 0x358fb2, 0);
-    this.addLeveeSlope(0, riverZ - waterW / 2 - 11.2, MAP_W - 10, 13, -1);
-    this.addLeveeSlope(0, riverZ + waterW / 2 + 11.2, MAP_W - 10, 13, 1);
-    this.addPlane(0, 0.055, riverZ - waterW / 2 - 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
-    this.addPlane(0, 0.055, riverZ + waterW / 2 + 3.4, MAP_W - 8, 4.2, 0xb5d58f, 0);
-    // 河堤天端和自行车道 / 散步道。
-    this.addPlane(0, 0.118, riverZ - waterW / 2 - 13.2, MAP_W - 16, 3.8, 0xd8d0b6, 0);
-    this.addPlane(0, 0.118, riverZ + waterW / 2 + 13.2, MAP_W - 16, 3.8, 0xd8d0b6, 0);
-    this.addPlane(0, 0.138, riverZ - waterW / 2 - 20.0, MAP_W - 30, 4.4, COLORS.asphalt, 0);
-    this.addPlane(0, 0.138, riverZ + waterW / 2 + 20.0, MAP_W - 30, 4.4, COLORS.asphalt, 0);
-    this.addSign(-318, riverZ - waterW / 2 - 29, sceneLabel("riverbed"));
-    this.addSign(318, riverZ + waterW / 2 + 27, sceneLabel("levee"));
+    const floodplainW = 124;
+    const bridgeCenters = [-252, -96, 112, 252];
+    const nearBridge = (x, margin = 14) => bridgeCenters.some((b) => Math.abs(x - b) < margin);
+
+    // 北江口附近常见的神崎川式断面：水面低、两侧有护岸，外侧是河川敷草地，再上到堤防天端路。
+    this.addPlane(0, 0.010, riverZ, MAP_W + 18, floodplainW, 0x8fbd9b, 0);
+    this.addPlane(0, 0.017, riverZ - waterW / 2 - 28, MAP_W - 18, 26, 0x82bf78, 0);
+    this.addPlane(0, 0.017, riverZ + waterW / 2 + 28, MAP_W - 18, 26, 0x8ac87d, 0);
+
+    // 水槽和水面：用深浅水色、护岸墙、石块边线，让河不是平地刷蓝色。
+    this.addPlane(0, 0.012, riverZ, MAP_W + 12, waterW + 8, 0x6f817a, 0);
+    this.addPlane(0, 0.028, riverZ, MAP_W + 8, waterW, 0x4aaed0, 0);
+    this.addPlane(0, 0.034, riverZ - 7.5, MAP_W + 8, 7.4, 0x78c8df, 0);
+    this.addPlane(0, 0.035, riverZ + 8.2, MAP_W + 8, 5.0, 0x358fb2, 0);
+    const addRetainingWall = (z, color = 0x9ca49b) => {
+      const wall = new THREE.Mesh(boxGeo(MAP_W + 12, 0.46, 0.48), mat(color));
+      wall.position.set(0, 0.24, z);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      this.scene.add(wall);
+      const cap = new THREE.Mesh(boxGeo(MAP_W + 12, 0.06, 0.72), mat(0xc8c3b6));
+      cap.position.set(0, 0.49, z);
+      cap.receiveShadow = true;
+      this.scene.add(cap);
+    };
+    addRetainingWall(riverZ - waterW / 2 - 0.5);
+    addRetainingWall(riverZ + waterW / 2 + 0.5);
+
+    // 河川敷内侧草坡、亲水散步道。
+    this.addLeveeSlope(0, riverZ - waterW / 2 - 8.5, MAP_W - 14, 11.5, -1, 0x73b86c, 0.072);
+    this.addLeveeSlope(0, riverZ + waterW / 2 + 8.5, MAP_W - 14, 11.5, 1, 0x78bc70, 0.072);
+    this.addPlane(0, 0.058, riverZ - waterW / 2 - 5.0, MAP_W - 8, 3.2, 0xc8bea0, 0);
+    this.addPlane(0, 0.058, riverZ + waterW / 2 + 5.0, MAP_W - 8, 3.2, 0xc8bea0, 0);
+
+    // 河川敷：草地、土路、简单运动场线，表现堤内空旷但不是空白地面。
     [-1, 1].forEach((side) => {
-      const railZ = riverZ + side * (waterW / 2 + 1.7);
-      const rail = new THREE.Mesh(boxGeo(MAP_W - 20, 0.08, 0.08), mat(0xdfe5df));
-      rail.position.set(0, 0.46, railZ);
-      this.scene.add(rail);
-      for (let x = -350; x <= 350; x += 16) {
-        const post = new THREE.Mesh(boxGeo(0.08, 0.56, 0.08), mat(0xc8d0c8));
-        post.position.set(x, 0.28, railZ);
-        this.scene.add(post);
+      const baseZ = riverZ + side * (waterW / 2 + 25.5);
+      this.addPlane(0, 0.031, baseZ, MAP_W - 28, 19.5, side < 0 ? 0x86c983 : 0x91cf82, 0);
+      this.addPlane(0, 0.064, baseZ + side * 1.8, MAP_W - 44, 1.45, 0xd9c7a6, 0);
+      this.addPlane(-152, 0.066, baseZ - side * 5.1, 74, 0.38, 0xf0ead0, 0);
+      this.addPlane(-152, 0.066, baseZ - side * 11.1, 74, 0.38, 0xf0ead0, 0);
+      this.addPlane(-189, 0.066, baseZ - side * 8.1, 0.38, 6.4, 0xf0ead0, 0);
+      this.addPlane(-115, 0.066, baseZ - side * 8.1, 0.38, 6.4, 0xf0ead0, 0);
+      for (let x = -330; x <= 330; x += 66) {
+        if (nearBridge(x, 18)) continue;
+        const patch = new THREE.Mesh(sphereGeo(0.72, 12, 8), mat(0x6faa61));
+        patch.position.set(x + (side < 0 ? -5 : 7), 0.25, baseZ + side * ((x % 132 === 0) ? -4.8 : 5.8));
+        patch.scale.set(2.8, 0.22, 0.9);
+        this.scene.add(patch);
       }
     });
-    for (let x = -356; x <= 356; x += 18) {
-      const odd = Math.floor((x + 400) / 18) % 2;
-      this.addTree(x + (odd ? 3.8 : -3.8), riverZ - waterW / 2 - 31.5, false, odd ? 1.05 : 0.95, odd ? "keyaki" : "willow");
-      if (x % 36 === 0) this.addTree(x + 6, riverZ + waterW / 2 + 31.2, true, 0.98, x % 72 === 0 ? "sakura" : "ginkgo");
-      if (x % 54 === 0) {
-        const shrub = new THREE.Mesh(sphereGeo(0.55, 12, 8), mat(0x6fae68));
-        shrub.position.set(x - 5, 0.45, riverZ + waterW / 2 + 20.2);
-        shrub.scale.set(1.8, 0.56, 0.72);
-        this.scene.add(shrub);
+
+    // 堤防外坡和天端路：道路高于河川敷，且道路旁也有城市侧绿带，避免看成空气墙。
+    this.addLeveeSlope(0, riverZ - waterW / 2 - 42.0, MAP_W - 18, 17.0, -1, 0x72b66b, 0.108);
+    this.addLeveeSlope(0, riverZ + waterW / 2 + 42.0, MAP_W - 18, 17.0, 1, 0x77bb70, 0.108);
+    this.addPlane(0, 0.142, riverZ - waterW / 2 - 52.0, MAP_W - 34, 5.2, COLORS.asphalt, 0);
+    this.addPlane(0, 0.142, riverZ + waterW / 2 + 52.0, MAP_W - 34, 5.2, COLORS.asphalt, 0);
+    this.addPlane(0, 0.151, riverZ - waterW / 2 - 57.0, MAP_W - 42, 1.2, 0xf2e7c6, 0);
+    this.addPlane(0, 0.151, riverZ + waterW / 2 + 57.0, MAP_W - 42, 1.2, 0xf2e7c6, 0);
+
+    // 斜坡和阶梯入口：桥附近、河川敷出入口很明确。
+    const addRamp = (x, side) => {
+      this.addStripBetween(x - 10, riverZ + side * (waterW / 2 + 50.4), x + 8, riverZ + side * (waterW / 2 + 10.2), 2.4, 0xcfc5a9, 0.155);
+      this.addStripBetween(x - 10, riverZ + side * (waterW / 2 + 50.4), x + 8, riverZ + side * (waterW / 2 + 10.2), 0.36, 0xf6f1d7, 0.184);
+    };
+    const addStairs = (x, side) => {
+      const bottomZ = riverZ + side * (waterW / 2 + 10.0);
+      const topZ = riverZ + side * (waterW / 2 + 49.0);
+      for (let i = 0; i < 7; i += 1) {
+        const u = i / 6;
+        const step = new THREE.Mesh(boxGeo(3.0, 0.055, 1.28), mat(0xc6bca8));
+        step.position.set(x, 0.075 + i * 0.014, bottomZ + (topZ - bottomZ) * u);
+        step.castShadow = true;
+        step.receiveShadow = true;
+        this.scene.add(step);
+      }
+    };
+    [-316, -44, 184].forEach((x, i) => [-1, 1].forEach((side) => (i % 2 === 0 ? addRamp(x, side) : addStairs(x, side))));
+
+    // 护栏：水边低护栏、堤顶道路侧护栏。
+    [-1, 1].forEach((side) => {
+      const waterRailZ = riverZ + side * (waterW / 2 + 1.7);
+      const topRailZ = riverZ + side * (waterW / 2 + 54.2);
+      [waterRailZ, topRailZ].forEach((railZ, idx) => {
+        const rail = new THREE.Mesh(boxGeo(MAP_W - 24, 0.08, 0.08), mat(idx === 0 ? 0xdfe5df : 0xe8ece8));
+        rail.position.set(0, idx === 0 ? 0.58 : 0.76, railZ);
+        this.scene.add(rail);
+        for (let x = -344; x <= 344; x += idx === 0 ? 24 : 32) {
+          if (idx === 0 && nearBridge(x, 12)) continue;
+          const post = new THREE.Mesh(boxGeo(0.08, idx === 0 ? 0.62 : 0.72, 0.08), mat(0xc8d0c8));
+          post.position.set(x, idx === 0 ? 0.32 : 0.40, railZ);
+          this.scene.add(post);
+        }
+      });
+    });
+
+    // 排水口、水门、芦苇和河边石，让神崎川护岸更像真实河道。
+    [-268, -176, -18, 72, 218, 306].forEach((x, i) => {
+      const side = i % 2 === 0 ? -1 : 1;
+      const outlet = new THREE.Mesh(boxGeo(3.2, 0.72, 1.0), mat(0x8b938d));
+      outlet.position.set(x, 0.36, riverZ + side * (waterW / 2 + 1.1));
+      outlet.castShadow = true;
+      this.scene.add(outlet);
+      const mouth = new THREE.Mesh(boxGeo(1.65, 0.34, 0.08), mat(0x29333a));
+      mouth.position.set(x, 0.36, riverZ + side * (waterW / 2 + 0.52));
+      this.scene.add(mouth);
+    });
+    for (let x = -350; x <= 350; x += 28) {
+      if (nearBridge(x, 18)) continue;
+      [-1, 1].forEach((side) => {
+        const reedZ = riverZ + side * (waterW / 2 - 2.2 + ((x % 56 === 0) ? -1.2 : 1.0));
+        for (let j = 0; j < 3; j += 1) {
+          const reed = new THREE.Mesh(boxGeo(0.06, 0.62 + j * 0.08, 0.045), mat(j === 1 ? 0xb99d56 : 0x638f47));
+          reed.position.set(x + j * 0.34, 0.33 + j * 0.04, reedZ + side * j * 0.28);
+          reed.rotation.z = (j - 1) * 0.08;
+          this.scene.add(reed);
+        }
+      });
+    }
+
+    // 河边行道树：柳、榉、樱、银杏，日本住宅河边常见树种混合。
+    for (let x = -356; x <= 356; x += 24) {
+      const odd = Math.floor((x + 400) / 24) % 2;
+      if (!nearBridge(x, 20)) this.addTree(x + (odd ? 4.6 : -4.6), riverZ - waterW / 2 - 61.5, false, odd ? 1.10 : 0.98, odd ? "keyaki" : "willow");
+      if (x % 48 === 0 && !nearBridge(x, 22)) this.addTree(x + 7, riverZ + waterW / 2 + 61.2, true, 1.02, x % 96 === 0 ? "sakura" : "ginkgo");
+    }
+    for (let x = -320; x <= 320; x += 80) {
+      if (!nearBridge(x, 22)) {
+        this.addBench(x, riverZ - waterW / 2 - 33.5);
+        this.addBench(x + 28, riverZ + waterW / 2 + 32.5);
       }
     }
-    for (let x = -320; x <= 320; x += 64) {
-      this.addBench(x, riverZ - waterW / 2 - 25.5);
-      if (x % 128 === 0) this.addTree(x + 18, riverZ + waterW / 2 + 25.5, false, 0.82, "pine");
-    }
-    [-252, -96, 112, 252].forEach((x) => {
-      const bridge = new THREE.Mesh(boxGeo(13.5, 0.20, bankW + 8), mat(0xb8b3a5));
-      bridge.position.set(x, 0.18, riverZ);
+
+    // 桥梁横跨河槽与两侧堤防，桥面比水面高。
+    bridgeCenters.forEach((x) => {
+      const bridge = new THREE.Mesh(boxGeo(14.5, 0.24, floodplainW + 10), mat(0xb8b3a5));
+      bridge.position.set(x, 0.20, riverZ);
+      bridge.castShadow = true;
+      bridge.receiveShadow = true;
       this.scene.add(bridge);
-      const road = new THREE.Mesh(boxGeo(9.0, 0.05, bankW + 11), mat(COLORS.asphalt));
-      road.position.set(x, 0.235, riverZ);
+      const road = new THREE.Mesh(boxGeo(9.0, 0.06, floodplainW + 13), mat(COLORS.asphalt));
+      road.position.set(x, 0.275, riverZ);
+      road.receiveShadow = true;
       this.scene.add(road);
+      const curbL = new THREE.Mesh(boxGeo(0.32, 0.16, floodplainW + 11), mat(0xe8e3d4));
+      curbL.position.set(x - 5.2, 0.39, riverZ);
+      const curbR = curbL.clone();
+      curbR.position.x = x + 5.2;
+      this.scene.add(curbL, curbR);
     });
-    for (let i = 0; i < 9; i += 1) {
+
+    this.addSign(-318, riverZ - waterW / 2 - 38, sceneLabel("riverbed"));
+    this.addSign(318, riverZ + waterW / 2 + 38, sceneLabel("levee"));
+
+    for (let i = 0; i < 12; i += 1) {
       const duck = this.createAnimal("duck", i % 2 ? 0xf2e2a0 : 0xf0d56f);
-      duck.position.set(-250 + i * 58, 0.045, riverZ - 8 + (i % 3) * 6);
-      duck.scale.setScalar(1.2);
+      duck.position.set(-332 + i * 60, 0.052, riverZ - 9 + (i % 4) * 5.7);
+      duck.scale.setScalar(1.16);
       this.scene.add(duck);
-      this.animals.push({ group: duck, kind: "duck", x: duck.position.x, z: duck.position.z, range: 4.0, speed: 0.12 + i * 0.006, phase: i * 0.7, water: true });
+      this.animals.push({ group: duck, kind: "duck", x: duck.position.x, z: duck.position.z, range: 4.2, speed: 0.10 + i * 0.005, phase: i * 0.7, water: true });
     }
   }
 
@@ -3444,10 +3545,10 @@ export class ThreeRenderer {
   }
 
   addPlane(x, y, z, w, d, color, rot = 0) { const mesh = new THREE.Mesh(boxGeo(w, 0.04, d), mat(color)); mesh.position.set(x, y, z); mesh.rotation.y = rot; mesh.receiveShadow = true; this.scene.add(mesh); return mesh; }
-  addLeveeSlope(x, z, w, d, side = 1) {
-    const slope = new THREE.Mesh(planeGeo(w, d), mat(0x7fc078));
+  addLeveeSlope(x, z, w, d, side = 1, color = 0x7fc078, y = 0.075) {
+    const slope = new THREE.Mesh(planeGeo(w, d), mat(color));
     slope.rotation.x = -Math.PI / 2 + side * 0.12;
-    slope.position.set(x, 0.075, z);
+    slope.position.set(x, y, z);
     slope.receiveShadow = true;
     this.scene.add(slope);
     return slope;
