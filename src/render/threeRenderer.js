@@ -456,6 +456,11 @@ export class ThreeRenderer {
     this.bikeRoll = 0;
     this.walkCycle = 0;
     this.lastBikeAnimTime = 0;
+    this.lastPlayerSceneX = null;
+    this.lastPlayerSceneZ = null;
+    this.smoothedPlayerSceneSpeed = 0;
+    this.cameraSmoothedDir = new THREE.Vector2(0.78, 0.62).normalize();
+    this.cameraLookTarget = new THREE.Vector3();
     this.lastTargetScale = 1;
     this.lastTargetId = null;
     this.eraDetailCount = 0;
@@ -517,6 +522,11 @@ export class ThreeRenderer {
     this.bike = null;
     this.bikeRoll = 0;
     this.walkCycle = 0;
+    this.lastPlayerSceneX = null;
+    this.lastPlayerSceneZ = null;
+    this.smoothedPlayerSceneSpeed = 0;
+    this.cameraSmoothedDir = new THREE.Vector2(0.78, 0.62).normalize();
+    this.cameraLookTarget = new THREE.Vector3();
     this.currentPlayerStyle = null;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
@@ -3312,7 +3322,9 @@ export class ThreeRenderer {
   updatePlayer(state) {
     if (!this.player) return;
     this.applyPlayerStyle(state.playerStyle || "male");
-    this.player.position.set(wx(state.player.x), 0, wz(state.player.y));
+    const sceneX = wx(state.player.x);
+    const sceneZ = wz(state.player.y);
+    this.player.position.set(sceneX, 0, sceneZ);
     const dx = state.player.headingX || 0.65; const dz = state.player.headingY || 0.76;
     this.player.rotation.y = Math.atan2(-dz, dx);
     const bikeMode = state.config?.moveMode === "bike"; this.bike.visible = bikeMode;
@@ -3335,7 +3347,27 @@ export class ThreeRenderer {
           : touchThrottle * 0.42;
     const animDt = Math.min(0.05, Math.max(0, (state.floatTime || 0) - this.lastBikeAnimTime));
     this.lastBikeAnimTime = state.floatTime || 0;
-    if (pedaling) this.bikeRoll += throttle * animDt * ((state.config?.speed || 430) * WORLD_SCALE / 0.36);
+    let movedScene = 0;
+    if (Number.isFinite(this.lastPlayerSceneX) && Number.isFinite(this.lastPlayerSceneZ)) {
+      const rawMoved = Math.hypot(sceneX - this.lastPlayerSceneX, sceneZ - this.lastPlayerSceneZ);
+      movedScene = rawMoved < 2.2 ? rawMoved : 0;
+    }
+    this.lastPlayerSceneX = sceneX;
+    this.lastPlayerSceneZ = sceneZ;
+    const actualSceneSpeed = animDt > 0.001 ? movedScene / animDt : 0;
+    const commandedSceneSpeed = Math.abs(throttle) * (state.config?.speed || 430) * WORLD_SCALE;
+    const targetSceneSpeed = bikeMode && pedaling
+      ? Math.max(actualSceneSpeed, commandedSceneSpeed * 0.45)
+      : 0;
+    this.smoothedPlayerSceneSpeed = THREE.MathUtils.lerp(
+      this.smoothedPlayerSceneSpeed || 0,
+      targetSceneSpeed,
+      targetSceneSpeed > (this.smoothedPlayerSceneSpeed || 0) ? 0.22 : 0.12,
+    );
+    if (bikeMode && (pedaling || this.smoothedPlayerSceneSpeed > 0.05)) {
+      const direction = backward ? -0.42 : 1;
+      this.bikeRoll += direction * animDt * (this.smoothedPlayerSceneSpeed / 0.36);
+    }
 
     const moving = forward || backward;
     if (!bikeMode && moving) {
@@ -3581,8 +3613,17 @@ export class ThreeRenderer {
   updateCamera(state) {
     const px = wx(state.player.x); const pz = wz(state.player.y);
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
-    const distance = state.config?.moveMode === "bike" ? 2.4 : 2.15;
-    const height = state.config?.moveMode === "bike" ? 1.82 : 1.74;
+    const targetDir = new THREE.Vector2(dx, dz);
+    if (targetDir.lengthSq() < 0.001) targetDir.set(0.78, 0.62);
+    targetDir.normalize();
+    if (!this.cameraSmoothedDir) this.cameraSmoothedDir = targetDir.clone();
+    this.cameraSmoothedDir.lerp(targetDir, state.isPlaying ? 0.075 : 0.12);
+    if (this.cameraSmoothedDir.lengthSq() < 0.001) this.cameraSmoothedDir.copy(targetDir);
+    this.cameraSmoothedDir.normalize();
+    const sx = this.cameraSmoothedDir.x;
+    const sz = this.cameraSmoothedDir.y;
+    const distance = state.config?.moveMode === "bike" ? 2.05 : 1.85;
+    const height = state.config?.moveMode === "bike" ? 1.76 : 1.68;
     if (state.screen === "title") {
       const t = state.floatTime || 0;
       const desiredTitle = new THREE.Vector3(
@@ -3595,14 +3636,18 @@ export class ThreeRenderer {
       return;
     }
     if (!state.isPlaying) {
-      const desiredHome = new THREE.Vector3(px - dx * 8.0, 4.2, pz - dz * 8.0);
+      const desiredHome = new THREE.Vector3(px - sx * 8.0, 4.2, pz - sz * 8.0);
       this.camera.position.lerp(desiredHome, 0.04);
-      this.camera.lookAt(px + dx * 3.5, 0.55, pz + dz * 3.5);
+      this.camera.lookAt(px + sx * 3.5, 0.55, pz + sz * 3.5);
       return;
     }
-    const desired = new THREE.Vector3(px - dx * distance, height, pz - dz * distance);
-    this.camera.position.lerp(desired, 0.075);
-    this.camera.lookAt(px + dx * 1.55, 0.80, pz + dz * 1.55);
+    const desired = new THREE.Vector3(px - sx * distance, height, pz - sz * distance);
+    this.camera.position.lerp(desired, 0.06);
+    const desiredLook = new THREE.Vector3(px + sx * 1.35, 0.82, pz + sz * 1.35);
+    if (!this.cameraLookTarget) this.cameraLookTarget = desiredLook.clone();
+    if (this.cameraLookTarget.distanceTo(desiredLook) > 30) this.cameraLookTarget.copy(desiredLook);
+    this.cameraLookTarget.lerp(desiredLook, 0.11);
+    this.camera.lookAt(this.cameraLookTarget);
   }
 
   updateAnimatedObjects(t, state) {
