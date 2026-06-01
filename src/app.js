@@ -1,6 +1,6 @@
 import { neighbors } from "./data/neighbors.js";
 import { familyMessageCount, pickFamilyMessage } from "./data/familyMessages.js";
-import { randomPlayerAvatarId } from "./data/playerAvatars.js";
+import { playerAvatarById, randomPlayerAvatarId } from "./data/playerAvatars.js";
 import { createWorldLayout, createWorldObstacles } from "./data/world.js";
 import { answersFromMode, buildConfig, pickRoute, pickStartNearTarget } from "./game/difficulty.js";
 import { buildAutoNavPath, requestDelivery, updateDelivery, updatePlayer } from "./game/delivery.js";
@@ -22,6 +22,8 @@ export class App {
     this.prepareRandomWorld();
     this.audio = new AudioEngine();
     this.playerNameIndex = this.randomIndex(getLocalizedList("defaultPlayerNames").length);
+    this.selectedPlayerStyle = randomPlayerAvatarId();
+    this.state.playerStyle = this.selectedPlayerStyle;
     this.companionNameIndex = this.randomIndex(getLocalizedList("companionNames").length);
     this.familyMessageIndex = this.randomIndex(familyMessageCount(locale));
     this.playerNameIsRandom = true;
@@ -32,8 +34,21 @@ export class App {
     this.setupAudioToggles();
   }
 
-  randomDefaultName() {
-    const list = getLocalizedList("defaultPlayerNames");
+  selectedPlayerGender() {
+    return playerAvatarById(this.selectedPlayerStyle || this.state.playerStyle)?.gender || "male";
+  }
+
+  defaultNamesForGender(gender = this.selectedPlayerGender()) {
+    const key = gender === "female" ? "defaultPlayerNamesFemale" : "defaultPlayerNamesMale";
+    const genderList = getLocalizedList(key);
+    if (Array.isArray(genderList) && genderList.length) return genderList;
+    const all = getLocalizedList("defaultPlayerNames");
+    if (!Array.isArray(all) || !all.length) return ["春日先生", "青山女士"];
+    return all.filter((_, i) => gender === "female" ? i % 2 === 1 : i % 2 === 0);
+  }
+
+  randomDefaultName(gender = this.selectedPlayerGender()) {
+    const list = this.defaultNamesForGender(gender);
     const names = Array.isArray(list) ? list : ["春日先生", "青山女士", "松风先生", "花见女士"];
     return names[this.playerNameIndex % names.length];
   }
@@ -78,12 +93,22 @@ export class App {
   }
 
   rerollNames() {
-    this.playerNameIndex = this.randomIndex(getLocalizedList("defaultPlayerNames").length);
+    const gender = this.selectedPlayerGender();
+    this.playerNameIndex = this.randomIndex(this.defaultNamesForGender(gender).length);
     this.companionNameIndex = this.randomIndex(getLocalizedList("companionNames").length);
     this.playerNameIsRandom = true;
     this.refreshCompanionName();
+    this.state.playerStyle = this.selectedPlayerStyle;
+    this.state.playerName = this.randomDefaultName(gender);
+  }
+
+  selectPlayerAvatar(id) {
+    this.selectedPlayerStyle = id || randomPlayerAvatarId();
+    this.state.playerStyle = this.selectedPlayerStyle;
+    this.playerNameIsRandom = true;
+    this.playerNameIndex = this.randomIndex(this.defaultNamesForGender(this.selectedPlayerGender()).length);
     this.state.playerName = this.randomDefaultName();
-    this.state.playerStyle = randomPlayerAvatarId();
+    if (this.state.screen === "title") this.screens.title(this.selectedPlayerStyle);
   }
 
   refreshCompanionName() {
@@ -197,7 +222,7 @@ export class App {
     this.setupLanguageSelector();
     this.renderer.rebuildWorld();
     if (this.state.screen === "title") {
-      this.screens.title();
+      this.screens.title(this.selectedPlayerStyle);
     } else if (this.state.screen === "home") {
       const record = loadRecord();
       const autoMessage = this.familyMessageForHome(record);
@@ -231,6 +256,10 @@ export class App {
     this.screens.root.addEventListener("click", async (event) => {
       const button = event.target.closest("button");
       if (!button) return;
+      if (button.dataset.avatar) {
+        this.selectPlayerAvatar(button.dataset.avatar);
+        return;
+      }
       if (button.dataset.action === "title-start") {
         await this.audio.start();
         this.showHome();
@@ -374,7 +403,7 @@ export class App {
     this.hud.hide();
     this.hideTouchControls();
     this.updateComic();
-    this.screens.title();
+    this.screens.title(this.selectedPlayerStyle);
   }
 
   showHome() {

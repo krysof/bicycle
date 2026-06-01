@@ -1,4 +1,5 @@
 import { t } from "../i18n.js";
+import { PLAYER_AVATARS } from "../data/playerAvatars.js";
 
 function esc(value) {
   return String(value ?? "")
@@ -18,13 +19,34 @@ export class Screens {
     this.root.innerHTML = "";
   }
 
-  title() {
+  title(selectedAvatarId = "m01") {
+    const selected = PLAYER_AVATARS.find((avatar) => avatar.id === selectedAvatarId) || PLAYER_AVATARS[0];
     this.root.innerHTML = `
       <section class="screen narrow title-screen">
         <div class="stamp">${t("stamp")}</div>
         <p class="eyebrow">${t("titleKicker")}</p>
         <h1>${t("homeTitle")}</h1>
         <p class="lead">${t("titleSoundNote")}</p>
+        <div class="title-character-panel" aria-label="${esc(t("titleSelectCharacter"))}">
+          <p class="character-title">${t("titleSelectCharacter")}</p>
+          <div class="character-grid">
+            ${PLAYER_AVATARS.map((avatar, index) => `
+              <button type="button" class="character-card ${avatar.id === selected.id ? "selected" : ""}" data-avatar="${esc(avatar.id)}" aria-label="${esc(`${t("titleSelectCharacter")} ${index + 1}`)}">
+                <span class="character-portrait ${avatar.gender}" style="--body:#${avatar.body.toString(16).padStart(6, "0")};--hat:#${avatar.hat.toString(16).padStart(6, "0")};--hair:#${avatar.hair.toString(16).padStart(6, "0")};--skin:#${avatar.skin.toString(16).padStart(6, "0")};">
+                  <span class="portrait-head"></span>
+                  <span class="portrait-hair ${avatar.hairMode || "short"}"></span>
+                  ${avatar.hairBun ? `<span class="portrait-bun"></span>` : ""}
+                  ${avatar.hatVisible === false ? "" : `<span class="portrait-hat"></span>`}
+                  <span class="portrait-eye left"></span>
+                  <span class="portrait-eye right"></span>
+                  <span class="portrait-body"></span>
+                  ${avatar.glasses ? `<span class="portrait-glasses"></span>` : ""}
+                  ${avatar.mustache ? `<span class="portrait-mustache"></span>` : ""}
+                </span>
+              </button>`).join("")}
+          </div>
+          <p class="character-note">${selected.gender === "female" ? t("titleSelectedFemale") : t("titleSelectedMale")}</p>
+        </div>
         <button class="title-start primary" data-action="title-start">
           <span class="mode-icon">🚲</span>
           <strong>${t("titleStart")}</strong>

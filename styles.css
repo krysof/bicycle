@@ -275,14 +275,176 @@ html[data-locale="en"] select {
   background: rgba(255, 251, 238, 0.86);
 }
 
+.title-character-panel {
+  margin: 18px auto 0;
+  padding: 14px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.48);
+  border: 2px solid rgba(47, 125, 92, 0.14);
+}
+
+.character-title {
+  margin: 0 0 10px;
+  color: var(--accent-dark);
+  font-weight: 900;
+  font-size: clamp(18px, 1.8vw, 22px);
+  line-height: 1.25;
+}
+
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.character-card {
+  min-height: 82px;
+  padding: 8px 4px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 253, 245, 0.92), rgba(255, 246, 222, 0.86));
+  border: 2px solid rgba(36, 48, 68, 0.12);
+}
+
+.character-card.selected {
+  border-color: rgba(47, 125, 92, 0.72);
+  background: linear-gradient(180deg, #f0fff3, #fff5cd);
+  box-shadow: 0 0 0 4px rgba(47, 125, 92, 0.16);
+  transform: translateY(-2px);
+}
+
+.character-note {
+  margin: 10px 0 0;
+  font-size: clamp(14px, 1.4vw, 17px);
+  line-height: 1.35;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.character-portrait {
+  --body: #2f7d5c;
+  --hat: #716a63;
+  --hair: #4a3a32;
+  --skin: #f0c08d;
+  position: relative;
+  display: block;
+  width: 58px;
+  height: 64px;
+  margin: 0 auto;
+}
+
+.portrait-body {
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 5px;
+  height: 28px;
+  border-radius: 13px 13px 8px 8px;
+  background: var(--body);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08);
+}
+
+.character-portrait.female .portrait-body {
+  left: 13px;
+  right: 13px;
+  border-radius: 15px 15px 12px 12px;
+}
+
+.portrait-head {
+  position: absolute;
+  left: 17px;
+  top: 14px;
+  width: 24px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--skin);
+  z-index: 3;
+}
+
+.portrait-hair {
+  position: absolute;
+  left: 15px;
+  top: 11px;
+  width: 28px;
+  height: 15px;
+  border-radius: 14px 14px 8px 8px;
+  background: var(--hair);
+  z-index: 4;
+}
+
+.portrait-hair.long,
+.portrait-hair.bob {
+  top: 10px;
+  height: 27px;
+  border-radius: 15px 15px 13px 13px;
+}
+
+.portrait-bun {
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--hair);
+  z-index: 2;
+}
+
+.portrait-hat {
+  position: absolute;
+  left: 14px;
+  top: 5px;
+  width: 30px;
+  height: 13px;
+  border-radius: 16px 16px 6px 6px;
+  background: var(--hat);
+  z-index: 5;
+}
+
+.portrait-eye {
+  position: absolute;
+  top: 27px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #2c2724;
+  z-index: 6;
+}
+
+.portrait-eye.left { left: 23px; }
+.portrait-eye.right { right: 23px; }
+
+.portrait-glasses {
+  position: absolute;
+  left: 20px;
+  top: 24px;
+  width: 18px;
+  height: 8px;
+  border: 2px solid rgba(70, 61, 52, 0.92);
+  border-left-width: 2px;
+  border-right-width: 2px;
+  border-radius: 5px;
+  z-index: 7;
+}
+
+.portrait-mustache {
+  position: absolute;
+  left: 22px;
+  top: 33px;
+  width: 15px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hair);
+  z-index: 7;
+}
+
 .home-screen {
   background: rgba(255, 251, 238, 0.86);
 }
 
 .title-start {
   width: min(430px, 100%);
-  min-height: 150px;
-  margin-top: 28px;
+  min-height: 132px;
+  margin-top: 18px;
   border-radius: 30px;
 }
 
@@ -1481,6 +1643,90 @@ kbd {
   .title-screen,
   .home-screen {
     background: rgba(255, 251, 238, 0.64);
+  }
+
+  .title-screen {
+    width: min(100%, 430px);
+    padding: 12px 10px;
+  }
+
+  .title-screen .stamp {
+    padding: 4px 7px;
+    font-size: 14px;
+    border-width: 2px;
+    border-radius: 9px;
+  }
+
+  .title-screen .eyebrow {
+    margin-bottom: 3px;
+    font-size: 15px;
+  }
+
+  .title-screen h1 {
+    margin-bottom: 4px;
+    font-size: clamp(28px, 8vw, 38px);
+  }
+
+  .title-screen .lead {
+    margin: 0;
+    font-size: clamp(14px, 3.8vw, 17px);
+    line-height: 1.25;
+  }
+
+  .title-character-panel {
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.34);
+  }
+
+  .character-title {
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+
+  .character-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+
+  .character-card {
+    min-height: 54px;
+    padding: 3px 1px;
+    border-width: 1px;
+    border-radius: 11px;
+  }
+
+  .character-card.selected {
+    box-shadow: 0 0 0 2px rgba(47, 125, 92, 0.17);
+    transform: translateY(-1px);
+  }
+
+  .character-portrait {
+    width: 38px;
+    height: 45px;
+    transform: scale(0.78);
+    transform-origin: center top;
+  }
+
+  .character-note {
+    margin-top: 5px;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .title-start {
+    min-height: 86px;
+    margin-top: 9px;
+    border-radius: 20px;
+  }
+
+  .title-start .mode-icon {
+    font-size: 22px;
+  }
+
+  .title-start strong {
+    font-size: clamp(24px, 7vw, 32px);
   }
 
   .simple-home .stamp,
