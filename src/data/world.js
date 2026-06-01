@@ -388,12 +388,12 @@ function generateTrees(rand, lots) {
 
   // 路边绿化：沿道路两侧增加大量小乔木、灌木和花木，但标记为 decorative，
   // 不加入碰撞体，避免再次造成看不见的空气墙或把窄路堵死。
-  const roadsideTypes = ["keyaki", "ginkgo", "camellia", "sakura", "pine"];
+  const roadsideTypes = ["keyaki", "ginkgo", "camellia", "sakura", "pine", "maple", "azalea"];
   ROAD_SEGMENTS
     .map((seg) => ({ ...seg, len: Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) }))
     .filter((seg) => seg.len > 46)
     .forEach((seg, si) => {
-      if (trees.length > 330) return;
+      if (trees.length > 650) return;
       const dx = seg.x2 - seg.x1;
       const dz = seg.z2 - seg.z1;
       const len = seg.len || 1;
@@ -401,12 +401,12 @@ function generateTrees(rand, lots) {
       const nz = dx / len;
       const step = 30 + rand() * 10;
       const count = Math.max(1, Math.floor(len / step));
-      for (let i = 1; i <= count && trees.length < 330; i += 1) {
+      for (let i = 1; i <= count && trees.length < 650; i += 1) {
         if (rand() < 0.22) continue;
         const u = (i - 0.35 + rand() * 0.7) / (count + 0.35);
         const sides = rand() < 0.32 ? [-1, 1] : [((i + si) % 2 === 0 ? -1 : 1)];
         sides.forEach((side) => {
-          if (trees.length >= 330) return;
+          if (trees.length >= 650) return;
           const offset = side * (8.8 + rand() * 4.2);
           const x = seg.x1 + dx * u + nx * offset + (rand() - 0.5) * 1.8;
           const z = seg.z1 + dz * u + nz * offset + (rand() - 0.5) * 1.8;
@@ -419,7 +419,7 @@ function generateTrees(rand, lots) {
             x,
             z,
             sakura: type === "sakura",
-            scale: type === "camellia" ? 0.42 + rand() * 0.20 : 0.50 + rand() * 0.34,
+            scale: (type === "camellia" || type === "azalea") ? 0.42 + rand() * 0.22 : 0.50 + rand() * 0.34,
             type,
             decorative: true,
           });

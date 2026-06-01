@@ -1021,8 +1021,167 @@ export class ThreeRenderer {
       group.rotation.y = snapRightAngle(Number.isFinite(lot.angle) ? lot.angle : (lot.yaw + (lot.orientation === "v" ? Math.PI / 2 : 0)));
     });
 
+    const decorativeTrees = [];
     (this.worldLayout?.trees || []).forEach((tree) => {
+      if (tree.decorative) {
+        decorativeTrees.push(tree);
+        return;
+      }
       this.addTree(tree.x, tree.z, tree.sakura, tree.scale, tree.type);
+    });
+    this.addInstancedDecorativeTrees(decorativeTrees);
+    this.addInstancedGroundFlora();
+  }
+
+  setInstanceTransform(mesh, index, x, y, z, sx = 1, sy = 1, sz = 1, ry = 0) {
+    const dummy = this.__instanceDummy || (this.__instanceDummy = new THREE.Object3D());
+    dummy.position.set(x, y, z);
+    dummy.rotation.set(0, ry, 0);
+    dummy.scale.set(sx, sy, sz);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(index, dummy.matrix);
+  }
+
+  addInstancedDecorativeTrees(trees = []) {
+    if (!trees.length) return;
+    const batches = new Map();
+    const typeOf = (tree) => tree.type || (tree.sakura ? "sakura" : "keyaki");
+    trees.forEach((tree) => {
+      const type = typeOf(tree);
+      if (!batches.has(type)) batches.set(type, []);
+      batches.get(type).push(tree);
+    });
+
+    const palette = {
+      keyaki: { crown: 0x68ad66, trunk: 0x76543b, height: 1.35, crownY: 1.55, crownScale: [0.86, 0.72, 0.82] },
+      ginkgo: { crown: 0xe2c14d, trunk: 0x7d6242, height: 1.25, crownY: 1.45, crownScale: [0.74, 0.64, 0.68] },
+      pine: { crown: 0x2f6f4a, trunk: 0x6a543d, height: 1.42, crownY: 1.78, crownScale: [0.78, 1.05, 0.78], pine: true },
+      camellia: { crown: 0x4d9460, trunk: 0x76543b, height: 0.92, crownY: 1.08, crownScale: [0.58, 0.52, 0.58], flower: true },
+      sakura: { crown: 0xffbfd2, trunk: 0x7b5a50, height: 1.22, crownY: 1.42, crownScale: [0.78, 0.62, 0.74], flower: true },
+      willow: { crown: 0x75b86a, trunk: 0x76543b, height: 1.32, crownY: 1.50, crownScale: [0.72, 0.54, 0.90] },
+      maple: { crown: 0xb35c42, trunk: 0x76543b, height: 1.08, crownY: 1.28, crownScale: [0.66, 0.58, 0.66] },
+      azalea: { crown: 0x5da65d, trunk: 0x6d563d, height: 0.46, crownY: 0.62, crownScale: [0.50, 0.34, 0.50], flower: true },
+    };
+
+    batches.forEach((items, type) => {
+      const cfg = palette[type] || palette.keyaki;
+      const trunk = new THREE.InstancedMesh(cylinderGeo(0.06, 0.10, 1, 6), mat(cfg.trunk), items.length);
+      const crownGeo = cfg.pine ? coneGeo(0.72, 1.25, 8) : sphereGeo(1, 10, 6);
+      const crown = new THREE.InstancedMesh(crownGeo, mat(cfg.crown), items.length);
+      trunk.frustumCulled = true;
+      crown.frustumCulled = true;
+      trunk.castShadow = false;
+      crown.castShadow = false;
+      items.forEach((tree, i) => {
+        const hash = Math.abs(Math.sin(tree.x * 19.17 + tree.z * 73.31) * 9973.13);
+        const s = (tree.scale || 0.62) * (0.95 + (hash % 1) * 0.22);
+        const ry = hash * Math.PI * 2;
+        this.setInstanceTransform(trunk, i, tree.x, (cfg.height * s) / 2, tree.z, s, cfg.height * s, s, ry);
+        this.setInstanceTransform(crown, i, tree.x, cfg.crownY * s, tree.z, cfg.crownScale[0] * s, cfg.crownScale[1] * s, cfg.crownScale[2] * s, ry);
+      });
+      trunk.instanceMatrix.needsUpdate = true;
+      crown.instanceMatrix.needsUpdate = true;
+      this.scene.add(trunk, crown);
+
+      if (cfg.flower) {
+        const bloom = new THREE.InstancedMesh(sphereGeo(0.09, 8, 5), mat(type === "sakura" ? 0xffdce8 : 0xdb5a6c), Math.min(items.length * 2, 900));
+        let bi = 0;
+        items.forEach((tree, i) => {
+          if (bi >= bloom.count) return;
+          const s = tree.scale || 0.62;
+          for (let j = 0; j < 2 && bi < bloom.count; j += 1) {
+            const a = (i * 1.73 + j * 2.1) % (Math.PI * 2);
+            this.setInstanceTransform(bloom, bi, tree.x + Math.cos(a) * 0.35 * s, (cfg.crownY + 0.18) * s, tree.z + Math.sin(a) * 0.28 * s, s, s, s, a);
+            bi += 1;
+          }
+        });
+        bloom.count = bi;
+        bloom.instanceMatrix.needsUpdate = true;
+        this.scene.add(bloom);
+      }
+    });
+  }
+
+  addInstancedGroundFlora() {
+    const lots = this.worldLayout?.lots || [];
+    const blocked = (x, z, margin = 3.2) => lots.some((lot) => Math.abs(lot.x - x) < (lot.frontage || 6) * 0.52 + margin && Math.abs(lot.z - z) < (lot.depth || 6) * 0.52 + margin);
+    const nearRiver = (z) => Math.abs(z - 238) < 34;
+    const grass = [];
+    const flowers = [];
+    const shrubs = [];
+    const addCluster = (x, z, seed, dense = 1) => {
+      if (x < -MAP_W / 2 + 10 || x > MAP_W / 2 - 10 || z < -MAP_D / 2 + 10 || z > MAP_D / 2 - 10) return;
+      if (blocked(x, z, 1.2) || nearRiver(z)) return;
+      const h = Math.abs(Math.sin(x * 11.91 + z * 41.37 + seed) * 10000);
+      grass.push({ x, z, s: 0.65 + (h % 1) * 0.55, r: h * 0.01 });
+      if (flowers.length < 1200 && h % 1 > 0.36) flowers.push({ x: x + Math.sin(h) * 0.36, z: z + Math.cos(h * 0.7) * 0.36, s: (0.55 + (h % 0.7)) * dense, r: h * 0.02, c: Math.floor(h) % 5 });
+      if (shrubs.length < 380 && h % 1 > 0.82) shrubs.push({ x: x + Math.sin(h * 1.1) * 0.55, z: z + Math.cos(h * 0.9) * 0.55, s: 0.45 + (h % 0.5), r: h * 0.02 });
+    };
+
+    ROAD_SEGMENTS
+      .map((seg) => ({ ...seg, len: Math.hypot(seg.x2 - seg.x1, seg.z2 - seg.z1) }))
+      .filter((seg) => seg.len > 28)
+      .forEach((seg, si) => {
+        const dx = seg.x2 - seg.x1;
+        const dz = seg.z2 - seg.z1;
+        const len = seg.len || 1;
+        const nx = -dz / len;
+        const nz = dx / len;
+        const step = seg.main ? 9.5 : 11.5;
+        const count = Math.floor(len / step);
+        for (let i = 1; i <= count; i += 1) {
+          const u = (i - 0.5) / Math.max(1, count);
+          const baseX = seg.x1 + dx * u;
+          const baseZ = seg.z1 + dz * u;
+          [-1, 1].forEach((side) => {
+            const skip = Math.abs(Math.sin((si + 1) * 3.1 + i * 1.7 + side)) < 0.18;
+            if (skip) return;
+            const offset = side * (6.3 + (seg.main ? 2.4 : 1.2));
+            addCluster(baseX + nx * offset, baseZ + nz * offset, si * 37 + i + side, seg.main ? 1.1 : 0.9);
+          });
+        }
+      });
+
+    const landmarks = this.worldLayout?.landmarks || {};
+    const extraAreas = [
+      { x: landmarks.park?.[0] ?? -78, z: landmarks.park?.[1] ?? 58, w: 28, d: 20, n: 120 },
+      { x: -40, z: -196, w: 66, d: 42, n: 160 },
+      { x: 0, z: 154, w: MAP_W - 70, d: 18, n: 240 },
+      { x: 0, z: 312, w: MAP_W - 90, d: 20, n: 220 },
+    ];
+    extraAreas.forEach((area, ai) => {
+      for (let i = 0; i < area.n; i += 1) {
+        const h = Math.abs(Math.sin((ai + 9) * 31.7 + i * 17.13) * 10000);
+        const x = area.x + (h % 1 - 0.5) * area.w;
+        const z = area.z + ((h * 1.37) % 1 - 0.5) * area.d;
+        addCluster(x, z, h, 1.2);
+      }
+    });
+
+    const addInstanced = (items, geo, material, configure) => {
+      if (!items.length) return null;
+      const mesh = new THREE.InstancedMesh(geo, material, items.length);
+      mesh.frustumCulled = true;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      items.forEach((item, i) => configure(mesh, item, i));
+      mesh.instanceMatrix.needsUpdate = true;
+      this.scene.add(mesh);
+      return mesh;
+    };
+
+    addInstanced(grass, boxGeo(0.055, 0.34, 0.035), mat(0x5fae58), (mesh, item, i) => {
+      this.setInstanceTransform(mesh, i, item.x, 0.18 * item.s, item.z, item.s, item.s, item.s, item.r);
+    });
+    const flowerColors = [0xf6d35f, 0xf08aa8, 0x8cc9ff, 0xffffff, 0xd992ff];
+    flowerColors.forEach((color, colorIndex) => {
+      const subset = flowers.filter((f) => f.c === colorIndex);
+      addInstanced(subset, sphereGeo(0.07, 8, 5), mat(color), (mesh, item, i) => {
+        this.setInstanceTransform(mesh, i, item.x, 0.31 * item.s, item.z, item.s, item.s, item.s, item.r);
+      });
+    });
+    addInstanced(shrubs, sphereGeo(0.38, 10, 6), mat(0x5f9f5a), (mesh, item, i) => {
+      this.setInstanceTransform(mesh, i, item.x, 0.22 * item.s, item.z, item.s * 1.25, item.s * 0.55, item.s, item.r);
     });
   }
 
