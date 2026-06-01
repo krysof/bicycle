@@ -21,6 +21,7 @@ const START_POINTS = [
 
 const PLAYABLE_INNER_X = 320;
 const PLAYABLE_INNER_Z = 230;
+const MIN_START_DELIVERY_DISTANCE = 1120;
 
 function scenePointOf(target) {
   return {
@@ -127,15 +128,18 @@ export function pickStartPoint() {
 export function pickStartNearTarget(target, mode = "bike") {
   const points = roadStartPoints();
   if (!target || !points.length) return pickStartPoint();
-  const min = mode === "bike" ? 380 : 160;
+  const min = mode === "bike" ? 1450 : MIN_START_DELIVERY_DISTANCE;
   const max = mode === "bike" ? 3200 : 1650;
   const targetPoint = { x: target.deliveryX ?? target.x, y: target.deliveryY ?? target.y };
-  const candidates = points
+  const all = points
     .map((point) => ({ point, d: distanceToTarget(point, targetPoint) }))
+    .sort((a, b) => a.d - b.d);
+  const candidates = all
     .filter((item) => item.d >= min && item.d <= max)
     .sort((a, b) => a.d - b.d);
-  const selected = (candidates.length ? candidates : points.map((point) => ({ point, d: distanceToTarget(point, targetPoint) })).sort((a, b) => a.d - b.d))
-    [randInt(0, Math.min(4, Math.max(0, (candidates.length ? candidates : points).length - 1)))].point;
+  const safeFallback = all.filter((item) => item.d >= MIN_START_DELIVERY_DISTANCE);
+  const pool = candidates.length ? candidates : (safeFallback.length ? safeFallback : all.slice().reverse());
+  const selected = pool[randInt(0, Math.min(4, Math.max(0, pool.length - 1)))].point;
   const angle = Math.atan2(targetPoint.y - selected.y, targetPoint.x - selected.x) + (Math.random() - 0.5) * 0.18;
   return {
     x: selected.x,

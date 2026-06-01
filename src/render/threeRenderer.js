@@ -3617,21 +3617,8 @@ export class ThreeRenderer {
   updateCamera(state) {
     const px = wx(state.player.x); const pz = wz(state.player.y);
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
-    const now = state.floatTime || 0;
-    const dt = Math.min(0.05, Math.max(1 / 90, now - (this.lastCameraTime || now - 1 / 60)));
-    this.lastCameraTime = now;
-    const targetDir = new THREE.Vector2(dx, dz);
-    if (targetDir.lengthSq() < 0.001) targetDir.set(0.78, 0.62);
-    targetDir.normalize();
-    if (!this.cameraSmoothedDir) this.cameraSmoothedDir = targetDir.clone();
-    const dirAlpha = state.isPlaying ? 1 - Math.exp(-dt * 3.2) : 1 - Math.exp(-dt * 6.5);
-    this.cameraSmoothedDir.lerp(targetDir, dirAlpha);
-    if (this.cameraSmoothedDir.lengthSq() < 0.001) this.cameraSmoothedDir.copy(targetDir);
-    this.cameraSmoothedDir.normalize();
-    const sx = this.cameraSmoothedDir.x;
-    const sz = this.cameraSmoothedDir.y;
-    const distance = state.config?.moveMode === "bike" ? 2.05 : 1.85;
-    const height = state.config?.moveMode === "bike" ? 1.76 : 1.68;
+    const distance = state.config?.moveMode === "bike" ? 7.2 : 6.4;
+    const height = state.config?.moveMode === "bike" ? 2.65 : 2.45;
     if (state.screen === "title") {
       const t = state.floatTime || 0;
       const desiredTitle = new THREE.Vector3(
@@ -3644,30 +3631,14 @@ export class ThreeRenderer {
       return;
     }
     if (!state.isPlaying) {
-      const desiredHome = new THREE.Vector3(px - sx * 8.0, 4.2, pz - sz * 8.0);
+      const desiredHome = new THREE.Vector3(px - dx * 8.0, 4.2, pz - dz * 8.0);
       this.camera.position.lerp(desiredHome, 0.04);
-      this.camera.lookAt(px + sx * 3.5, 0.55, pz + sz * 3.5);
+      this.camera.lookAt(px + dx * 3.5, 0.55, pz + dz * 3.5);
       return;
     }
-    const rawFocus = new THREE.Vector3(px, 0, pz);
-    if (!this.cameraFocus) this.cameraFocus = rawFocus.clone();
-    if (this.cameraFocus.distanceTo(rawFocus) > 4.0) this.cameraFocus.copy(rawFocus);
-    else this.cameraFocus.lerp(rawFocus, 1 - Math.exp(-dt * 9.0));
-    const focus = this.cameraFocus;
-    const desired = new THREE.Vector3(focus.x - sx * distance, height, focus.z - sz * distance);
-    const positionAlpha = 1 - Math.exp(-dt * 15.0);
-    this.camera.position.lerp(desired, positionAlpha);
-    const drift = Math.hypot(this.camera.position.x - desired.x, this.camera.position.z - desired.z);
-    if (drift > 0.24) {
-      const clampAlpha = drift > 0.9 ? 0.88 : 0.56;
-      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, desired.x, clampAlpha);
-      this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, desired.z, clampAlpha);
-    }
-    const desiredLook = new THREE.Vector3(focus.x + sx * 1.15, 0.82, focus.z + sz * 1.15);
-    if (!this.cameraLookTarget) this.cameraLookTarget = desiredLook.clone();
-    if (this.cameraLookTarget.distanceTo(desiredLook) > 4.5) this.cameraLookTarget.copy(desiredLook);
-    this.cameraLookTarget.lerp(desiredLook, 1 - Math.exp(-dt * 7.0));
-    this.camera.lookAt(this.cameraLookTarget);
+    const desired = new THREE.Vector3(px - dx * distance, height, pz - dz * distance);
+    this.camera.position.lerp(desired, 0.075);
+    this.camera.lookAt(px + dx * 2.8, 0.55, pz + dz * 2.8);
   }
 
   updateAnimatedObjects(t, state) {
