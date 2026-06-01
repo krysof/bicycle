@@ -650,10 +650,17 @@ export function updatePlayer(state, dt) {
   turn = Math.max(-1, Math.min(1, turn));
 
   const nearInfo = state.nearTraffic;
-  const shouldYield = autoNav
-    && nearInfo
-    && nearInfo.distance < (nearInfo.kind === "cyclist" ? 8.5 : 6.7)
-    && nearInfo.ahead !== false;
+  let trafficSlowFactor = 1;
+  state.autoTrafficSlowing = false;
+  if (autoNav && nearInfo && nearInfo.ahead !== false) {
+    const far = nearInfo.kind === "cyclist" ? 8.5 : 6.7;
+    const close = nearInfo.kind === "cyclist" ? 2.9 : 2.25;
+    if (nearInfo.distance < far) {
+      const u = Math.max(0, Math.min(1, (nearInfo.distance - close) / Math.max(0.01, far - close)));
+      trafficSlowFactor = 0.34 + u * 0.66;
+      state.autoTrafficSlowing = true;
+    }
+  }
 
   if (autoWaiting || obstacleWaiting) {
     throttle = 0;
@@ -667,12 +674,6 @@ export function updatePlayer(state, dt) {
     const maxTurn = (mode === "bike" ? 3.4 : 4.8) * dt;
     state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
     throttle = 0;
-  } else if (autoNav && shouldYield) {
-    throttle = 0;
-    state.autoAvoiding = true;
-    state.autoNavMoving = false;
-    state.autoAvoidTimer = 0;
-    state.autoStuckTime = 0;
   } else if (autoNav && throttle >= 0 && !canDeliverNow(state, target)) {
     state.autoAvoidTimer = 0;
     const waypoint = nextAutoWaypoint(state, target);
@@ -683,7 +684,7 @@ export function updatePlayer(state, dt) {
       const maxTurn = (mode === "bike" ? 2.15 : 3.6) * dt;
       state.player.headingAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
       const turnSlowdown = absDiff > 1.05 ? 0.26 : absDiff > 0.55 ? 0.48 : 1;
-      throttle = Math.max(throttle, (state.easyMode ? 0.44 : 0.70) * turnSlowdown);
+      throttle = Math.max(throttle, (state.easyMode ? 0.44 : 0.70) * turnSlowdown * trafficSlowFactor);
       state.autoNavMoving = throttle > 0.05;
       state.autoNavWaypoint = waypoint;
     }
@@ -793,6 +794,9 @@ function collisionAt(state, x, y, radius) {
     // 结果玩家会从可见房子中穿过去。现在只允许路面上的小树/小物件让路，
     // 房屋仍然必须挡住玩家。
     if (onRoad && (obstacle.kind === "tree" || obstacle.kind === "object")) continue;
+    // 自动导航时，行人和骑车路人会主动侧向避让；这里不再把他们当硬墙，
+    // 避免自动驾驶在同一个位置反复停走。
+    if (state.autoForward && (obstacle.kind === "pedestrian" || obstacle.kind === "cyclist")) continue;
     if (obstacle.type === "circle") {
       if (Math.hypot(x - obstacle.x, y - obstacle.y) < radius + obstacle.r) return obstacle;
       continue;

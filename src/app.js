@@ -459,6 +459,7 @@ export class App {
     this.state.autoNavBlockedUntil = 0;
     this.state.autoNavMoving = false;
     this.state.autoAvoiding = false;
+    this.state.autoTrafficSlowing = false;
     this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
     this.state.lastThoughtDeliveryIndex = -1;
     this.startGame();

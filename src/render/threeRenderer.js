@@ -2713,15 +2713,25 @@ export class ThreeRenderer {
       const parts = item.group.userData.parts || {};
       const distToPlayer = Math.hypot(item.group.position.x - px, item.group.position.z - pz);
       const animateNear = distToPlayer < (item.kind === "cyclist" ? 96 : 82) || item.hasDog || i % 5 === Math.floor((t * 2) % 5);
-      const stride = Math.max(2.4, item.speed * (item.kind === "cyclist" ? 3.1 : 1.75));
-      const walkPhase = t * stride + i;
+      const prevX = item.prevAnimX;
+      const prevZ = item.prevAnimZ;
+      let movedScene = 0;
+      if (Number.isFinite(prevX) && Number.isFinite(prevZ)) {
+        const rawMoved = Math.hypot(item.group.position.x - prevX, item.group.position.z - prevZ);
+        const maxUsefulStep = item.kind === "cyclist" ? 1.45 : 0.85;
+        movedScene = rawMoved <= maxUsefulStep ? rawMoved : 0;
+      }
+      item.prevAnimX = item.group.position.x;
+      item.prevAnimZ = item.group.position.z;
+      item.travelDistance = (item.travelDistance || 0) + movedScene;
+      const walkPhase = (item.travelDistance || 0) * (item.kind === "cyclist" ? 3.15 : 5.35) + i;
       const sin = Math.sin(walkPhase);
       const cos = Math.cos(walkPhase);
       if (!animateNear) {
         // 远处路人继续沿路线移动，但不每帧摆动四肢；画面数量不变，CPU 负担下降。
       } else if (item.kind === "cyclist") {
         item.group.position.y = 0;
-        const cyclePhase = t * Math.max(5.8, item.speed * 2.25) + i;
+        const cyclePhase = (item.travelDistance || 0) * 3.85 + i;
         const cSin = Math.sin(cyclePhase);
         if (parts.body) { parts.body.rotation.x = 0.10; parts.body.rotation.z = Math.sin(t * 1.2 + i) * 0.018; }
         if (parts.leftLeg) { parts.leftLeg.rotation.z = 0.42 + cSin * 0.28; parts.leftLeg.position.set(-0.02, 0.40, -0.105); }
@@ -3571,8 +3581,8 @@ export class ThreeRenderer {
   updateCamera(state) {
     const px = wx(state.player.x); const pz = wz(state.player.y);
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
-    const distance = state.config?.moveMode === "bike" ? 3.6 : 3.2;
-    const height = state.config?.moveMode === "bike" ? 2.15 : 2.05;
+    const distance = state.config?.moveMode === "bike" ? 2.4 : 2.15;
+    const height = state.config?.moveMode === "bike" ? 1.82 : 1.74;
     if (state.screen === "title") {
       const t = state.floatTime || 0;
       const desiredTitle = new THREE.Vector3(
@@ -3592,7 +3602,7 @@ export class ThreeRenderer {
     }
     const desired = new THREE.Vector3(px - dx * distance, height, pz - dz * distance);
     this.camera.position.lerp(desired, 0.075);
-    this.camera.lookAt(px + dx * 2.0, 0.72, pz + dz * 2.0);
+    this.camera.lookAt(px + dx * 1.55, 0.80, pz + dz * 1.55);
   }
 
   updateAnimatedObjects(t, state) {

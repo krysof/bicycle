@@ -25,6 +25,7 @@ export function createInitialState() {
     autoAvoiding: false,
     autoAvoidTimer: 0,
     autoAvoidCooldown: 0,
+    autoTrafficSlowing: false,
     autoStuckTime: 0,
     autoNavWaitUntil: 0,
     autoNavBlockedUntil: 0,
