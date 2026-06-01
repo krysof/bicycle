@@ -4,14 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>今天也要送到 - 3D 陪伴送报原型</title>
-    <link rel="stylesheet" href="./styles.css?v=20260601.17" />
+    <link rel="stylesheet" href="./styles.css?v=20260601.18" />
   </head>
   <body>
     <canvas id="gameCanvas" aria-label="3D 社区送报游戏画面"></canvas>
 
     <main id="ui" class="ui" aria-live="polite"></main>
 
-    <div id="versionBadge" class="version-badge" aria-label="Build version">v20260601.17</div>
+    <div id="versionBadge" class="version-badge" aria-label="Build version">v20260601.19</div>
 
     <div id="languagePanel" class="language-panel" aria-label="Language">
       <label for="languageSelect">🌐</label>
@@ -19,6 +19,15 @@
       <button id="musicToggle" class="audio-toggle" type="button" aria-label="Music">🎵</button>
       <button id="sfxToggle" class="audio-toggle" type="button" aria-label="Sound effects">🔔</button>
     </div>
+
+    <aside id="miniMapPanel" class="mini-map-panel hidden" aria-label="Mini map">
+      <div class="mini-map-head">
+        <strong id="miniMapTitle">小地图</strong>
+        <span id="miniMapPlace">北江口</span>
+      </div>
+      <canvas id="miniMapCanvas" width="188" height="142" aria-hidden="true"></canvas>
+      <div id="miniMapHint" class="mini-map-hint">● 当前位置　◆ 目的地</div>
+    </aside>
     <div id="comicBubble" class="comic-bubble hidden" aria-live="polite"></div>
 
     <div id="touchControls" class="touch-controls hidden" aria-label="Touch controls">
@@ -57,9 +66,10 @@
       </div>
     </section>
 
-    <script type="module" src="./src/main.js?v=20260601.17"></script>
+    <script type="module" src="./src/main.js?v=20260601.18"></script>
   </body>
 </html>
+
 
 
 

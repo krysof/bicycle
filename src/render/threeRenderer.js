@@ -1074,7 +1074,8 @@ export class ThreeRenderer {
       crown.castShadow = false;
       items.forEach((tree, i) => {
         const hash = Math.abs(Math.sin(tree.x * 19.17 + tree.z * 73.31) * 9973.13);
-        const s = (tree.scale || 0.62) * (0.95 + (hash % 1) * 0.22);
+        const treeBoost = type === "azalea" ? 1.05 : type === "camellia" ? 1.18 : 1.42;
+        const s = (tree.scale || 0.62) * (0.95 + (hash % 1) * 0.22) * treeBoost;
         const ry = hash * Math.PI * 2;
         this.setInstanceTransform(trunk, i, tree.x, (cfg.height * s) / 2, tree.z, s, cfg.height * s, s, ry);
         this.setInstanceTransform(crown, i, tree.x, cfg.crownY * s, tree.z, cfg.crownScale[0] * s, cfg.crownScale[1] * s, cfg.crownScale[2] * s, ry);
@@ -1088,7 +1089,7 @@ export class ThreeRenderer {
         let bi = 0;
         items.forEach((tree, i) => {
           if (bi >= bloom.count) return;
-          const s = tree.scale || 0.62;
+          const s = (tree.scale || 0.62) * (type === "azalea" ? 1.05 : type === "camellia" ? 1.18 : 1.42);
           for (let j = 0; j < 2 && bi < bloom.count; j += 1) {
             const a = (i * 1.73 + j * 2.1) % (Math.PI * 2);
             this.setInstanceTransform(bloom, bi, tree.x + Math.cos(a) * 0.35 * s, (cfg.crownY + 0.18) * s, tree.z + Math.sin(a) * 0.28 * s, s, s, s, a);
@@ -1523,7 +1524,40 @@ export class ThreeRenderer {
     });
     ROAD_INTERSECTIONS.slice(18, 24).filter((_, i) => i % 2 === 0).forEach(([x, z], i) => (i % 2 ? this.addNoticeBoard(x, z) : this.addGarbageStation(x, z)));
     ROAD_INTERSECTIONS.slice(26, 28).forEach(([x, z]) => this.addPhoneBooth(x, z));
+    this.addStreetNameSigns();
     // 清爽画面优先：不再随机生成蓝色水洼，避免和河道 / 导航箭头混淆。
+  }
+
+  addStreetNameSigns() {
+    const signs = [
+      { x: -96, z: -142, text: t("streetMarket"), rot: 0 },
+      { x: 112, z: 24, text: t("streetCommunity"), rot: Math.PI / 2 },
+      { x: -40, z: -232, text: t("streetSchool"), rot: 0 },
+      { x: -250, z: 205, text: t("streetRiver"), rot: Math.PI / 2 },
+      { x: 252, z: 196, text: t("streetRiver"), rot: Math.PI / 2 },
+      { x: -252, z: -88, text: t("placeWest"), rot: Math.PI / 2 },
+      { x: 252, z: -94, text: t("placeEast"), rot: Math.PI / 2 },
+      { x: 56, z: -44, text: t("placeCenter"), rot: Math.PI / 2 },
+    ];
+    signs.forEach((cfg, i) => this.addStreetNameSign(cfg.x, cfg.z, cfg.text, cfg.rot, i));
+  }
+
+  addStreetNameSign(x, z, text, rotation = 0, index = 0) {
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    group.rotation.y = rotation;
+    const pole = new THREE.Mesh(cylinderGeo(0.045, 0.05, 1.55, 10), mat(0x7d8588));
+    pole.position.y = 0.78;
+    const board = new THREE.Mesh(boxGeo(1.72, 0.56, 0.08), mat(index % 2 ? 0x2f7d5c : 0x24506d));
+    board.position.set(0, 1.62, 0);
+    const cap = new THREE.Mesh(boxGeo(1.86, 0.08, 0.12), mat(0xf0b44d));
+    cap.position.set(0, 1.94, 0);
+    const label = makeCanvasLabel(text, "#ffffff");
+    label.position.set(0, 1.62, 0.075);
+    label.scale.set(1.82, 0.58, 1);
+    group.add(pole, board, cap, label);
+    this.markEraDetail(group);
+    this.scene.add(group);
   }
 
   addPuddle(x, z, i = 0) {
@@ -3339,10 +3373,15 @@ export class ThreeRenderer {
     for (let i = 0; i < NAV_ARROW_COUNT; i += 1) {
       const color = i % 3 === 1 ? 0xfff04a : 0x00d7ff;
       const opacity = Math.max(0.42, 0.94 - i * 0.045);
-      const arrow = new THREE.Mesh(geometry, transparentMat(color, opacity));
+      const arrowMaterial = transparentMat(color, opacity).clone();
+      arrowMaterial.depthTest = false;
+      arrowMaterial.depthWrite = false;
+      arrowMaterial.fog = false;
+      const arrow = new THREE.Mesh(geometry, arrowMaterial);
       arrow.rotation.x = -Math.PI / 2;
-      arrow.position.y = 0.13 + i * 0.01;
+      arrow.position.y = 0.58 + i * 0.012;
       arrow.scale.setScalar(Math.max(0.46, 1.0 - i * 0.045));
+      arrow.renderOrder = 72;
       arrow.visible = false;
       this.scene.add(arrow);
       this.navigationArrows.push(arrow);
@@ -3380,6 +3419,7 @@ export class ThreeRenderer {
       }
       if (!sample) { arrow.visible = false; return; }
       arrow.visible = true;
+      arrow.position.y = 0.58 + i * 0.012;
       const snap = arrow.userData.navTargetId !== target.id || !arrow.userData.ready || Math.hypot(arrow.position.x - sample.x, arrow.position.z - sample.z) > 18;
       arrow.userData.navTargetId = target.id;
       arrow.userData.ready = true;
@@ -3844,7 +3884,7 @@ export class ThreeRenderer {
     const inferred = type || (sakura ? "sakura" : ["keyaki", "ginkgo", "pine", "camellia"][Math.floor(hash) % 4]);
     const group = new THREE.Group();
     group.position.set(x, 0, z);
-    const baseScale = scale * (inferred === "pine" ? 1.18 : inferred === "keyaki" ? 1.28 : inferred === "willow" ? 1.18 : 1.08);
+    const baseScale = scale * (inferred === "pine" ? 1.34 : inferred === "keyaki" ? 1.46 : inferred === "willow" ? 1.36 : 1.24);
     group.scale.setScalar(baseScale);
 
     const trunkHeight = inferred === "pine" ? 1.75 : inferred === "keyaki" ? 2.05 : inferred === "willow" ? 1.95 : 1.62;
