@@ -460,7 +460,9 @@ export class ThreeRenderer {
     this.lastPlayerSceneZ = null;
     this.smoothedPlayerSceneSpeed = 0;
     this.cameraSmoothedDir = new THREE.Vector2(0.78, 0.62).normalize();
+    this.cameraFocus = new THREE.Vector3();
     this.cameraLookTarget = new THREE.Vector3();
+    this.lastCameraTime = 0;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
     this.eraDetailCount = 0;
@@ -526,7 +528,9 @@ export class ThreeRenderer {
     this.lastPlayerSceneZ = null;
     this.smoothedPlayerSceneSpeed = 0;
     this.cameraSmoothedDir = new THREE.Vector2(0.78, 0.62).normalize();
+    this.cameraFocus = new THREE.Vector3();
     this.cameraLookTarget = new THREE.Vector3();
+    this.lastCameraTime = 0;
     this.currentPlayerStyle = null;
     this.lastTargetScale = 1;
     this.lastTargetId = null;
@@ -3613,11 +3617,15 @@ export class ThreeRenderer {
   updateCamera(state) {
     const px = wx(state.player.x); const pz = wz(state.player.y);
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
+    const now = state.floatTime || 0;
+    const dt = Math.min(0.05, Math.max(1 / 90, now - (this.lastCameraTime || now - 1 / 60)));
+    this.lastCameraTime = now;
     const targetDir = new THREE.Vector2(dx, dz);
     if (targetDir.lengthSq() < 0.001) targetDir.set(0.78, 0.62);
     targetDir.normalize();
     if (!this.cameraSmoothedDir) this.cameraSmoothedDir = targetDir.clone();
-    this.cameraSmoothedDir.lerp(targetDir, state.isPlaying ? 0.075 : 0.12);
+    const dirAlpha = state.isPlaying ? 1 - Math.exp(-dt * 3.2) : 1 - Math.exp(-dt * 6.5);
+    this.cameraSmoothedDir.lerp(targetDir, dirAlpha);
     if (this.cameraSmoothedDir.lengthSq() < 0.001) this.cameraSmoothedDir.copy(targetDir);
     this.cameraSmoothedDir.normalize();
     const sx = this.cameraSmoothedDir.x;
@@ -3641,12 +3649,24 @@ export class ThreeRenderer {
       this.camera.lookAt(px + sx * 3.5, 0.55, pz + sz * 3.5);
       return;
     }
-    const desired = new THREE.Vector3(px - sx * distance, height, pz - sz * distance);
-    this.camera.position.lerp(desired, 0.06);
-    const desiredLook = new THREE.Vector3(px + sx * 1.35, 0.82, pz + sz * 1.35);
+    const rawFocus = new THREE.Vector3(px, 0, pz);
+    if (!this.cameraFocus) this.cameraFocus = rawFocus.clone();
+    if (this.cameraFocus.distanceTo(rawFocus) > 4.0) this.cameraFocus.copy(rawFocus);
+    else this.cameraFocus.lerp(rawFocus, 1 - Math.exp(-dt * 9.0));
+    const focus = this.cameraFocus;
+    const desired = new THREE.Vector3(focus.x - sx * distance, height, focus.z - sz * distance);
+    const positionAlpha = 1 - Math.exp(-dt * 15.0);
+    this.camera.position.lerp(desired, positionAlpha);
+    const drift = Math.hypot(this.camera.position.x - desired.x, this.camera.position.z - desired.z);
+    if (drift > 0.24) {
+      const clampAlpha = drift > 0.9 ? 0.88 : 0.56;
+      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, desired.x, clampAlpha);
+      this.camera.position.z = THREE.MathUtils.lerp(this.camera.position.z, desired.z, clampAlpha);
+    }
+    const desiredLook = new THREE.Vector3(focus.x + sx * 1.15, 0.82, focus.z + sz * 1.15);
     if (!this.cameraLookTarget) this.cameraLookTarget = desiredLook.clone();
-    if (this.cameraLookTarget.distanceTo(desiredLook) > 30) this.cameraLookTarget.copy(desiredLook);
-    this.cameraLookTarget.lerp(desiredLook, 0.11);
+    if (this.cameraLookTarget.distanceTo(desiredLook) > 4.5) this.cameraLookTarget.copy(desiredLook);
+    this.cameraLookTarget.lerp(desiredLook, 1 - Math.exp(-dt * 7.0));
     this.camera.lookAt(this.cameraLookTarget);
   }
 
