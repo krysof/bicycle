@@ -293,16 +293,19 @@ html[data-locale="en"] select {
 
 .character-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .character-card {
-  min-height: 82px;
-  padding: 8px 4px;
+  min-height: 104px;
+  padding: 7px 3px;
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 253, 245, 0.92), rgba(255, 246, 222, 0.86));
   border: 2px solid rgba(36, 48, 68, 0.12);
+  display: grid;
+  place-items: center;
+  overflow: visible;
 }
 
 .character-card.selected {
@@ -318,6 +321,14 @@ html[data-locale="en"] select {
   line-height: 1.35;
   color: var(--muted);
   font-weight: 700;
+}
+
+.character-svg {
+  display: block;
+  width: 76px;
+  height: 88px;
+  max-width: 100%;
+  filter: drop-shadow(0 3px 2px rgba(36, 48, 68, 0.16));
 }
 
 .character-portrait {
@@ -1687,12 +1698,12 @@ kbd {
 
   .character-grid {
     grid-template-columns: repeat(6, 1fr);
-    gap: 4px;
+    gap: 5px;
   }
 
   .character-card {
-    min-height: 54px;
-    padding: 3px 1px;
+    min-height: 76px;
+    padding: 2px 1px;
     border-width: 1px;
     border-radius: 11px;
   }
@@ -1702,11 +1713,15 @@ kbd {
     transform: translateY(-1px);
   }
 
+  .character-svg {
+    width: 58px;
+    height: 66px;
+  }
+
   .character-portrait {
-    width: 38px;
-    height: 45px;
-    transform: scale(0.78);
-    transform-origin: center top;
+    width: 58px;
+    height: 64px;
+    transform: none;
   }
 
   .character-note {

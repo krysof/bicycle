@@ -10,6 +10,37 @@ function esc(value) {
     .replaceAll("'", "&#39;");
 }
 
+function colorHex(value) {
+  return `#${Number(value || 0).toString(16).padStart(6, "0")}`;
+}
+
+function avatarSvg(avatar) {
+  const skin = colorHex(avatar.skin);
+  const hair = colorHex(avatar.hair);
+  const body = colorHex(avatar.body);
+  const hat = colorHex(avatar.hat);
+  const female = avatar.gender === "female";
+  const longHair = avatar.hairMode === "long" || avatar.hairMode === "bob" || avatar.hairMode === "bun";
+  return `
+    <svg class="character-svg ${avatar.gender}" viewBox="0 0 72 82" aria-hidden="true">
+      <ellipse cx="36" cy="75" rx="22" ry="5" fill="rgba(36,48,68,.16)" />
+      ${longHair ? `<ellipse cx="36" cy="31" rx="20" ry="24" fill="${hair}" />` : ""}
+      ${avatar.hairBun ? `<circle cx="17" cy="31" r="8" fill="${hair}" />` : ""}
+      <rect x="${female ? 22 : 21}" y="45" width="${female ? 28 : 30}" height="29" rx="${female ? 12 : 9}" fill="${body}" />
+      <path d="${female ? "M22 67 L50 67 L56 77 L16 77 Z" : "M22 66 H50 V76 H22 Z"}" fill="${body}" opacity=".92" />
+      <circle cx="36" cy="29" r="15" fill="${skin}" />
+      <path d="${longHair ? "M22 25 C24 10 49 9 51 28 C44 21 31 21 22 25Z" : "M21 24 C24 10 48 11 51 25 C42 20 31 20 21 24Z"}" fill="${hair}" />
+      ${avatar.hatVisible === false ? "" : `<path d="M20 16 Q36 6 52 16 V23 H20 Z" fill="${hat}" /><rect x="16" y="22" width="40" height="5" rx="3" fill="${hat}" />`}
+      <circle cx="30" cy="31" r="2.2" fill="#2c2724" />
+      <circle cx="42" cy="31" r="2.2" fill="#2c2724" />
+      <path d="M31 39 Q36 43 41 39" fill="none" stroke="#9b4a45" stroke-width="2.3" stroke-linecap="round" />
+      ${avatar.glasses ? `<path d="M25 30 h10 m2 0 h10" stroke="#51483f" stroke-width="2.2" stroke-linecap="round" /><circle cx="30" cy="31" r="5.3" fill="none" stroke="#51483f" stroke-width="2" /><circle cx="42" cy="31" r="5.3" fill="none" stroke="#51483f" stroke-width="2" />` : ""}
+      ${avatar.mustache ? `<path d="M28 38 Q33 35 36 38 Q39 35 44 38" fill="none" stroke="${hair}" stroke-width="3" stroke-linecap="round" />` : ""}
+      <rect x="18" y="50" width="6" height="17" rx="3" fill="${skin}" />
+      <rect x="48" y="50" width="6" height="17" rx="3" fill="${skin}" />
+    </svg>`;
+}
+
 export class Screens {
   constructor(root) {
     this.root = root;
@@ -32,17 +63,7 @@ export class Screens {
           <div class="character-grid">
             ${PLAYER_AVATARS.map((avatar, index) => `
               <button type="button" class="character-card ${avatar.id === selected.id ? "selected" : ""}" data-avatar="${esc(avatar.id)}" aria-label="${esc(`${t("titleSelectCharacter")} ${index + 1}`)}">
-                <span class="character-portrait ${avatar.gender}" style="--body:#${avatar.body.toString(16).padStart(6, "0")};--hat:#${avatar.hat.toString(16).padStart(6, "0")};--hair:#${avatar.hair.toString(16).padStart(6, "0")};--skin:#${avatar.skin.toString(16).padStart(6, "0")};">
-                  <span class="portrait-head"></span>
-                  <span class="portrait-hair ${avatar.hairMode || "short"}"></span>
-                  ${avatar.hairBun ? `<span class="portrait-bun"></span>` : ""}
-                  ${avatar.hatVisible === false ? "" : `<span class="portrait-hat"></span>`}
-                  <span class="portrait-eye left"></span>
-                  <span class="portrait-eye right"></span>
-                  <span class="portrait-body"></span>
-                  ${avatar.glasses ? `<span class="portrait-glasses"></span>` : ""}
-                  ${avatar.mustache ? `<span class="portrait-mustache"></span>` : ""}
-                </span>
+                ${avatarSvg(avatar)}
               </button>`).join("")}
           </div>
           <p class="character-note">${selected.gender === "female" ? t("titleSelectedFemale") : t("titleSelectedMale")}</p>
