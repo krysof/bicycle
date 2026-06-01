@@ -3,10 +3,10 @@ import { currentTarget } from "../state/gameState.js";
 import { nt, t } from "../i18n.js";
 
 // 要和 ThreeRenderer.updateTarget() 里的黄框视觉半径保持一致：
-// 黄框半径约 8.3 个场景单位；隐形可投递范围 = 黄框半径的 5 倍。
-// 2026-05-28 调整：可见光圈直径扩大 1 倍，隐形投递圈同比扩大。
+// 黄框半径约 8.3 个场景单位；隐形可投递范围 = 黄框半径的 2.5 倍。
+// 2026-06-01 调整：把隐形投递范围缩小一半，靠近后再显示报纸标记。
 const VISIBLE_TARGET_RING_RADIUS_SCENE = 8.3;
-const INVISIBLE_DELIVERY_RADIUS_MULTIPLIER = 5;
+const INVISIBLE_DELIVERY_RADIUS_MULTIPLIER = 2.5;
 function sceneToWorldPoint(point) {
   return { x: point.x / WORLD_SCALE, y: point.z / WORLD_SCALE };
 }
@@ -699,7 +699,7 @@ export function updatePlayer(state, dt) {
     turn *= movementGrip;
   }
 
-  // 自动导航遇到障碍只停车等待，不再强行兜圈或重新走回头路。
+  // 自动导航遇到障碍只停车等待，避免反复转向造成紧张感。
   if (!autoNav && turn) state.player.headingAngle += turn * turnRate * dt;
 
   state.player.headingX = Math.cos(state.player.headingAngle);

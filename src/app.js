@@ -1,4 +1,5 @@
 import { neighbors } from "./data/neighbors.js";
+import { pickChitChat } from "./data/chitchat.js";
 import { familyMessageCount, pickFamilyMessage } from "./data/familyMessages.js";
 import { playerAvatarById, randomPlayerAvatarId } from "./data/playerAvatars.js";
 import { createWorldLayout, createWorldObstacles } from "./data/world.js";
@@ -672,7 +673,10 @@ export class App {
       this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();
       return;
     }
-    const text = t("thoughtNext", nt(target, "name"));
+    const shouldMentionTarget = Math.random() < 0.46;
+    const text = shouldMentionTarget
+      ? t("thoughtNext", nt(target, "name"))
+      : pickChitChat(locale, `${todayKey()}|${this.state.worldSeed}|${index}|${Math.floor(this.state.floatTime / 3)}`);
     this.state.comic = { text, tone: "thought", time: 2.9 };
     this.state.lastThoughtDeliveryIndex = index;
     this.state.nextThoughtAt = this.state.floatTime + this.randomThoughtDelay();

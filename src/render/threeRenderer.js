@@ -2660,21 +2660,54 @@ export class ThreeRenderer {
         const u = phase / length;
         const nx = -dz / length;
         const nz = dx / length;
-        const x = item.x1 + dx * u + nx * item.offset;
-        const z = item.z1 + dz * u + nz * item.offset;
-        item.group.position.set(x, 0, z);
-        item.group.rotation.y = -Math.atan2(dz, dx);
+        const baseX = item.x1 + dx * u + nx * item.offset;
+        const baseZ = item.z1 + dz * u + nz * item.offset;
+        let avoidX = 0;
+        let avoidZ = 0;
+        let avoidTurn = 0;
+        let avoidStrength = 0;
+        if (state?.player) {
+          const awayX = baseX - px;
+          const awayZ = baseZ - pz;
+          const distanceToPlayer = Math.hypot(awayX, awayZ);
+          const avoidRange = item.kind === "cyclist" ? 8.8 : 6.9;
+          if (distanceToPlayer > 0.001 && distanceToPlayer < avoidRange) {
+            avoidStrength = (1 - distanceToPlayer / avoidRange) ** 1.35;
+            const side = Math.sign(awayX * nx + awayZ * nz) || (i % 2 ? 1 : -1);
+            const extraOffset = side * avoidStrength * (item.kind === "cyclist" ? 3.4 : 2.4);
+            avoidX = nx * extraOffset;
+            avoidZ = nz * extraOffset;
+            avoidTurn = side * avoidStrength * (item.kind === "cyclist" ? 0.24 : 0.14);
+          }
+        }
+        item.avoidStrength = avoidStrength;
+        item.group.position.set(baseX + avoidX, 0, baseZ + avoidZ);
+        item.group.rotation.y = -Math.atan2(dz, dx) + avoidTurn;
       } else {
         const length = Math.abs(item.end - item.start);
         const sign = item.end >= item.start ? 1 : -1;
         const phase = ((t * item.speed + item.phase * length) % length + length) % length;
         const along = item.start + sign * phase;
+        let avoidOffset = 0;
+        let avoidStrength = 0;
+        if (state?.player) {
+          const baseX = item.dir === "h" ? along : item.lane + item.offset;
+          const baseZ = item.dir === "h" ? item.lane + item.offset : along;
+          const distanceToPlayer = Math.hypot(baseX - px, baseZ - pz);
+          const avoidRange = item.kind === "cyclist" ? 8.8 : 6.9;
+          if (distanceToPlayer > 0.001 && distanceToPlayer < avoidRange) {
+            avoidStrength = (1 - distanceToPlayer / avoidRange) ** 1.35;
+            const lateral = item.dir === "h" ? Math.sign(baseZ - pz) || (i % 2 ? 1 : -1) : Math.sign(baseX - px) || (i % 2 ? 1 : -1);
+            avoidOffset = lateral * avoidStrength * (item.kind === "cyclist" ? 3.4 : 2.4);
+          }
+        }
+        item.avoidStrength = avoidStrength;
         if (item.dir === "h") {
-          item.group.position.set(along, 0, item.lane + item.offset);
-          item.group.rotation.y = sign > 0 ? 0 : Math.PI;
+          item.group.position.set(along, 0, item.lane + item.offset + avoidOffset);
+          item.group.rotation.y = (sign > 0 ? 0 : Math.PI) + Math.sign(avoidOffset || 0) * avoidStrength * 0.18;
         } else {
-          item.group.position.set(item.lane + item.offset, 0, along);
-          item.group.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+          item.group.position.set(item.lane + item.offset + avoidOffset, 0, along);
+          item.group.rotation.y = (sign > 0 ? -Math.PI / 2 : Math.PI / 2) + Math.sign(avoidOffset || 0) * avoidStrength * 0.18;
         }
       }
       const parts = item.group.userData.parts || {};
@@ -3538,8 +3571,8 @@ export class ThreeRenderer {
   updateCamera(state) {
     const px = wx(state.player.x); const pz = wz(state.player.y);
     const dx = state.player.headingX || 0.78; const dz = state.player.headingY || 0.62;
-    const distance = state.config?.moveMode === "bike" ? 7.2 : 6.4;
-    const height = state.config?.moveMode === "bike" ? 2.65 : 2.45;
+    const distance = state.config?.moveMode === "bike" ? 3.6 : 3.2;
+    const height = state.config?.moveMode === "bike" ? 2.15 : 2.05;
     if (state.screen === "title") {
       const t = state.floatTime || 0;
       const desiredTitle = new THREE.Vector3(
@@ -3559,7 +3592,7 @@ export class ThreeRenderer {
     }
     const desired = new THREE.Vector3(px - dx * distance, height, pz - dz * distance);
     this.camera.position.lerp(desired, 0.075);
-    this.camera.lookAt(px + dx * 2.8, 0.55, pz + dz * 2.8);
+    this.camera.lookAt(px + dx * 2.0, 0.72, pz + dz * 2.0);
   }
 
   updateAnimatedObjects(t, state) {
