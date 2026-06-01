@@ -381,7 +381,7 @@ function generateTrees(rand, lots) {
     attempts += 1;
     const x = -MAP_W / 2 + 20 + rand() * (MAP_W - 40);
     const z = -MAP_D / 2 + 20 + rand() * (MAP_D - 40);
-    if (nearAnyRoad(x, z, 7.4) || isReservedSceneSpot(x, z, 9, 8)) continue;
+    if (nearAnyRoad(x, z, 16.5) || isReservedSceneSpot(x, z, 9, 8)) continue;
     if (lotBlocked(x, z)) continue;
     trees.push({ id: `tree-${trees.length}`, x, z, sakura: rand() < 0.24, scale: 0.62 + rand() * 0.42, type: pick(rand, ["keyaki", "ginkgo", "pine", "camellia", "sakura"]) });
   }

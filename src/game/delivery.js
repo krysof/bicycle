@@ -794,6 +794,9 @@ function collisionAt(state, x, y, radius) {
     // 结果玩家会从可见房子中穿过去。现在只允许路面上的小树/小物件让路，
     // 房屋仍然必须挡住玩家。
     if (onRoad && (obstacle.kind === "tree" || obstacle.kind === "object")) continue;
+    // 自动导航优先保证老人不会被绿化/小物件卡住。树木和路边小物件只作为手动模式的实体碰撞，
+    // 自动驾驶会把它们当作“可轻轻绕过的软障碍”，避免反复停在同一棵树前。
+    if (state.autoForward && (obstacle.kind === "tree" || obstacle.kind === "object")) continue;
     // 自动导航时，行人和骑车路人会主动侧向避让；这里不再把他们当硬墙，
     // 避免自动驾驶在同一个位置反复停走。
     if (state.autoForward && (obstacle.kind === "pedestrian" || obstacle.kind === "cyclist")) continue;
