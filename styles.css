@@ -852,11 +852,12 @@ body.high-contrast button.primary {
 .comic-bubble {
   position: fixed;
   top: 82px;
-  left: 50%;
+  /* 电脑端右上角有小地图；对白气泡稍微靠左并限制宽度，避免盖住地图。 */
+  left: calc((100vw - 260px) / 2);
   transform: translateX(-50%);
   z-index: 8;
   min-width: 220px;
-  max-width: min(720px, calc(100vw - 32px));
+  max-width: min(620px, max(320px, calc(100vw - 560px)));
   padding: 16px 26px;
   border: 5px solid #1f2b38;
   border-radius: 28px;
@@ -875,7 +876,7 @@ body.high-contrast button.primary {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-width: min(520px, calc(100vw - 32px));
+  min-width: min(520px, max(320px, calc(100vw - 560px)));
   padding: 12px 24px 14px 14px;
   text-align: left;
   letter-spacing: 0.01em;
@@ -1573,6 +1574,7 @@ kbd {
   .comic-bubble,
   .comic-bubble.guide {
     top: 62px;
+    left: 50%;
     font-size: clamp(16px, 4.1vw, 21px);
     max-width: calc(100vw - 28px);
     padding: 9px 14px;
