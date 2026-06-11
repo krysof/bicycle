@@ -8,6 +8,7 @@ import { locale, nt, t } from "../i18n.js";
 
 const WORLD_SCALE = 1 / 45;
 const NAV_ARROW_COUNT = 10;
+const NAV_ARROW_GROUND_Y = 0.115;
 const COLORS = {
   grass: 0xbfe6a6,
   grass2: 0xa9d88e,
@@ -3374,14 +3375,16 @@ export class ThreeRenderer {
       const color = i % 3 === 1 ? 0xfff04a : 0x00d7ff;
       const opacity = Math.max(0.42, 0.94 - i * 0.045);
       const arrowMaterial = transparentMat(color, opacity).clone();
-      arrowMaterial.depthTest = false;
+      // 导航箭头要像道路标线一样贴在地面上。
+      // 开启 depthTest：人物、自行车、房屋会自然挡住箭头，避免箭头盖在人身上。
+      arrowMaterial.depthTest = true;
       arrowMaterial.depthWrite = false;
       arrowMaterial.fog = false;
       const arrow = new THREE.Mesh(geometry, arrowMaterial);
       arrow.rotation.x = -Math.PI / 2;
-      arrow.position.y = 0.58 + i * 0.012;
+      arrow.position.y = NAV_ARROW_GROUND_Y + i * 0.003;
       arrow.scale.setScalar(Math.max(0.46, 1.0 - i * 0.045));
-      arrow.renderOrder = 72;
+      arrow.renderOrder = 9;
       arrow.visible = false;
       this.scene.add(arrow);
       this.navigationArrows.push(arrow);
@@ -3419,7 +3422,7 @@ export class ThreeRenderer {
       }
       if (!sample) { arrow.visible = false; return; }
       arrow.visible = true;
-      arrow.position.y = 0.58 + i * 0.012;
+      arrow.position.y = NAV_ARROW_GROUND_Y + i * 0.003;
       const snap = arrow.userData.navTargetId !== target.id || !arrow.userData.ready || Math.hypot(arrow.position.x - sample.x, arrow.position.z - sample.z) > 18;
       arrow.userData.navTargetId = target.id;
       arrow.userData.ready = true;
