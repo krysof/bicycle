@@ -859,15 +859,16 @@ body.high-contrast button.primary {
   min-width: 220px;
   max-width: min(620px, max(320px, calc(100vw - 560px)));
   padding: 16px 26px;
-  border: 5px solid #1f2b38;
+  border: 5px solid rgba(31, 43, 56, 0.68);
   border-radius: 28px;
-  background: #fffdf2;
+  background: rgba(255, 253, 242, 0.68);
   color: #1f2b38;
   font-size: clamp(27px, 3.3vw, 48px);
   font-weight: 1000;
   text-align: center;
   letter-spacing: 0.04em;
-  box-shadow: 9px 9px 0 rgba(31, 43, 56, 0.22);
+  box-shadow: 9px 9px 0 rgba(31, 43, 56, 0.14);
+  backdrop-filter: blur(7px);
   pointer-events: none;
   animation: comicPop 0.28s ease-out;
 }
@@ -1169,37 +1170,37 @@ body.high-contrast button.primary {
   width: 34px;
   height: 34px;
   background: inherit;
-  border-right: 5px solid #1f2b38;
-  border-bottom: 5px solid #1f2b38;
+  border-right: 5px solid rgba(31, 43, 56, 0.68);
+  border-bottom: 5px solid rgba(31, 43, 56, 0.68);
   transform: rotate(45deg);
 }
 
 .comic-bubble.success {
-  background: #fff3a6;
+  background: rgba(255, 243, 166, 0.70);
   color: #c23b22;
 }
 
 .comic-bubble.throw {
-  background: #e8fbff;
+  background: rgba(232, 251, 255, 0.70);
   color: #1b76a5;
 }
 
 .comic-bubble.hint {
-  background: #fff6dd;
+  background: rgba(255, 246, 221, 0.70);
   color: #7c4a1d;
 }
 
 .comic-bubble.guide {
   top: 74px;
-  background: #fffdf2;
+  background: rgba(255, 253, 242, 0.68);
   color: #2f5f49;
   font-size: clamp(23px, 2.4vw, 36px);
-  box-shadow: 7px 7px 0 rgba(31, 43, 56, 0.18);
+  box-shadow: 7px 7px 0 rgba(31, 43, 56, 0.12);
 }
 
 .comic-bubble.thought {
   top: 96px;
-  background: #fffaf0;
+  background: rgba(255, 250, 240, 0.64);
   color: #5f4a2f;
   border-style: dashed;
   transform: translateX(-50%);
